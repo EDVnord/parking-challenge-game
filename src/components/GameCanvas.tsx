@@ -539,7 +539,7 @@ export default function GameCanvas({ playerName, onRoundEnd, onGameEnd, keys }: 
   const animRef = useRef<number>(0);
   const timeRef = useRef<number>(0);
 
-  const botAI = useCallback((car: Car, state: GameState, dt: number) => {
+  const botAI = useCallback((car: Car, state: GameState, _dt: number) => {
     if (car.isPlayer || car.eliminated || car.parked) return;
 
     if (state.signal && !car.parked && car.targetSpot === null) {
@@ -548,40 +548,32 @@ export default function GameCanvas({ playerName, onRoundEnd, onGameEnd, keys }: 
         .filter(({ s }) => s.available && !s.occupied);
 
       if (freeSpots.length > 0) {
+        // Hesitate only once per signal, based on health (weaker cars slower to react)
         const healthRatio = car.hp / car.maxHp;
-        const hesitate = Math.random() > healthRatio * 0.9;
-        if (!hesitate) {
-          const nearest = freeSpots.sort((a, b) => {
+        const hesitateFrames = Math.floor((1 - healthRatio) * 60);
+        if (state.signalTimer < 8 - hesitateFrames / 60) {
+          const nearest = [...freeSpots].sort((a, b) => {
             const da = Math.hypot(a.s.x - car.x, a.s.y - car.y);
             const db = Math.hypot(b.s.x - car.x, b.s.y - car.y);
             return da - db;
           })[0];
-          car.targetSpot = nearest.i;
+          if (nearest) car.targetSpot = nearest.i;
         }
       }
     }
 
     if (car.targetSpot !== null) {
       const spot = state.spots[car.targetSpot];
-      if (!spot.available || spot.occupied) {
+      if (!spot || !spot.available || spot.occupied) {
         car.targetSpot = null;
         return;
       }
       const dx = spot.x - car.x;
       const dy = spot.y - car.y;
       const dist = Math.hypot(dx, dy);
-      const targetAngle = Math.atan2(dy, dx) - Math.PI / 2;
-      let angleDiff = targetAngle - car.angle;
-      while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-      while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-      car.angle += angleDiff * 0.12;
 
-      const hpFactor = 0.5 + (car.hp / car.maxHp) * 0.5;
-      car.speed = Math.min(car.maxSpeed * hpFactor, dist * 0.15);
-      car.x += Math.sin(car.angle) * car.speed;
-      car.y -= Math.cos(car.angle) * car.speed;
-
-      if (dist < 15 && !spot.occupied) {
+      if (dist < 12) {
+        // Snap to spot
         car.x = spot.x;
         car.y = spot.y;
         car.parked = true;
@@ -591,7 +583,15 @@ export default function GameCanvas({ playerName, onRoundEnd, onGameEnd, keys }: 
         spot.occupied = true;
         spot.carId = car.id;
         spawnParticles(state, car.x, car.y, '#34C759', 10);
+        return;
       }
+
+      // Move directly toward spot (no angle physics — bots teleport smoothly)
+      const hpFactor = 0.5 + (car.hp / car.maxHp) * 0.5;
+      const speed = Math.min(car.maxSpeed * hpFactor * 1.2, dist * 0.12);
+      car.x += (dx / dist) * speed;
+      car.y += (dy / dist) * speed;
+      car.angle = Math.atan2(dx, -dy);
       return;
     }
 
