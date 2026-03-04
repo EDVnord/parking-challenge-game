@@ -60,8 +60,10 @@ export interface Upgrades {
 
 export interface GameCanvasProps {
   playerName: string;
+  playerHp?: number;
+  playerMaxHp?: number;
   upgrades: Upgrades;
-  onRoundEnd: (round: number, isPlayerEliminated: boolean) => void;
+  onRoundEnd: (round: number, isPlayerEliminated: boolean, playerHp: number, playerMaxHp: number) => void;
   onGameEnd: (position: number) => void;
   keys: Set<string>;
 }

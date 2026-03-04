@@ -3,9 +3,9 @@ import { Car, GameState, GameCanvasProps, CANVAS_W, CANVAS_H, CENTER_X, CENTER_Y
 import { createInitialState, spawnParticles, blockParkingZone, resolveAllCollisions } from './gameLogic';
 import { drawAsphalt, drawParkingArea, drawCar, drawParticles, drawSignal, drawRoundEnd, drawHUD, drawGpsOverlay } from './gameRenderer';
 
-export default function GameCanvas({ playerName, upgrades, onRoundEnd, onGameEnd, keys }: GameCanvasProps) {
+export default function GameCanvas({ playerName, playerHp, playerMaxHp, upgrades, onRoundEnd, onGameEnd, keys }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const stateRef = useRef<GameState>(createInitialState(playerName));
+  const stateRef = useRef<GameState>(createInitialState(playerName, playerHp, playerMaxHp));
   const animRef = useRef<number>(0);
   const timeRef = useRef<number>(0);
 
@@ -287,9 +287,12 @@ export default function GameCanvas({ playerName, upgrades, onRoundEnd, onGameEnd
             spawnParticles(state, eliminated.x, eliminated.y, '#FF2D55', 20);
             state.shakeTimer = 0.5;
 
-            onRoundEnd(state.round, eliminated.isPlayer);
+            const playerCar = state.cars.find(c => c.isPlayer);
+            onRoundEnd(state.round, eliminated.isPlayer, playerCar?.hp ?? 100, playerCar?.maxHp ?? 100);
           } else {
             state.eliminatedThisRound = null;
+            const playerCar2 = state.cars.find(c => c.isPlayer);
+            onRoundEnd(state.round, false, playerCar2?.hp ?? 100, playerCar2?.maxHp ?? 100);
           }
 
           state.phase = 'roundEnd';

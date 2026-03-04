@@ -4,7 +4,7 @@
       "name": "Register new player",
       "method": "POST",
       "path": "/",
-      "body": {"action": "register", "name": "TestKing777", "emoji": "😎", "password": "test1234"},
+      "body": {"action": "register", "name": "TestKingXYZ9991", "emoji": "😎", "password": "test1234"},
       "expectedStatus": 200,
       "expectedBody": {"success": true},
       "bodyMatcher": "partial"
@@ -13,7 +13,7 @@
       "name": "Duplicate nick rejected",
       "method": "POST",
       "path": "/",
-      "body": {"action": "register", "name": "TestKing777", "emoji": "😎", "password": "test1234"},
+      "body": {"action": "register", "name": "TestKingXYZ9991", "emoji": "😎", "password": "test1234"},
       "expectedStatus": 400,
       "expectedBody": {"error": "Этот ник уже занят. Выбери другой!"},
       "bodyMatcher": "partial"
@@ -22,7 +22,7 @@
       "name": "Login correct password",
       "method": "POST",
       "path": "/",
-      "body": {"action": "login", "name": "TestKing777", "password": "test1234"},
+      "body": {"action": "login", "name": "TestKingXYZ9991", "password": "test1234"},
       "expectedStatus": 200,
       "expectedBody": {"success": true},
       "bodyMatcher": "partial"
@@ -31,9 +31,18 @@
       "name": "Login wrong password",
       "method": "POST",
       "path": "/",
-      "body": {"action": "login", "name": "TestKing777", "password": "wrongpass"},
+      "body": {"action": "login", "name": "TestKingXYZ9991", "password": "wrongpass"},
       "expectedStatus": 400,
       "expectedBody": {"error": "Неверный пароль"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Count players",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "count"},
+      "expectedStatus": 200,
+      "expectedBody": {"count": 3},
       "bodyMatcher": "partial"
     }
   ]

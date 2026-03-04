@@ -84,7 +84,7 @@ export function spawnParticles(
   }
 }
 
-export function createInitialState(playerName: string): GameState {
+export function createInitialState(playerName: string, playerHp?: number, playerMaxHp?: number): GameState {
   const totalCars = 10;
   const totalSpots = 10;
 
@@ -127,8 +127,8 @@ export function createInitialState(playerName: string): GameState {
       maxSpeed: i === 0 ? 3.0 : 1.4 + Math.random() * 0.6,
       color: color.body,
       bodyColor: color.roof,
-      hp: 100,
-      maxHp: 100,
+      hp: i === 0 ? (playerHp ?? 100) : 100,
+      maxHp: i === 0 ? (playerMaxHp ?? 100) : 100,
       isPlayer: i === 0,
       name: i === 0 ? playerName : CAR_NAMES[i],
       orbitRadius,

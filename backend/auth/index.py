@@ -1,6 +1,6 @@
 """
-Авторизация игры 'Король парковки': регистрация, логин, сохранение.
-POST / с полем action: register | login | save
+Авторизация игры 'Король парковки': регистрация, логин, сохранение, счётчик.
+POST / с полем action: register | login | save | count
 """
 import json
 import os
@@ -150,6 +150,11 @@ def handler(event: dict, context) -> dict:
             )
             conn.commit()
             return ok({'success': True})
+
+        elif action == 'count':
+            cur.execute(f'SELECT COUNT(*) FROM {SCHEMA}.players')
+            count = cur.fetchone()[0]
+            return ok({'count': count})
 
         else:
             return err('Unknown action')

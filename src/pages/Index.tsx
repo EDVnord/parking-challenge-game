@@ -435,10 +435,14 @@ export default function Index() {
   const [keys, setKeys] = useState<Set<string>>(new Set());
   const [onlineLeaders, setOnlineLeaders] = useState<LeaderEntry[]>([]);
   const [inGamePhase, setInGamePhase] = useState<'playing' | 'roundEnd'>('playing');
+  const [onlineCount, setOnlineCount] = useState<number | null>(null);
   const keysRef = useRef<Set<string>>(new Set());
 
-  // Init YaGames SDK on mount
-  useEffect(() => { initYandexGames(); }, []);
+  // Init YaGames SDK on mount + load online player count
+  useEffect(() => {
+    initYandexGames();
+    apiAuth('count', {}).then(data => { if (data.count != null) setOnlineCount(data.count); }).catch(() => {});
+  }, []);
 
   // Load online leaderboard when entering leaderboard screen
   useEffect(() => {
@@ -488,10 +492,15 @@ export default function Index() {
     setTimeout(() => setNotification(null), 3000);
   };
 
-  const handleRoundEnd = useCallback((round: number, isPlayerEliminated: boolean) => {
+  const handleRoundEnd = useCallback((round: number, isPlayerEliminated: boolean, playerHp: number, playerMaxHp: number) => {
     setGameRound(round);
     setInGamePhase('roundEnd');
     if (isPlayerEliminated) notify('❌ Тебя вышибли! Паркуйся быстрее!');
+    // Sync HP from canvas to player cars state
+    setPlayer(prev => ({
+      ...prev,
+      cars: prev.cars.map((c, i) => i === prev.selectedCar ? { ...c, hp: Math.round(playerHp), maxHp: playerMaxHp } : c),
+    }));
     setTimeout(() => setInGamePhase('playing'), 3000);
   }, []);
 
@@ -574,6 +583,12 @@ export default function Index() {
           <div className="text-7xl mb-2 animate-bounce-in">👑</div>
           <h1 className="font-russo text-4xl text-yellow-400 leading-none" style={{ textShadow: '0 0 30px rgba(255,214,0,0.6)' }}>КОРОЛЬ ПАРКОВКИ</h1>
           <p className="font-nunito text-white/40 text-xs mt-2 font-bold tracking-widest uppercase">Захвати место — стань королём!</p>
+          {onlineCount != null && (
+            <div className="flex items-center gap-1.5 mt-1 justify-center">
+              <span className="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+              <span className="font-nunito text-green-400/80 text-xs">{onlineCount.toLocaleString()} игроков зарегистрировано</span>
+            </div>
+          )}
         </div>
 
         <button className="card-game p-3 flex items-center gap-3 w-full animate-fade-in hover:border-yellow-400/30 transition-all" onClick={() => setScreen('login')}>
@@ -621,6 +636,8 @@ export default function Index() {
         <GameCanvas
           key={gameKey}
           playerName={player.name}
+          playerHp={player.cars[player.selectedCar]?.hp}
+          playerMaxHp={player.cars[player.selectedCar]?.maxHp}
           upgrades={player.upgrades ?? { nitro: false, gps: false, bumper: false, autoRepair: false, magnet: false, turbo: false, shield: false }}
           onRoundEnd={handleRoundEnd}
           onGameEnd={handleGameEnd}
