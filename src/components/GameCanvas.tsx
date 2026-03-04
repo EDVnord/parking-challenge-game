@@ -156,8 +156,8 @@ function createInitialState(playerName: string): GameState {
 
   const cars: Car[] = [];
   for (let i = 0; i < totalCars; i++) {
-    // Orbit radius must be large enough to stay outside parking zone (~180px half-diagonal)
-    const orbitRadius = 230 + (i % 3) * 25;
+    // Larger orbit radius, all cars go clockwise (positive orbitSpeed only)
+    const orbitRadius = 270 + (i % 3) * 20;
     const orbitAngle = (i / totalCars) * Math.PI * 2;
     const color = CAR_COLORS[i];
     cars.push({
@@ -175,7 +175,7 @@ function createInitialState(playerName: string): GameState {
       name: i === 0 ? playerName : CAR_NAMES[i],
       orbitRadius,
       orbitAngle,
-      orbitSpeed: (0.012 + Math.random() * 0.006) * (Math.random() > 0.5 ? 1 : -1),
+      orbitSpeed: 0.013 + Math.random() * 0.005, // always positive = clockwise
       parked: false,
       parkSpot: null,
       targetSpot: null,
@@ -396,10 +396,7 @@ function drawParkingArea(ctx: CanvasRenderingContext2D, spots: ParkingSpot[], si
     ctx.save();
     ctx.translate(spot.x, spot.y);
 
-    if (!spot.available) {
-      ctx.fillStyle = 'rgba(255,45,85,0.15)';
-      ctx.strokeStyle = 'rgba(255,45,85,0.4)';
-    } else if (spot.occupied) {
+    if (spot.occupied) {
       ctx.fillStyle = 'rgba(255,214,0,0.15)';
       ctx.strokeStyle = 'rgba(255,214,0,0.5)';
     } else {
@@ -413,7 +410,7 @@ function drawParkingArea(ctx: CanvasRenderingContext2D, spots: ParkingSpot[], si
     ctx.stroke();
 
     // Spot number
-    ctx.fillStyle = spot.occupied || !spot.available ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.6)';
+    ctx.fillStyle = spot.occupied ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.6)';
     ctx.font = 'bold 10px Nunito, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(`P${i + 1}`, 0, SPOT_H / 2 + 12);
@@ -541,7 +538,7 @@ function drawHUD(ctx: CanvasRenderingContext2D, state: GameState, time: number) 
   ctx.fillText(`РАУНД ${state.round} / ${state.maxRounds}`, 20, 32);
 
   const activeCars = state.cars.filter(c => !c.eliminated).length;
-  const activeSpots = state.spots.filter(s => s.available).length;
+  const activeSpots = state.spots.length;
   ctx.fillStyle = 'rgba(255,255,255,0.7)';
   ctx.font = '13px Nunito, sans-serif';
   ctx.fillText(`🚗 Машин: ${activeCars}`, 20, 52);
@@ -626,7 +623,7 @@ export default function GameCanvas({ playerName, onRoundEnd, onGameEnd, keys }: 
     if (state.signal && !car.parked && car.targetSpot === null) {
       const freeSpots = state.spots
         .map((s, i) => ({ s, i }))
-        .filter(({ s }) => s.available && !s.occupied);
+        .filter(({ s }) => !s.occupied);
 
       if (freeSpots.length > 0) {
         // Hesitate only once per signal, based on health (weaker cars slower to react)
@@ -645,7 +642,7 @@ export default function GameCanvas({ playerName, onRoundEnd, onGameEnd, keys }: 
 
     if (car.targetSpot !== null) {
       const spot = state.spots[car.targetSpot];
-      if (!spot || !spot.available || spot.occupied) {
+      if (!spot || spot.occupied) {
         car.targetSpot = null;
         return;
       }
@@ -742,8 +739,14 @@ export default function GameCanvas({ playerName, onRoundEnd, onGameEnd, keys }: 
             player.speed *= 0.96;
           }
 
-          const prevX = player.x;
-          const prevY = player.y;
+          // Force minimum movement during driving phase — no waiting near parking
+          if (!state.signal) {
+            const minSpeed = 0.8 * hpFactor;
+            if (Math.abs(player.speed) < minSpeed) {
+              player.speed = minSpeed;
+            }
+          }
+
           player.x += Math.sin(player.angle) * player.speed;
           player.y -= Math.cos(player.angle) * player.speed;
 
@@ -765,7 +768,7 @@ export default function GameCanvas({ playerName, onRoundEnd, onGameEnd, keys }: 
           if (state.signal && !player.parked) {
             const freeSpots = state.spots
               .map((s, i) => ({ s, i }))
-              .filter(({ s }) => s.available && !s.occupied);
+              .filter(({ s }) => !s.occupied);
 
             for (const { s, i } of freeSpots) {
               const dist = Math.hypot(s.x - player.x, s.y - player.y);
@@ -826,7 +829,7 @@ export default function GameCanvas({ playerName, onRoundEnd, onGameEnd, keys }: 
           if (!player.parked) {
             const freeSpots = state.spots
               .map((s, i) => ({ s, i }))
-              .filter(({ s }) => s.available && !s.occupied);
+              .filter(({ s }) => !s.occupied);
             for (const { s, i } of freeSpots) {
               if (Math.hypot(s.x - player.x, s.y - player.y) < 25) {
                 player.x = s.x; player.y = s.y;
@@ -845,7 +848,7 @@ export default function GameCanvas({ playerName, onRoundEnd, onGameEnd, keys }: 
         // Check if all active cars resolved
         const activeCars = state.cars.filter(c => !c.eliminated);
         const parkedCount = activeCars.filter(c => c.parked).length;
-        const availableSpots = state.spots.filter(s => s.available).length;
+        const availableSpots = state.spots.length;
 
         if (parkedCount >= availableSpots || state.signalTimer <= 0) {
           const unparked = activeCars.filter(c => !c.parked);
@@ -898,21 +901,27 @@ export default function GameCanvas({ playerName, onRoundEnd, onGameEnd, keys }: 
           state.phase = 'driving';
           state.timer = 3 + Math.random() * 4;
 
-          // Remove one spot
-          const availableSpots = state.spots.filter((s, i) => s.available);
-          if (availableSpots.length > 0) {
-            const removeIdx = state.spots.findIndex(s => s.available);
-            state.spots[removeIdx].available = false;
+          // Remove one spot physically — splice from array
+          // Remove a random available spot to keep it unpredictable
+          const availableIdxs = state.spots
+            .map((s, i) => ({ s, i }))
+            .filter(({ s }) => s.available)
+            .map(({ i }) => i);
+          if (availableIdxs.length > 0) {
+            const removeIdx = availableIdxs[Math.floor(Math.random() * availableIdxs.length)];
+            state.spots.splice(removeIdx, 1);
+            // Reindex spots
+            state.spots.forEach((s, i) => { s.carId = null; });
           }
 
           // Reset all cars for new round
-          state.cars.forEach((car, idx) => {
-            if (car.eliminated) return;
+          const activeAtReset = state.cars.filter(c => !c.eliminated);
+          activeAtReset.forEach((car, idx) => {
             car.parked = false;
             car.parkSpot = null;
             car.targetSpot = null;
-            car.speed = 0;
-            const orbitAngle = (idx / state.cars.filter(c => !c.eliminated).length) * Math.PI * 2;
+            car.speed = car.isPlayer ? 1 : 0;
+            const orbitAngle = (idx / activeAtReset.length) * Math.PI * 2;
             car.orbitAngle = orbitAngle;
             car.x = CENTER_X + Math.cos(orbitAngle) * car.orbitRadius;
             car.y = CENTER_Y + Math.sin(orbitAngle) * car.orbitRadius;
@@ -923,6 +932,7 @@ export default function GameCanvas({ playerName, onRoundEnd, onGameEnd, keys }: 
           state.spots.forEach(s => {
             s.occupied = false;
             s.carId = null;
+            s.available = true;
           });
 
           state.eliminatedThisRound = null;
