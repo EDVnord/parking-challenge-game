@@ -46,6 +46,8 @@ interface GameState {
   driftMarks: { x: number; y: number; angle: number; opacity: number }[];
   particles: { x: number; y: number; vx: number; vy: number; color: string; life: number; size: number }[];
   shakeTimer: number;
+  playerBumper: boolean;
+  playerAutoRepair: boolean;
 }
 
 const CAR_COLORS = [
@@ -121,12 +123,14 @@ function resolveAllCollisions(cars: Car[], state: GameState) {
         a.y -= ny * overlap * 0.5;
         b.x += nx * overlap * 0.5;
         b.y += ny * overlap * 0.5;
-        // Damage based on relative speed
+        // Damage based on relative speed (bumper upgrade reduces player damage)
         const relSpeed = Math.abs(a.speed - b.speed);
         if (relSpeed > 0.5) {
           const dmg = relSpeed * 4;
-          a.hp = Math.max(0, a.hp - dmg);
-          b.hp = Math.max(0, b.hp - dmg);
+          const aDmg = a.isPlayer && state.playerBumper ? dmg * 0.7 : dmg;
+          const bDmg = b.isPlayer && state.playerBumper ? dmg * 0.7 : dmg;
+          a.hp = Math.max(0, a.hp - aDmg);
+          b.hp = Math.max(0, b.hp - bDmg);
           if (relSpeed > 1.5) {
             spawnParticles(state, (a.x + b.x) / 2, (a.y + b.y) / 2, '#FF6B35', 6);
             state.shakeTimer = Math.max(state.shakeTimer, 0.15);
@@ -199,6 +203,8 @@ function createInitialState(playerName: string): GameState {
     driftMarks: [],
     particles: [],
     shakeTimer: 0,
+    playerBumper: false,
+    playerAutoRepair: false,
   };
 }
 
@@ -593,25 +599,60 @@ function drawHUD(ctx: CanvasRenderingContext2D, state: GameState, time: number) 
   }
   ctx.restore();
 
-  // Controls hint
-  if (state.phase === 'driving' && !state.signal) {
+  // Active upgrades icons
+  const activeUpgrades = [];
+  if (state.playerBumper) activeUpgrades.push('🛡️');
+  if (state.playerAutoRepair) activeUpgrades.push('🔧');
+  if (activeUpgrades.length > 0) {
     ctx.save();
-    ctx.fillStyle = 'rgba(255,255,255,0.3)';
-    ctx.font = '12px Nunito, sans-serif';
+    ctx.font = '16px sans-serif';
+    ctx.textAlign = 'left';
+    activeUpgrades.forEach((icon, i) => {
+      ctx.fillText(icon, 200 + i * 28, CANVAS_H - 22);
+    });
+    ctx.restore();
+  }
+
+  // Nitro hint when signal active
+  if (state.signal && state.phase === 'signal' && !player.parked) {
+    if (state.playerBumper || state.playerAutoRepair) {
+      // already shown
+    }
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.font = '11px Nunito, sans-serif';
+    ctx.textAlign = 'right';
+    const hints = ['← → ↑ ↓ — движение'];
+    if (state.playerBumper !== undefined) hints.push('⚡ Space — нитро');
+    if (state.playerBumper !== undefined) hints.push('📡 GPS подсветка');
+    ctx.fillText('← → ↑ ↓ движение  |  Space = нитро', CANVAS_W - 15, CANVAS_H - 10);
+    ctx.restore();
+  } else if (state.phase === 'driving') {
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.font = '11px Nunito, sans-serif';
     ctx.textAlign = 'right';
     ctx.fillText('← → Повернуть   ↑ ↓ Газ/Тормоз', CANVAS_W - 15, CANVAS_H - 10);
     ctx.restore();
   }
 }
 
+interface Upgrades {
+  nitro: boolean;
+  gps: boolean;
+  bumper: boolean;
+  autoRepair: boolean;
+}
+
 interface Props {
   playerName: string;
+  upgrades: Upgrades;
   onRoundEnd: (round: number, isPlayerEliminated: boolean) => void;
   onGameEnd: (position: number) => void;
   keys: Set<string>;
 }
 
-export default function GameCanvas({ playerName, onRoundEnd, onGameEnd, keys }: Props) {
+export default function GameCanvas({ playerName, upgrades, onRoundEnd, onGameEnd, keys }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stateRef = useRef<GameState>(createInitialState(playerName));
   const animRef = useRef<number>(0);
@@ -690,6 +731,12 @@ export default function GameCanvas({ playerName, onRoundEnd, onGameEnd, keys }: 
     }
   }, []);
 
+  // Sync upgrades into state
+  useEffect(() => {
+    stateRef.current.playerBumper = upgrades.bumper;
+    stateRef.current.playerAutoRepair = upgrades.autoRepair;
+  }, [upgrades]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -697,6 +744,8 @@ export default function GameCanvas({ playerName, onRoundEnd, onGameEnd, keys }: 
     if (!ctx) return;
 
     const state = stateRef.current;
+    state.playerBumper = upgrades.bumper;
+    state.playerAutoRepair = upgrades.autoRepair;
 
     const loop = (timestamp: number) => {
       const dt = Math.min((timestamp - timeRef.current) / 1000, 0.05);
@@ -731,18 +780,26 @@ export default function GameCanvas({ playerName, onRoundEnd, onGameEnd, keys }: 
           const hpFactor = 0.4 + (player.hp / player.maxHp) * 0.6;
           if (keys.has('ArrowLeft')) player.angle -= 0.05;
           if (keys.has('ArrowRight')) player.angle += 0.05;
+
+          // Nitro: Space key during signal phase
+          const nitroBoost = (upgrades.nitro && state.signal && keys.has(' ')) ? 1.25 : 1;
+
           if (keys.has('ArrowUp')) {
-            player.speed = Math.min(player.speed + 0.15, player.maxSpeed * hpFactor);
+            player.speed = Math.min(player.speed + 0.15, player.maxSpeed * hpFactor * nitroBoost);
           } else if (keys.has('ArrowDown')) {
             player.speed = Math.max(player.speed - 0.2, -1);
           } else {
             player.speed *= 0.96;
           }
 
-          // Force minimum movement during driving phase — no waiting near parking
+          // Force minimum movement — no waiting at all during driving phase
           if (!state.signal) {
-            const minSpeed = 0.8 * hpFactor;
-            if (Math.abs(player.speed) < minSpeed) {
+            // Tighter requirement near parking zone
+            const nearParking =
+              player.x > PARK_LEFT - 60 && player.x < PARK_RIGHT + 60 &&
+              player.y > PARK_TOP - 60 && player.y < PARK_BOTTOM + 60;
+            const minSpeed = nearParking ? 1.5 * hpFactor : 0.8 * hpFactor;
+            if (player.speed < minSpeed) {
               player.speed = minSpeed;
             }
           }
@@ -914,6 +971,15 @@ export default function GameCanvas({ playerName, onRoundEnd, onGameEnd, keys }: 
             state.spots.forEach((s, i) => { s.carId = null; });
           }
 
+          // Auto-repair upgrade: heal player +15 HP between rounds
+          if (state.playerAutoRepair) {
+            const playerCar = state.cars.find(c => c.isPlayer);
+            if (playerCar) {
+              playerCar.hp = Math.min(playerCar.maxHp, playerCar.hp + 15);
+              spawnParticles(state, playerCar.x, playerCar.y, '#34C759', 8);
+            }
+          }
+
           // Reset all cars for new round
           const activeAtReset = state.cars.filter(c => !c.eliminated);
           activeAtReset.forEach((car, idx) => {
@@ -950,6 +1016,37 @@ export default function GameCanvas({ playerName, onRoundEnd, onGameEnd, keys }: 
 
       drawAsphalt(ctx, state.driftMarks);
       drawParkingArea(ctx, state.spots, state.signal);
+
+      // GPS upgrade: highlight nearest free spot when signal is active
+      if (upgrades.gps && state.signal) {
+        const player = state.cars.find(c => c.isPlayer && !c.eliminated && !c.parked);
+        if (player) {
+          const freeSpots = state.spots.filter(s => !s.occupied);
+          if (freeSpots.length > 0) {
+            const nearest = freeSpots.reduce((best, s) =>
+              Math.hypot(s.x - player.x, s.y - player.y) < Math.hypot(best.x - player.x, best.y - player.y) ? s : best
+            );
+            ctx.save();
+            ctx.strokeStyle = '#FFD600';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(player.x, player.y);
+            ctx.lineTo(nearest.x, nearest.y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            // Pulse ring on nearest spot
+            ctx.strokeStyle = '#FFD600';
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = 0.5 + Math.sin(time * 8) * 0.3;
+            ctx.beginPath();
+            ctx.arc(nearest.x, nearest.y, 22 + Math.sin(time * 6) * 4, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+            ctx.restore();
+          }
+        }
+      }
 
       // Cars (sorted by y for pseudo-3d)
       const sortedCars = [...state.cars].sort((a, b) => a.y - b.y);

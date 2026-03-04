@@ -9,6 +9,7 @@ const SAVE_KEY = 'parkshow_profile_v1';
 interface PlayerData {
   name: string;
   emoji: string;
+  passwordHash: string;
   coins: number;
   gems: number;
   xp: number;
@@ -18,6 +19,14 @@ interface PlayerData {
   bestPosition: number;
   cars: CarData[];
   selectedCar: number;
+  upgrades: { nitro: boolean; gps: boolean; bumper: boolean; autoRepair: boolean };
+}
+
+// Simple hash for password (not cryptographic, just protection against casual theft)
+function hashPassword(s: string): string {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) { h = Math.imul(31, h) + s.charCodeAt(i) | 0; }
+  return h.toString(36);
 }
 
 interface CarData {
@@ -97,6 +106,7 @@ function saveProfile(p: PlayerData) {
 const DEFAULT_PLAYER: PlayerData = {
   name: '',
   emoji: '😎',
+  passwordHash: '',
   coins: 1000,
   gems: 50,
   xp: 0,
@@ -106,6 +116,7 @@ const DEFAULT_PLAYER: PlayerData = {
   bestPosition: 99,
   cars: INITIAL_CARS,
   selectedCar: 0,
+  upgrades: { nitro: false, gps: false, bumper: false, autoRepair: false },
 };
 
 // ──────────────── PROFILE CARD COMPONENT ────────────────
@@ -193,97 +204,156 @@ function ProfileCard({ player, xpInLevel, xpNeeded, onEmojiChange, onNameChange 
 }
 
 // ──────────────── LOGIN SCREEN COMPONENT ────────────────
-function LoginScreen({ player, isReturningPlayer, onStart, onReset }: {
+function LoginScreen({ player, isReturningPlayer, onContinue, onRegister, onReset }: {
   player: PlayerData;
   isReturningPlayer: boolean;
-  onStart: (name: string, emoji: string) => void;
+  onContinue: (password: string) => string | null; // returns error or null
+  onRegister: (name: string, emoji: string, password: string) => string | null;
   onReset: () => void;
 }) {
-  const [inputName, setInputName] = useState(isReturningPlayer ? player.name : '');
+  // Returning player: only password input. New player: registration form.
+  const [mode, setMode] = useState<'login' | 'register'>(isReturningPlayer ? 'login' : 'register');
+  const [inputName, setInputName] = useState('');
   const [selectedEmoji, setSelectedEmoji] = useState(player.emoji);
-  const [nameError, setNameError] = useState('');
+  const [password, setPassword] = useState('');
+  const [passwordConfirm, setPasswordConfirm] = useState('');
+  const [showPwd, setShowPwd] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleStart = () => {
-    const trimmed = inputName.trim();
-    if (!trimmed) { setNameError('Введи своё имя!'); return; }
-    if (trimmed.length < 2) { setNameError('Минимум 2 символа'); return; }
-    if (trimmed.length > 16) { setNameError('Максимум 16 символов'); return; }
-    onStart(trimmed, selectedEmoji);
+  const handleLogin = () => {
+    if (!password) { setError('Введи пароль'); return; }
+    const err = onContinue(password);
+    if (err) setError(err);
   };
+
+  const handleRegister = () => {
+    const name = inputName.trim();
+    if (!name || name.length < 2) { setError('Имя минимум 2 символа'); return; }
+    if (name.length > 16) { setError('Имя максимум 16 символов'); return; }
+    if (password.length < 4) { setError('Пароль минимум 4 символа'); return; }
+    if (password !== passwordConfirm) { setError('Пароли не совпадают'); return; }
+    const err = onRegister(name, selectedEmoji, password);
+    if (err) setError(err);
+  };
+
+  const BgCars = () => (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden">
+      {[{ em: '🚗', cls: 'top-8 left-8', d: '0s' }, { em: '🏎️', cls: 'top-16 right-12', d: '1.2s' },
+        { em: '🚕', cls: 'bottom-16 left-16', d: '2s' }, { em: '🚙', cls: 'bottom-12 right-10', d: '0.6s' }]
+        .map((item, i) => <div key={i} className={`absolute text-5xl animate-float ${item.cls}`} style={{ animationDelay: item.d }}>{item.em}</div>)}
+      <div className="absolute top-1/3 left-1/4 w-72 h-72 rounded-full bg-yellow-500/5 blur-3xl" />
+      <div className="absolute bottom-1/3 right-1/4 w-56 h-56 rounded-full bg-orange-500/5 blur-3xl" />
+    </div>
+  );
+
+  const inputCls = "w-full bg-white/10 border-2 border-white/20 focus:border-yellow-400/60 rounded-2xl px-4 py-3 font-nunito text-white text-base outline-none transition-all placeholder:text-white/20";
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 relative overflow-hidden">
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {[
-          { em: '🚗', cls: 'top-8 left-8', d: '0s' }, { em: '🏎️', cls: 'top-16 right-12', d: '1.2s' },
-          { em: '🚕', cls: 'bottom-16 left-16', d: '2s' }, { em: '🚙', cls: 'bottom-12 right-10', d: '0.6s' },
-        ].map((item, i) => (
-          <div key={i} className={`absolute text-5xl animate-float ${item.cls}`} style={{ animationDelay: item.d }}>{item.em}</div>
-        ))}
-        <div className="absolute top-1/3 left-1/4 w-72 h-72 rounded-full bg-yellow-500/5 blur-3xl" />
-        <div className="absolute bottom-1/3 right-1/4 w-56 h-56 rounded-full bg-orange-500/5 blur-3xl" />
-      </div>
+      <BgCars />
+      <div className="relative z-10 flex flex-col items-center gap-5 w-full max-w-sm animate-fade-in">
 
-      <div className="relative z-10 flex flex-col items-center gap-6 w-full max-w-sm animate-fade-in">
+        {/* Logo */}
         <div className="text-center">
-          <div className="text-7xl mb-3 animate-bounce-in">🅿️</div>
+          <div className="text-7xl mb-2 animate-bounce-in">🅿️</div>
           <h1 className="font-russo text-5xl text-yellow-400 leading-none" style={{ textShadow: '0 0 30px rgba(255,214,0,0.6)' }}>ПАРК-ШОУ</h1>
-          <p className="text-white/30 text-xs font-nunito font-bold tracking-widest uppercase mt-2">Музыкальные стульчики на колёсах</p>
+          <p className="text-white/30 text-xs font-nunito font-bold tracking-widest uppercase mt-1">Музыкальные стульчики на колёсах</p>
         </div>
 
-        <div className="card-game-solid p-6 flex flex-col gap-5 w-full">
-          {isReturningPlayer ? (
+        {/* ── RETURNING PLAYER: simple password ── */}
+        {mode === 'login' && (
+          <div className="card-game-solid p-6 flex flex-col gap-4 w-full">
             <div className="text-center">
-              <div className="text-white/40 font-nunito text-sm mb-1">С возвращением! 👋</div>
-              <div className="font-russo text-yellow-400 text-xl">{player.name}</div>
-              <div className="text-white/30 text-xs font-nunito mt-1">Lv.{player.level} · {player.wins} побед</div>
+              <div className="text-5xl mb-2">{player.emoji}</div>
+              <div className="text-white/40 font-nunito text-sm">С возвращением! 👋</div>
+              <div className="font-russo text-yellow-400 text-xl mt-0.5">{player.name}</div>
+              <div className="text-white/30 text-xs font-nunito">Lv.{player.level} · {player.wins} побед</div>
             </div>
-          ) : (
-            <div className="text-center font-russo text-white text-lg">Создай персонажа</div>
-          )}
 
-          <div>
-            <div className="text-white/40 text-xs font-nunito mb-2 text-center uppercase tracking-wider">Выбери аватар</div>
-            <div className="flex gap-2 flex-wrap justify-center">
-              {PLAYER_EMOJIS.map(em => (
-                <button key={em} onClick={() => setSelectedEmoji(em)}
-                  className={`text-3xl p-2 rounded-2xl transition-all duration-150 ${selectedEmoji === em ? 'bg-yellow-400/30 scale-110 border-2 border-yellow-400/50' : 'hover:bg-white/10 border-2 border-transparent'}`}>
-                  {em}
-                </button>
-              ))}
+            <div className="relative">
+              <input
+                type={showPwd ? 'text' : 'password'}
+                value={password}
+                onChange={e => { setPassword(e.target.value); setError(''); }}
+                onKeyDown={e => e.key === 'Enter' && handleLogin()}
+                placeholder="Пароль"
+                autoFocus
+                className={inputCls}
+              />
+              <button onClick={() => setShowPwd(v => !v)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/70 text-sm">
+                {showPwd ? '🙈' : '👁️'}
+              </button>
             </div>
+
+            {error && <div className="text-red-400 text-xs font-nunito text-center">{error}</div>}
+
+            <button className="btn-yellow w-full text-lg py-3" onClick={handleLogin}>▶ Войти</button>
+
+            <button className="text-white/20 text-xs font-nunito text-center hover:text-red-400/60 transition-colors"
+              onClick={onReset}>
+              Это не я — начать с другим аккаунтом
+            </button>
           </div>
+        )}
 
-          <div>
-            <div className="text-white/40 text-xs font-nunito mb-2 uppercase tracking-wider">Имя в игре</div>
-            <input
-              type="text"
-              value={inputName}
-              onChange={e => { setInputName(e.target.value); setNameError(''); }}
-              onKeyDown={e => e.key === 'Enter' && handleStart()}
-              placeholder="Например: ТурбоВася"
+        {/* ── NEW PLAYER: registration ── */}
+        {mode === 'register' && (
+          <div className="card-game-solid p-6 flex flex-col gap-4 w-full">
+            <div className="font-russo text-white text-center text-lg">Создай аккаунт</div>
+
+            {/* Avatar */}
+            <div>
+              <div className="text-white/40 text-xs font-nunito mb-2 text-center uppercase tracking-wider">Аватар</div>
+              <div className="flex gap-2 flex-wrap justify-center">
+                {PLAYER_EMOJIS.map(em => (
+                  <button key={em} onClick={() => setSelectedEmoji(em)}
+                    className={`text-2xl p-1.5 rounded-xl transition-all ${selectedEmoji === em ? 'bg-yellow-400/30 scale-110 border-2 border-yellow-400/50' : 'hover:bg-white/10 border-2 border-transparent'}`}>
+                    {em}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <input type="text" value={inputName}
+              onChange={e => { setInputName(e.target.value); setError(''); }}
+              placeholder="Имя в игре (2–16 символов)"
               maxLength={16}
               autoFocus
-              className="w-full bg-white/10 border-2 border-white/20 focus:border-yellow-400/60 rounded-2xl px-4 py-3 font-russo text-white text-lg outline-none transition-all placeholder:text-white/20"
+              className={inputCls}
             />
-            {nameError
-              ? <div className="text-red-400 text-xs font-nunito mt-1.5 ml-1">{nameError}</div>
-              : <div className="text-white/20 text-xs font-nunito mt-1 text-right">{inputName.length}/16</div>
-            }
+
+            <div className="relative">
+              <input type={showPwd ? 'text' : 'password'} value={password}
+                onChange={e => { setPassword(e.target.value); setError(''); }}
+                placeholder="Придумай пароль (мин. 4 символа)"
+                className={inputCls}
+              />
+              <button onClick={() => setShowPwd(v => !v)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/70 text-sm">
+                {showPwd ? '🙈' : '👁️'}
+              </button>
+            </div>
+
+            <input type={showPwd ? 'text' : 'password'} value={passwordConfirm}
+              onChange={e => { setPasswordConfirm(e.target.value); setError(''); }}
+              onKeyDown={e => e.key === 'Enter' && handleRegister()}
+              placeholder="Повтори пароль"
+              className={inputCls}
+            />
+
+            {error && <div className="text-red-400 text-xs font-nunito text-center">{error}</div>}
+
+            <button className="btn-yellow w-full text-lg py-3" onClick={handleRegister}>🚀 Создать и войти</button>
+
+            {isReturningPlayer && (
+              <button className="text-white/30 text-xs font-nunito text-center hover:text-yellow-400/60 transition-colors"
+                onClick={() => { setMode('login'); setError(''); setPassword(''); }}>
+                ← Войти как {player.name}
+              </button>
+            )}
           </div>
-
-          <button className="btn-yellow w-full text-xl py-4" onClick={handleStart}>
-            {isReturningPlayer ? '▶ Продолжить' : '🚀 Поехали!'}
-          </button>
-
-          {isReturningPlayer && (
-            <button
-              className="text-white/20 text-xs font-nunito text-center hover:text-red-400/70 transition-colors"
-              onClick={onReset}>
-              Сбросить прогресс и начать заново
-            </button>
-          )}
-        </div>
+        )}
       </div>
     </div>
   );
@@ -360,11 +430,23 @@ export default function Index() {
     <LoginScreen
       player={player}
       isReturningPlayer={isReturningPlayer}
-      onStart={(name, emoji) => {
-        const updated = { ...player, name, emoji };
+      onContinue={(password) => {
+        if (hashPassword(password) !== player.passwordHash) return 'Неверный пароль';
+        setScreen('menu');
+        return null;
+      }}
+      onRegister={(name, emoji, password) => {
+        const updated = {
+          ...DEFAULT_PLAYER,
+          name,
+          emoji,
+          passwordHash: hashPassword(password),
+        };
         setPlayer(updated);
         saveProfile(updated);
+        setIsReturningPlayer(true);
         setScreen('menu');
+        return null;
       }}
       onReset={() => {
         localStorage.removeItem(SAVE_KEY);
@@ -439,7 +521,14 @@ export default function Index() {
       </div>
 
       <div className="w-full max-w-3xl">
-        <GameCanvas key={gameKey} playerName={player.name} onRoundEnd={handleRoundEnd} onGameEnd={handleGameEnd} keys={keys} />
+        <GameCanvas
+          key={gameKey}
+          playerName={player.name}
+          upgrades={player.upgrades ?? { nitro: false, gps: false, bumper: false, autoRepair: false }}
+          onRoundEnd={handleRoundEnd}
+          onGameEnd={handleGameEnd}
+          keys={keys}
+        />
       </div>
 
       {/* Mobile controls */}
@@ -591,11 +680,11 @@ export default function Index() {
       { coins: 1000, gems: 10 }, { coins: 3000, gems: 25 },
       { coins: 7000, gems: 50 }, { coins: 20000, gems: 120 },
     ];
-    const upgrades = [
-      { name: 'Нитро-ускорение', desc: '+20% скорость на раунд', price: 200, icon: '⚡' },
-      { name: 'Усиленный бампер', desc: '-30% урона от столкновений', price: 350, icon: '🛡️' },
-      { name: 'GPS-радар', desc: 'Видно свободные места', price: 500, icon: '📡' },
-      { name: 'Авто-ремонт', desc: '+10 HP после каждого раунда', price: 400, icon: '🔧' },
+    const upgrades: { name: string; desc: string; price: number; icon: string; key: keyof typeof player.upgrades }[] = [
+      { name: 'Нитро-ускорение', desc: '+25% скорость при сигнале (Space)', price: 200, icon: '⚡', key: 'nitro' },
+      { name: 'Усиленный бампер', desc: '-30% урона от столкновений', price: 350, icon: '🛡️', key: 'bumper' },
+      { name: 'GPS-радар', desc: 'Подсвечивает ближайшее свободное место', price: 500, icon: '📡', key: 'gps' },
+      { name: 'Авто-ремонт', desc: '+15 HP после каждого раунда', price: 400, icon: '🔧', key: 'autoRepair' },
     ];
 
     return (
@@ -649,22 +738,35 @@ export default function Index() {
         <div>
           <h3 className="font-russo text-white/40 text-xs uppercase tracking-wider mb-3">⚡ Улучшения машины</h3>
           <div className="space-y-2">
-            {upgrades.map((upg, i) => (
-              <div key={i} className="card-game p-4 flex items-center gap-4">
-                <div className="text-3xl">{upg.icon}</div>
-                <div className="flex-1">
-                  <div className="font-russo text-white text-sm">{upg.name}</div>
-                  <div className="text-white/30 text-xs font-nunito">{upg.desc}</div>
+            {upgrades.map((upg, i) => {
+              const owned = player.upgrades[upg.key];
+              return (
+                <div key={i} className={`card-game p-4 flex items-center gap-4 ${owned ? 'border border-green-500/30 bg-green-500/5' : ''}`}>
+                  <div className="text-3xl">{upg.icon}</div>
+                  <div className="flex-1">
+                    <div className="font-russo text-white text-sm">{upg.name}</div>
+                    <div className="text-white/30 text-xs font-nunito">{upg.desc}</div>
+                  </div>
+                  {owned ? (
+                    <div className="text-green-400 font-russo text-sm">✅ Куплено</div>
+                  ) : (
+                    <button className="btn-orange text-sm py-2 px-3"
+                      onClick={() => {
+                        if (player.coins >= upg.price) {
+                          setPlayer(prev => ({
+                            ...prev,
+                            coins: prev.coins - upg.price,
+                            upgrades: { ...prev.upgrades, [upg.key]: true },
+                          }));
+                          notify(`✅ ${upg.name} куплено!`);
+                        } else notify('❌ Недостаточно монет!');
+                      }}>
+                      {upg.price} 🪙
+                    </button>
+                  )}
                 </div>
-                <button className="btn-orange text-sm py-2 px-3"
-                  onClick={() => {
-                    if (player.coins >= upg.price) { setPlayer(prev => ({ ...prev, coins: prev.coins - upg.price })); notify(`✅ ${upg.name} куплено!`); }
-                    else notify('❌ Недостаточно монет!');
-                  }}>
-                  {upg.price} 🪙
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
