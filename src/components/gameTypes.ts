@@ -62,6 +62,9 @@ export interface GameCanvasProps {
   playerName: string;
   playerHp?: number;
   playerMaxHp?: number;
+  playerColor?: string;
+  playerBodyColor?: string;
+  playerEmoji?: string;
   upgrades: Upgrades;
   onRoundEnd: (round: number, isPlayerEliminated: boolean, playerHp: number, playerMaxHp: number) => void;
   onGameEnd: (position: number) => void;

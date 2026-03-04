@@ -96,6 +96,7 @@ interface CarData {
   name: string;
   emoji: string;
   color: string;
+  bodyColor: string;
   rarity: 'common' | 'rare' | 'epic' | 'legendary';
   hp: number;
   maxHp: number;
@@ -108,15 +109,15 @@ interface CarData {
 }
 
 const INITIAL_CARS: CarData[] = [
-  { id: 0, name: 'Жигуль', emoji: '🚗', color: '#FF2D55', rarity: 'common', hp: 100, maxHp: 100, speed: 3, maxSpeed: 3, armor: 1, owned: true, price: 0, repairCost: 50 },
-  { id: 1, name: 'Такси', emoji: '🚕', color: '#FFD600', rarity: 'common', hp: 100, maxHp: 100, speed: 3.2, maxSpeed: 3.2, armor: 1, owned: false, price: 500, repairCost: 60 },
-  { id: 2, name: 'Внедорожник', emoji: '🚙', color: '#34C759', rarity: 'rare', hp: 140, maxHp: 140, speed: 2.8, maxSpeed: 2.8, armor: 2, owned: false, price: 1200, repairCost: 100 },
-  { id: 3, name: 'Болид', emoji: '🏎️', color: '#FF6B35', rarity: 'epic', hp: 80, maxHp: 80, speed: 4.5, maxSpeed: 4.5, armor: 0.5, owned: false, price: 3000, repairCost: 200 },
-  { id: 4, name: 'Патруль', emoji: '🚓', color: '#007AFF', rarity: 'rare', hp: 130, maxHp: 130, speed: 3.5, maxSpeed: 3.5, armor: 1.5, owned: false, price: 1500, repairCost: 120 },
-  { id: 5, name: 'Скорая', emoji: '🚑', color: '#FFFFFF', rarity: 'rare', hp: 150, maxHp: 150, speed: 3.0, maxSpeed: 3.0, armor: 1.5, owned: false, price: 1800, repairCost: 130 },
-  { id: 6, name: 'Пожарка', emoji: '🚒', color: '#FF3B30', rarity: 'epic', hp: 200, maxHp: 200, speed: 2.5, maxSpeed: 2.5, armor: 3, owned: false, price: 4000, repairCost: 250 },
-  { id: 7, name: 'Пикап', emoji: '🛻', color: '#5AC8FA', rarity: 'common', hp: 110, maxHp: 110, speed: 3.1, maxSpeed: 3.1, armor: 1.2, owned: false, price: 800, repairCost: 70 },
-  { id: 8, name: 'Ракета', emoji: '🚀', color: '#AF52DE', rarity: 'legendary', hp: 90, maxHp: 90, speed: 5.5, maxSpeed: 5.5, armor: 0.3, owned: false, price: 9999, repairCost: 500 },
+  { id: 0, name: 'Жигуль',      emoji: '🚗',  color: '#FF2D55', bodyColor: '#CC0033', rarity: 'common',    hp: 100, maxHp: 100, speed: 3,   maxSpeed: 3,   armor: 1,   owned: true,  price: 0,    repairCost: 50 },
+  { id: 1, name: 'Такси',       emoji: '🚕',  color: '#FFD600', bodyColor: '#CC9900', rarity: 'common',    hp: 100, maxHp: 100, speed: 3.2, maxSpeed: 3.2, armor: 1,   owned: false, price: 500,  repairCost: 60 },
+  { id: 2, name: 'Внедорожник', emoji: '🚙',  color: '#34C759', bodyColor: '#248A3D', rarity: 'rare',      hp: 140, maxHp: 140, speed: 2.8, maxSpeed: 2.8, armor: 2,   owned: false, price: 1200, repairCost: 100 },
+  { id: 3, name: 'Болид',       emoji: '🏎️', color: '#FF6B35', bodyColor: '#CC4400', rarity: 'epic',      hp: 80,  maxHp: 80,  speed: 4.5, maxSpeed: 4.5, armor: 0.5, owned: false, price: 3000, repairCost: 200 },
+  { id: 4, name: 'Патруль',     emoji: '🚓',  color: '#007AFF', bodyColor: '#0055CC', rarity: 'rare',      hp: 130, maxHp: 130, speed: 3.5, maxSpeed: 3.5, armor: 1.5, owned: false, price: 1500, repairCost: 120 },
+  { id: 5, name: 'Скорая',      emoji: '🚑',  color: '#FFFFFF', bodyColor: '#CCCCCC', rarity: 'rare',      hp: 150, maxHp: 150, speed: 3.0, maxSpeed: 3.0, armor: 1.5, owned: false, price: 1800, repairCost: 130 },
+  { id: 6, name: 'Пожарка',     emoji: '🚒',  color: '#FF3B30', bodyColor: '#AA0000', rarity: 'epic',      hp: 200, maxHp: 200, speed: 2.5, maxSpeed: 2.5, armor: 3,   owned: false, price: 4000, repairCost: 250 },
+  { id: 7, name: 'Пикап',       emoji: '🛻',  color: '#5AC8FA', bodyColor: '#0088CC', rarity: 'common',    hp: 110, maxHp: 110, speed: 3.1, maxSpeed: 3.1, armor: 1.2, owned: false, price: 800,  repairCost: 70 },
+  { id: 8, name: 'Ракета',      emoji: '🚀',  color: '#AF52DE', bodyColor: '#7B2FA8', rarity: 'legendary', hp: 90,  maxHp: 90,  speed: 5.5, maxSpeed: 5.5, armor: 0.3, owned: false, price: 9999, repairCost: 500 },
 ];
 
 
@@ -435,14 +436,10 @@ export default function Index() {
   const [keys, setKeys] = useState<Set<string>>(new Set());
   const [onlineLeaders, setOnlineLeaders] = useState<LeaderEntry[]>([]);
   const [inGamePhase, setInGamePhase] = useState<'playing' | 'roundEnd'>('playing');
-  const [onlineCount, setOnlineCount] = useState<number | null>(null);
   const keysRef = useRef<Set<string>>(new Set());
 
-  // Init YaGames SDK on mount + load online player count
-  useEffect(() => {
-    initYandexGames();
-    apiAuth('count', {}).then(data => { if (data.count != null) setOnlineCount(data.count); }).catch(() => {});
-  }, []);
+  // Init YaGames SDK on mount
+  useEffect(() => { initYandexGames(); }, []);
 
   // Load online leaderboard when entering leaderboard screen
   useEffect(() => {
@@ -583,12 +580,6 @@ export default function Index() {
           <div className="text-7xl mb-2 animate-bounce-in">👑</div>
           <h1 className="font-russo text-4xl text-yellow-400 leading-none" style={{ textShadow: '0 0 30px rgba(255,214,0,0.6)' }}>КОРОЛЬ ПАРКОВКИ</h1>
           <p className="font-nunito text-white/40 text-xs mt-2 font-bold tracking-widest uppercase">Захвати место — стань королём!</p>
-          {onlineCount != null && (
-            <div className="flex items-center gap-1.5 mt-1 justify-center">
-              <span className="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-              <span className="font-nunito text-green-400/80 text-xs">{onlineCount.toLocaleString()} игроков зарегистрировано</span>
-            </div>
-          )}
         </div>
 
         <button className="card-game p-3 flex items-center gap-3 w-full animate-fade-in hover:border-yellow-400/30 transition-all" onClick={() => setScreen('login')}>
@@ -638,6 +629,9 @@ export default function Index() {
           playerName={player.name}
           playerHp={player.cars[player.selectedCar]?.hp}
           playerMaxHp={player.cars[player.selectedCar]?.maxHp}
+          playerColor={player.cars[player.selectedCar]?.color}
+          playerBodyColor={player.cars[player.selectedCar]?.bodyColor}
+          playerEmoji={player.cars[player.selectedCar]?.emoji}
           upgrades={player.upgrades ?? { nitro: false, gps: false, bumper: false, autoRepair: false, magnet: false, turbo: false, shield: false }}
           onRoundEnd={handleRoundEnd}
           onGameEnd={handleGameEnd}

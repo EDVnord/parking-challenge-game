@@ -3,9 +3,9 @@ import { Car, GameState, GameCanvasProps, CANVAS_W, CANVAS_H, CENTER_X, CENTER_Y
 import { createInitialState, spawnParticles, blockParkingZone, resolveAllCollisions } from './gameLogic';
 import { drawAsphalt, drawParkingArea, drawCar, drawParticles, drawSignal, drawRoundEnd, drawHUD, drawGpsOverlay } from './gameRenderer';
 
-export default function GameCanvas({ playerName, playerHp, playerMaxHp, upgrades, onRoundEnd, onGameEnd, keys }: GameCanvasProps) {
+export default function GameCanvas({ playerName, playerHp, playerMaxHp, playerColor, playerBodyColor, playerEmoji, upgrades, onRoundEnd, onGameEnd, keys }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const stateRef = useRef<GameState>(createInitialState(playerName, playerHp, playerMaxHp));
+  const stateRef = useRef<GameState>(createInitialState(playerName, playerHp, playerMaxHp, playerColor, playerBodyColor, playerEmoji));
   const animRef = useRef<number>(0);
   const timeRef = useRef<number>(0);
 

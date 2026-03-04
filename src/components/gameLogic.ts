@@ -84,7 +84,7 @@ export function spawnParticles(
   }
 }
 
-export function createInitialState(playerName: string, playerHp?: number, playerMaxHp?: number): GameState {
+export function createInitialState(playerName: string, playerHp?: number, playerMaxHp?: number, playerColor?: string, playerBodyColor?: string, playerEmoji?: string): GameState {
   const totalCars = 10;
   const totalSpots = 10;
 
@@ -125,8 +125,8 @@ export function createInitialState(playerName: string, playerHp?: number, player
       angle: startAngle,
       speed: 0,
       maxSpeed: i === 0 ? 3.0 : 1.4 + Math.random() * 0.6,
-      color: color.body,
-      bodyColor: color.roof,
+      color: i === 0 && playerColor ? playerColor : color.body,
+      bodyColor: i === 0 && playerBodyColor ? playerBodyColor : color.roof,
       hp: i === 0 ? (playerHp ?? 100) : 100,
       maxHp: i === 0 ? (playerMaxHp ?? 100) : 100,
       isPlayer: i === 0,
@@ -138,7 +138,7 @@ export function createInitialState(playerName: string, playerHp?: number, player
       parkSpot: null,
       targetSpot: null,
       eliminated: false,
-      emoji: CAR_EMOJIS[i],
+      emoji: i === 0 && playerEmoji ? playerEmoji : CAR_EMOJIS[i],
       blinkTimer: 0,
     });
   }
