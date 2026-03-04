@@ -4,89 +4,44 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 240 15% 12%;
+    --foreground: 0 0% 98%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 240 13% 18%;
+    --card-foreground: 0 0% 98%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 240 13% 18%;
+    --popover-foreground: 0 0% 98%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 45 100% 50%;
+    --primary-foreground: 240 15% 10%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 240 10% 25%;
+    --secondary-foreground: 0 0% 98%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 240 10% 22%;
+    --muted-foreground: 240 5% 65%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 25 100% 60%;
+    --accent-foreground: 0 0% 98%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 345 100% 58%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 240 10% 28%;
+    --input: 240 10% 22%;
+    --ring: 45 100% 50%;
 
-    --radius: 0.5rem;
+    --radius: 1rem;
 
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 240 13% 15%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 45 100% 50%;
+    --sidebar-primary-foreground: 240 15% 10%;
+    --sidebar-accent: 240 10% 22%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 240 10% 28%;
+    --sidebar-ring: 45 100% 50%;
   }
 }
 
@@ -96,6 +51,131 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-nunito;
+    background: radial-gradient(
+      ellipse at top,
+      #1a1a2e 0%,
+      #16213e 40%,
+      #0f0f1a 100%
+    );
+    min-height: 100vh;
   }
+}
+
+@layer utilities {
+  .font-russo {
+    font-family: "Russo One", sans-serif;
+  }
+  .font-nunito {
+    font-family: "Nunito", sans-serif;
+  }
+
+  .btn-game {
+    @apply font-russo text-lg px-8 py-4 rounded-2xl border-b-4 transition-all duration-150 active:border-b-0 active:translate-y-1 cursor-pointer select-none;
+  }
+
+  .btn-yellow {
+    @apply btn-game bg-game-yellow text-game-asphalt border-b-yellow-600 hover:bg-yellow-400;
+  }
+
+  .btn-orange {
+    @apply btn-game bg-game-orange text-white border-b-orange-700 hover:bg-orange-500;
+  }
+
+  .btn-red {
+    @apply btn-game bg-game-red text-white border-b-red-800 hover:bg-red-500;
+  }
+
+  .btn-green {
+    @apply btn-game bg-game-green text-white border-b-green-700 hover:bg-green-500;
+  }
+
+  .btn-blue {
+    @apply btn-game bg-game-blue text-white border-b-blue-800 hover:bg-blue-500;
+  }
+
+  .btn-purple {
+    @apply btn-game bg-game-purple text-white border-b-purple-900 hover:bg-purple-500;
+  }
+
+  .card-game {
+    @apply rounded-3xl border-2 border-white/10 bg-white/5 backdrop-blur-sm;
+  }
+
+  .card-game-solid {
+    @apply rounded-3xl bg-game-asphaltLight border-2 border-white/20;
+  }
+
+  .text-glow-yellow {
+    text-shadow:
+      0 0 20px rgba(255, 214, 0, 0.8),
+      0 0 40px rgba(255, 214, 0, 0.4);
+  }
+
+  .text-glow-orange {
+    text-shadow: 0 0 20px rgba(255, 107, 53, 0.8);
+  }
+
+  .text-glow-red {
+    text-shadow: 0 0 20px rgba(255, 45, 85, 0.8);
+  }
+
+  .coin-badge {
+    @apply inline-flex items-center gap-1.5 bg-yellow-500/20 border border-yellow-500/40 rounded-full px-3 py-1 text-game-yellow font-russo text-sm;
+  }
+
+  .gem-badge {
+    @apply inline-flex items-center gap-1.5 bg-red-500/20 border border-red-500/40 rounded-full px-3 py-1 text-game-gem font-russo text-sm;
+  }
+
+  .nav-tab {
+    @apply flex flex-col items-center gap-1 px-4 py-2 rounded-2xl transition-all duration-200 cursor-pointer;
+  }
+
+  .nav-tab.active {
+    @apply bg-game-yellow text-game-asphalt;
+  }
+
+  .nav-tab:not(.active) {
+    @apply text-white/50 hover:text-white/80 hover:bg-white/10;
+  }
+
+  .damage-bar {
+    @apply h-2 rounded-full overflow-hidden bg-white/20;
+  }
+
+  .hp-bar {
+    @apply h-full rounded-full transition-all duration-500;
+  }
+
+  .rarity-common {
+    @apply border-white/30;
+  }
+  .rarity-rare {
+    @apply border-game-blue;
+    box-shadow: 0 0 10px rgba(0, 122, 255, 0.4);
+  }
+  .rarity-epic {
+    @apply border-game-purple;
+    box-shadow: 0 0 10px rgba(175, 82, 222, 0.4);
+  }
+  .rarity-legendary {
+    @apply border-game-yellow;
+    box-shadow: 0 0 15px rgba(255, 214, 0, 0.6);
+  }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 214, 0, 0.4);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 214, 0, 0.7);
 }
