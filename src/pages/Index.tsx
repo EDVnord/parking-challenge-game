@@ -4,22 +4,36 @@ import GameCanvas from '@/components/GameCanvas';
 // ──────────────── TYPES ────────────────
 type Screen = 'login' | 'menu' | 'game' | 'gameOver' | 'garage' | 'shop' | 'profile' | 'leaderboard';
 
-const SAVE_KEY = 'parkshow_profile_v1';
-const SESSION_KEY = 'parkshow_session';
+const SAVE_KEY = 'king_parking_profile_v1';
+const SESSION_KEY = 'king_parking_session';
 const SESSION_TTL = 60 * 60 * 1000; // 1 hour
 
-function getSession(): string | null {
+const AUTH_URL = 'https://functions.poehali.dev/3b4361d7-46d0-476d-be12-f345c31447fc';
+const LEADERBOARD_URL = 'https://functions.poehali.dev/507d718a-32e2-4623-a6d8-1cf02d2af300';
+
+// Yandex Games SDK init
+declare global {
+  interface Window { YaGames?: { init: () => Promise<unknown> }; }
+}
+
+async function initYandexGames() {
+  if (window.YaGames) {
+    try { await window.YaGames.init(); } catch { /* not in YG env */ }
+  }
+}
+
+function getSession(): { name: string; password: string } | null {
   try {
     const raw = localStorage.getItem(SESSION_KEY);
     if (!raw) return null;
-    const { name, ts } = JSON.parse(raw);
+    const { name, password, ts } = JSON.parse(raw);
     if (Date.now() - ts > SESSION_TTL) { localStorage.removeItem(SESSION_KEY); return null; }
-    return name;
+    return { name, password };
   } catch { return null; }
 }
 
-function setSession(name: string) {
-  localStorage.setItem(SESSION_KEY, JSON.stringify({ name, ts: Date.now() }));
+function setSession(name: string, password: string) {
+  localStorage.setItem(SESSION_KEY, JSON.stringify({ name, password, ts: Date.now() }));
 }
 
 function clearSession() {
@@ -29,7 +43,7 @@ function clearSession() {
 interface PlayerData {
   name: string;
   emoji: string;
-  passwordHash: string;
+  password: string;
   coins: number;
   gems: number;
   xp: number;
@@ -50,11 +64,31 @@ interface PlayerData {
   };
 }
 
-// Simple hash for password (not cryptographic, just protection against casual theft)
-function hashPassword(s: string): string {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) { h = Math.imul(31, h) + s.charCodeAt(i) | 0; }
-  return h.toString(36);
+// API helpers
+async function apiAuth(action: string, payload: Record<string, unknown>) {
+  const res = await fetch(AUTH_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, ...payload }),
+  });
+  return res.json();
+}
+
+async function fetchLeaderboard(): Promise<LeaderEntry[]> {
+  try {
+    const res = await fetch(LEADERBOARD_URL);
+    const data = await res.json();
+    return data.leaders || [];
+  } catch { return []; }
+}
+
+interface LeaderEntry {
+  rank: number;
+  name: string;
+  emoji: string;
+  wins: number;
+  xp: number;
+  gamesPlayed: number;
 }
 
 interface CarData {
@@ -85,13 +119,6 @@ const INITIAL_CARS: CarData[] = [
   { id: 8, name: 'Ракета', emoji: '🚀', color: '#AF52DE', rarity: 'legendary', hp: 90, maxHp: 90, speed: 5.5, maxSpeed: 5.5, armor: 0.3, owned: false, price: 9999, repairCost: 500 },
 ];
 
-const LEADERBOARD_DATA = [
-  { rank: 1, name: 'ProDriver', emoji: '🏎️', wins: 47, xp: 15200 },
-  { rank: 2, name: 'SpeedKing', emoji: '🚓', wins: 38, xp: 12800 },
-  { rank: 3, name: 'DriftMaster', emoji: '🚙', wins: 31, xp: 10500 },
-  { rank: 4, name: 'TurboVasya', emoji: '🚕', wins: 24, xp: 8200 },
-  { rank: 5, name: 'ParkingGod', emoji: '🛻', wins: 19, xp: 6700 },
-];
 
 const PLAYER_EMOJIS = ['😎', '🤠', '😤', '🥷', '👨‍🚀', '🧑‍🎤', '🥸', '😈'];
 
@@ -114,7 +141,6 @@ function loadProfile(): PlayerData | null {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return null;
     const saved = JSON.parse(raw) as PlayerData;
-    // Merge saved cars with INITIAL_CARS to add new cars added in updates
     const mergedCars = INITIAL_CARS.map(ic => {
       const saved_car = saved.cars?.find(c => c.id === ic.id);
       return saved_car ? { ...ic, owned: saved_car.owned, hp: saved_car.hp } : ic;
@@ -126,6 +152,21 @@ function loadProfile(): PlayerData | null {
   }
 }
 
+function profileToSavePayload(p: PlayerData) {
+  return {
+    emoji: p.emoji,
+    coins: p.coins,
+    gems: p.gems,
+    xp: p.xp,
+    wins: p.wins,
+    gamesPlayed: p.gamesPlayed,
+    bestPosition: p.bestPosition,
+    selectedCar: p.selectedCar,
+    ownedCars: p.cars.filter(c => c.owned).map(c => c.id),
+    upgrades: p.upgrades,
+  };
+}
+
 function saveProfile(p: PlayerData) {
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(p));
@@ -135,7 +176,7 @@ function saveProfile(p: PlayerData) {
 const DEFAULT_PLAYER: PlayerData = {
   name: '',
   emoji: '😎',
-  passwordHash: '',
+  password: '',
   coins: 1000,
   gems: 50,
   xp: 0,
@@ -236,11 +277,10 @@ function ProfileCard({ player, xpInLevel, xpNeeded, onEmojiChange, onNameChange 
 function LoginScreen({ player, isReturningPlayer, onContinue, onRegister, onReset }: {
   player: PlayerData;
   isReturningPlayer: boolean;
-  onContinue: (password: string) => string | null; // returns error or null
-  onRegister: (name: string, emoji: string, password: string) => string | null;
+  onContinue: (password: string) => Promise<string | null>;
+  onRegister: (name: string, emoji: string, password: string) => Promise<string | null>;
   onReset: () => void;
 }) {
-  // Returning player: only password input. New player: registration form.
   const [mode, setMode] = useState<'login' | 'register'>(isReturningPlayer ? 'login' : 'register');
   const [inputName, setInputName] = useState('');
   const [selectedEmoji, setSelectedEmoji] = useState(player.emoji);
@@ -248,20 +288,25 @@ function LoginScreen({ player, isReturningPlayer, onContinue, onRegister, onRese
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [showPwd, setShowPwd] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!password) { setError('Введи пароль'); return; }
-    const err = onContinue(password);
+    setLoading(true); setError('');
+    const err = await onContinue(password);
+    setLoading(false);
     if (err) setError(err);
   };
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     const name = inputName.trim();
     if (!name || name.length < 2) { setError('Имя минимум 2 символа'); return; }
     if (name.length > 16) { setError('Имя максимум 16 символов'); return; }
     if (password.length < 4) { setError('Пароль минимум 4 символа'); return; }
     if (password !== passwordConfirm) { setError('Пароли не совпадают'); return; }
-    const err = onRegister(name, selectedEmoji, password);
+    setLoading(true); setError('');
+    const err = await onRegister(name, selectedEmoji, password);
+    setLoading(false);
     if (err) setError(err);
   };
 
@@ -284,9 +329,10 @@ function LoginScreen({ player, isReturningPlayer, onContinue, onRegister, onRese
 
         {/* Logo */}
         <div className="text-center">
-          <div className="text-7xl mb-2 animate-bounce-in">🅿️</div>
-          <h1 className="font-russo text-5xl text-yellow-400 leading-none" style={{ textShadow: '0 0 30px rgba(255,214,0,0.6)' }}>ПАРК-ШОУ</h1>
-          <p className="text-white/30 text-xs font-nunito font-bold tracking-widest uppercase mt-1">Музыкальные стульчики на колёсах</p>
+          <div className="text-7xl mb-2 animate-bounce-in">👑</div>
+          <h1 className="font-russo text-4xl text-yellow-400 leading-none" style={{ textShadow: '0 0 30px rgba(255,214,0,0.6)' }}>КОРОЛЬ</h1>
+          <h1 className="font-russo text-4xl text-yellow-400 leading-none" style={{ textShadow: '0 0 30px rgba(255,214,0,0.6)' }}>ПАРКОВКИ</h1>
+          <p className="text-white/30 text-xs font-nunito font-bold tracking-widest uppercase mt-1">Захвати место — стань королём!</p>
         </div>
 
         {/* ── RETURNING PLAYER: simple password ── */}
@@ -317,7 +363,9 @@ function LoginScreen({ player, isReturningPlayer, onContinue, onRegister, onRese
 
             {error && <div className="text-red-400 text-xs font-nunito text-center">{error}</div>}
 
-            <button className="btn-yellow w-full text-lg py-3" onClick={handleLogin}>▶ Войти</button>
+            <button className="btn-yellow w-full text-lg py-3" onClick={handleLogin} disabled={loading}>
+              {loading ? '⏳ Вход...' : '▶ Войти'}
+            </button>
 
             <button className="text-white/20 text-xs font-nunito text-center hover:text-red-400/60 transition-colors"
               onClick={onReset}>
@@ -373,7 +421,9 @@ function LoginScreen({ player, isReturningPlayer, onContinue, onRegister, onRese
 
             {error && <div className="text-red-400 text-xs font-nunito text-center">{error}</div>}
 
-            <button className="btn-yellow w-full text-lg py-3" onClick={handleRegister}>🚀 Создать и войти</button>
+            <button className="btn-yellow w-full text-lg py-3" onClick={handleRegister} disabled={loading}>
+              {loading ? '⏳ Создаём аккаунт...' : '🚀 Создать и войти'}
+            </button>
 
             {isReturningPlayer && (
               <button className="text-white/30 text-xs font-nunito text-center hover:text-yellow-400/60 transition-colors"
@@ -397,7 +447,18 @@ export default function Index() {
   const [gameResult, setGameResult] = useState<{ position: number; coinsEarned: number } | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
   const [keys, setKeys] = useState<Set<string>>(new Set());
+  const [onlineLeaders, setOnlineLeaders] = useState<LeaderEntry[]>([]);
   const keysRef = useRef<Set<string>>(new Set());
+
+  // Init YaGames SDK on mount
+  useEffect(() => { initYandexGames(); }, []);
+
+  // Load online leaderboard when entering leaderboard screen
+  useEffect(() => {
+    if (screen === 'leaderboard') {
+      fetchLeaderboard().then(leaders => { if (leaders.length > 0) setOnlineLeaders(leaders); });
+    }
+  }, [screen]);
 
   // Detect returning player on mount + auto-login if session active
   useEffect(() => {
@@ -405,17 +466,20 @@ export default function Index() {
     if (saved && saved.name) {
       setPlayer(saved);
       setIsReturningPlayer(true);
-      const sessionName = getSession();
-      if (sessionName === saved.name) {
+      const session = getSession();
+      if (session && session.name === saved.name) {
         setScreen('menu');
       }
     }
   }, []);
 
-  // Autosave on every player change (except on login screen)
+  // Autosave locally + sync to server on every player change (except on login screen)
   useEffect(() => {
     if (player.name && screen !== 'login') {
       saveProfile(player);
+      if (player.password) {
+        apiAuth('save', { name: player.name, password: player.password, profile: profileToSavePayload(player) }).catch(() => {});
+      }
     }
   }, [player, screen]);
 
@@ -463,23 +527,39 @@ export default function Index() {
     <LoginScreen
       player={player}
       isReturningPlayer={isReturningPlayer}
-      onContinue={(password) => {
-        if (hashPassword(password) !== player.passwordHash) return 'Неверный пароль';
-        setSession(player.name);
+      onContinue={async (password) => {
+        const data = await apiAuth('login', { name: player.name, password });
+        if (data.error) return data.error;
+        const serverProfile = data.profile;
+        const merged: PlayerData = {
+          ...player,
+          password,
+          emoji: serverProfile.emoji ?? player.emoji,
+          coins: serverProfile.coins ?? player.coins,
+          gems: serverProfile.gems ?? player.gems,
+          xp: serverProfile.xp ?? player.xp,
+          wins: serverProfile.wins ?? player.wins,
+          gamesPlayed: serverProfile.gamesPlayed ?? player.gamesPlayed,
+          bestPosition: serverProfile.bestPosition ?? player.bestPosition,
+          selectedCar: serverProfile.selectedCar ?? player.selectedCar,
+          level: levelFromXp(serverProfile.xp ?? player.xp),
+          cars: INITIAL_CARS.map(c => ({ ...c, owned: (serverProfile.ownedCars ?? [0]).includes(c.id) })),
+          upgrades: { ...DEFAULT_PLAYER.upgrades, ...(serverProfile.upgrades ?? {}) },
+        };
+        setPlayer(merged);
+        saveProfile(merged);
+        setSession(player.name, password);
         setScreen('menu');
         return null;
       }}
-      onRegister={(name, emoji, password) => {
-        const updated = {
-          ...DEFAULT_PLAYER,
-          name,
-          emoji,
-          passwordHash: hashPassword(password),
-        };
+      onRegister={async (name, emoji, password) => {
+        const data = await apiAuth('register', { name, emoji, password });
+        if (data.error) return data.error;
+        const updated: PlayerData = { ...DEFAULT_PLAYER, name, emoji, password };
         setPlayer(updated);
         saveProfile(updated);
         setIsReturningPlayer(true);
-        setSession(name);
+        setSession(name, password);
         setScreen('menu');
         return null;
       }}
@@ -508,11 +588,9 @@ export default function Index() {
 
       <div className="relative z-10 flex flex-col items-center gap-5 w-full max-w-sm">
         <div className="text-center animate-fade-in">
-          <div className="text-7xl mb-2 animate-bounce-in">🅿️</div>
-          <h1 className="font-russo text-5xl text-yellow-400 leading-none" style={{ textShadow: '0 0 30px rgba(255,214,0,0.6)' }}>
-            ПАРК-ШОУ
-          </h1>
-          <p className="font-nunito text-white/40 text-xs mt-2 font-bold tracking-widest uppercase">Музыкальные стульчики на колёсах</p>
+          <div className="text-7xl mb-2 animate-bounce-in">👑</div>
+          <h1 className="font-russo text-4xl text-yellow-400 leading-none" style={{ textShadow: '0 0 30px rgba(255,214,0,0.6)' }}>КОРОЛЬ ПАРКОВКИ</h1>
+          <p className="font-nunito text-white/40 text-xs mt-2 font-bold tracking-widest uppercase">Захвати место — стань королём!</p>
         </div>
 
         <button className="card-game p-3 flex items-center gap-3 w-full animate-fade-in hover:border-yellow-400/30 transition-all" onClick={() => setScreen('login')}>
@@ -877,8 +955,9 @@ export default function Index() {
 
   // ── LEADERBOARD ──
   const renderLeaderboard = () => {
-    const fullList = [...LEADERBOARD_DATA, { rank: 6, name: player.name, emoji: player.emoji, wins: player.wins, xp: player.xp }]
-      .sort((a, b) => b.wins - a.wins).map((p, i) => ({ ...p, rank: i + 1 }));
+    const fullList = onlineLeaders.length > 0 ? onlineLeaders : [
+      { rank: 1, name: player.name || 'Ты', emoji: player.emoji, wins: player.wins, xp: player.xp, gamesPlayed: player.gamesPlayed }
+    ];
     const rankColors = ['#FFD600', '#C0C0C0', '#CD7F32'];
     const medals = ['🥇', '🥈', '🥉'];
 
