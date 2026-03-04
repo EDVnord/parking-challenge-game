@@ -391,7 +391,7 @@ function drawParticles(ctx: CanvasRenderingContext2D, particles: GameState['part
     ctx.globalAlpha = p.life;
     ctx.fillStyle = p.color;
     ctx.beginPath();
-    ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, Math.max(0, p.size * p.life), 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   });
