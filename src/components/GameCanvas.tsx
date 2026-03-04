@@ -73,6 +73,70 @@ const PARKING_AREA_H = 200;
 const SPOT_W = 32;
 const SPOT_H = 54;
 
+// Parking zone bounds (with padding)
+const PARK_LEFT   = CENTER_X - PARKING_AREA_W / 2 - 15;
+const PARK_RIGHT  = CENTER_X + PARKING_AREA_W / 2 + 15;
+const PARK_TOP    = CENTER_Y - PARKING_AREA_H / 2 - 15;
+const PARK_BOTTOM = CENTER_Y + PARKING_AREA_H / 2 + 15;
+
+function isInsideParkingZone(x: number, y: number): boolean {
+  return x > PARK_LEFT && x < PARK_RIGHT && y > PARK_TOP && y < PARK_BOTTOM;
+}
+
+// Push car out of parking zone when signal is not active
+function blockParkingZone(car: Car) {
+  const margin = 22;
+  if (car.x > PARK_LEFT - margin && car.x < PARK_RIGHT + margin &&
+      car.y > PARK_TOP - margin && car.y < PARK_BOTTOM + margin) {
+    // Find nearest exit direction
+    const dLeft   = car.x - (PARK_LEFT - margin);
+    const dRight  = (PARK_RIGHT + margin) - car.x;
+    const dTop    = car.y - (PARK_TOP - margin);
+    const dBottom = (PARK_BOTTOM + margin) - car.y;
+    const minD = Math.min(dLeft, dRight, dTop, dBottom);
+    if (minD === dLeft)   { car.x = PARK_LEFT - margin; car.speed *= -0.3; }
+    else if (minD === dRight)  { car.x = PARK_RIGHT + margin; car.speed *= -0.3; }
+    else if (minD === dTop)    { car.y = PARK_TOP - margin; car.speed *= -0.3; }
+    else                       { car.y = PARK_BOTTOM + margin; car.speed *= -0.3; }
+  }
+}
+
+// Resolve collisions between all non-eliminated cars
+function resolveAllCollisions(cars: Car[], state: GameState) {
+  const active = cars.filter(c => !c.eliminated && !c.parked);
+  for (let i = 0; i < active.length; i++) {
+    for (let j = i + 1; j < active.length; j++) {
+      const a = active[i];
+      const b = active[j];
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const dist = Math.hypot(dx, dy);
+      const minDist = 26;
+      if (dist < minDist && dist > 0) {
+        const overlap = minDist - dist;
+        const nx = dx / dist;
+        const ny = dy / dist;
+        // Push apart
+        a.x -= nx * overlap * 0.5;
+        a.y -= ny * overlap * 0.5;
+        b.x += nx * overlap * 0.5;
+        b.y += ny * overlap * 0.5;
+        // Damage based on relative speed
+        const relSpeed = Math.abs(a.speed - b.speed);
+        if (relSpeed > 0.5) {
+          const dmg = relSpeed * 4;
+          a.hp = Math.max(0, a.hp - dmg);
+          b.hp = Math.max(0, b.hp - dmg);
+          if (relSpeed > 1.5) {
+            spawnParticles(state, (a.x + b.x) / 2, (a.y + b.y) / 2, '#FF6B35', 6);
+            state.shakeTimer = Math.max(state.shakeTimer, 0.15);
+          }
+        }
+      }
+    }
+  }
+}
+
 function createInitialState(playerName: string): GameState {
   const totalCars = 10;
   const totalSpots = 10;
@@ -92,7 +156,8 @@ function createInitialState(playerName: string): GameState {
 
   const cars: Car[] = [];
   for (let i = 0; i < totalCars; i++) {
-    const orbitRadius = 240 + (i % 3) * 20;
+    // Orbit radius must be large enough to stay outside parking zone (~180px half-diagonal)
+    const orbitRadius = 230 + (i % 3) * 25;
     const orbitAngle = (i / totalCars) * Math.PI * 2;
     const color = CAR_COLORS[i];
     cars.push({
@@ -290,13 +355,20 @@ function drawCar(ctx: CanvasRenderingContext2D, car: Car, time: number) {
   ctx.restore();
 }
 
-function drawParkingArea(ctx: CanvasRenderingContext2D, spots: ParkingSpot[]) {
+function drawParkingArea(ctx: CanvasRenderingContext2D, spots: ParkingSpot[], signalActive: boolean) {
   // Parking area background
   ctx.save();
   ctx.fillStyle = '#252535';
-  ctx.strokeStyle = '#FFD600';
-  ctx.lineWidth = 3;
-  ctx.setLineDash([8, 4]);
+  // Border: red stripes when closed, yellow dashed when open
+  if (!signalActive) {
+    ctx.strokeStyle = 'rgba(255,45,85,0.7)';
+    ctx.lineWidth = 4;
+    ctx.setLineDash([10, 6]);
+  } else {
+    ctx.strokeStyle = '#FFD600';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([8, 4]);
+  }
   ctx.beginPath();
   ctx.roundRect(
     CENTER_X - PARKING_AREA_W / 2 - 15,
@@ -308,6 +380,15 @@ function drawParkingArea(ctx: CanvasRenderingContext2D, spots: ParkingSpot[]) {
   ctx.fill();
   ctx.stroke();
   ctx.setLineDash([]);
+
+  // "Closed" label when signal not active
+  if (!signalActive) {
+    ctx.fillStyle = 'rgba(255,45,85,0.5)';
+    ctx.font = 'bold 11px Russo One, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('🚫 ВЪЕЗД ЗАКРЫТ', CENTER_X, CENTER_Y - PARKING_AREA_H / 2 - 20);
+  }
+
   ctx.restore();
 
   // Spots
@@ -675,24 +756,10 @@ export default function GameCanvas({ playerName, onRoundEnd, onGameEnd, keys }: 
           player.x = Math.max(20, Math.min(CANVAS_W - 20, player.x));
           player.y = Math.max(20, Math.min(CANVAS_H - 20, player.y));
 
-          // Car collisions
-          state.cars.forEach(other => {
-            if (other.id === player.id || other.eliminated) return;
-            const dist = Math.hypot(other.x - player.x, other.y - player.y);
-            if (dist < 28) {
-              const dmg = Math.abs(player.speed) * 8 + 5;
-              player.hp = Math.max(0, player.hp - dmg * 0.5);
-              other.hp = Math.max(0, other.hp - dmg * 0.5);
-              state.shakeTimer = 0.3;
-              spawnParticles(state, (player.x + other.x) / 2, (player.y + other.y) / 2, '#FF6B35', 12);
-
-              const pushAngle = Math.atan2(other.y - player.y, other.x - player.x);
-              other.x += Math.cos(pushAngle) * 10;
-              other.y += Math.sin(pushAngle) * 10;
-              player.x -= Math.cos(pushAngle) * 10;
-              player.y -= Math.sin(pushAngle) * 10;
-            }
-          });
+          // Block parking zone during driving phase
+          if (!state.signal) {
+            blockParkingZone(player);
+          }
 
           // Park in signal
           if (state.signal && !player.parked) {
@@ -719,6 +786,16 @@ export default function GameCanvas({ playerName, onRoundEnd, onGameEnd, keys }: 
 
         // Bots
         state.cars.forEach(car => botAI(car, state, dt));
+
+        // Block parking zone for all cars during driving phase
+        state.cars.forEach(car => {
+          if (!car.eliminated && !car.parked && !state.signal) {
+            blockParkingZone(car);
+          }
+        });
+
+        // Collisions between all cars
+        resolveAllCollisions(state.cars, state);
 
         // Signal trigger
         if (state.timer <= 0 && !state.signal) {
@@ -762,23 +839,29 @@ export default function GameCanvas({ playerName, onRoundEnd, onGameEnd, keys }: 
           }
         }
 
+        // Collisions during signal phase too
+        resolveAllCollisions(state.cars, state);
+
         // Check if all active cars resolved
         const activeCars = state.cars.filter(c => !c.eliminated);
         const parkedCount = activeCars.filter(c => c.parked).length;
         const availableSpots = state.spots.filter(s => s.available).length;
 
         if (parkedCount >= availableSpots || state.signalTimer <= 0) {
-          // Find who didn't park
           const unparked = activeCars.filter(c => !c.parked);
           if (unparked.length > 0) {
-            const eliminated = unparked.sort((a, b) => (a.hp / a.maxHp) - (b.hp / b.maxHp))[0];
+            // Player is always eliminated if not parked — no exceptions
+            const playerUnparked = unparked.find(c => c.isPlayer);
+            const eliminated = playerUnparked
+              ? playerUnparked
+              : unparked.sort((a, b) => (a.hp / a.maxHp) - (b.hp / b.maxHp))[0];
+
             eliminated.eliminated = true;
             state.eliminatedThisRound = eliminated;
             spawnParticles(state, eliminated.x, eliminated.y, '#FF2D55', 20);
             state.shakeTimer = 0.5;
 
-            const playerEliminated = eliminated.isPlayer;
-            onRoundEnd(state.round, playerEliminated);
+            onRoundEnd(state.round, eliminated.isPlayer);
           } else {
             state.eliminatedThisRound = null;
           }
@@ -792,12 +875,20 @@ export default function GameCanvas({ playerName, onRoundEnd, onGameEnd, keys }: 
         if (state.roundEndTimer <= 0) {
           // Check game over
           const activeCars = state.cars.filter(c => !c.eliminated);
+          const playerStillAlive = activeCars.some(c => c.isPlayer);
+
+          // Player was eliminated — calculate their final position
+          if (!playerStillAlive) {
+            const totalCars = state.cars.length;
+            const eliminatedBefore = state.cars.filter(c => c.eliminated && !c.isPlayer).length;
+            const position = totalCars - eliminatedBefore;
+            onGameEnd(position);
+            return;
+          }
+
           if (activeCars.length <= 1 || state.round >= state.maxRounds) {
-            const winner = activeCars[0];
-            if (winner) {
-              const position = winner.isPlayer ? 1 : activeCars.findIndex(c => c.isPlayer) + 1;
-              onGameEnd(position);
-            }
+            const position = 1;
+            onGameEnd(position);
             return;
           }
 
@@ -848,7 +939,7 @@ export default function GameCanvas({ playerName, onRoundEnd, onGameEnd, keys }: 
       }
 
       drawAsphalt(ctx, state.driftMarks);
-      drawParkingArea(ctx, state.spots);
+      drawParkingArea(ctx, state.spots, state.signal);
 
       // Cars (sorted by y for pseudo-3d)
       const sortedCars = [...state.cars].sort((a, b) => a.y - b.y);
