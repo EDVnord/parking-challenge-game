@@ -5,6 +5,26 @@ import GameCanvas from '@/components/GameCanvas';
 type Screen = 'login' | 'menu' | 'game' | 'gameOver' | 'garage' | 'shop' | 'profile' | 'leaderboard';
 
 const SAVE_KEY = 'parkshow_profile_v1';
+const SESSION_KEY = 'parkshow_session';
+const SESSION_TTL = 60 * 60 * 1000; // 1 hour
+
+function getSession(): string | null {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const { name, ts } = JSON.parse(raw);
+    if (Date.now() - ts > SESSION_TTL) { localStorage.removeItem(SESSION_KEY); return null; }
+    return name;
+  } catch { return null; }
+}
+
+function setSession(name: string) {
+  localStorage.setItem(SESSION_KEY, JSON.stringify({ name, ts: Date.now() }));
+}
+
+function clearSession() {
+  localStorage.removeItem(SESSION_KEY);
+}
 
 interface PlayerData {
   name: string;
@@ -379,12 +399,16 @@ export default function Index() {
   const [keys, setKeys] = useState<Set<string>>(new Set());
   const keysRef = useRef<Set<string>>(new Set());
 
-  // Detect returning player on mount
+  // Detect returning player on mount + auto-login if session active
   useEffect(() => {
     const saved = loadProfile();
     if (saved && saved.name) {
       setPlayer(saved);
       setIsReturningPlayer(true);
+      const sessionName = getSession();
+      if (sessionName === saved.name) {
+        setScreen('menu');
+      }
     }
   }, []);
 
@@ -441,6 +465,7 @@ export default function Index() {
       isReturningPlayer={isReturningPlayer}
       onContinue={(password) => {
         if (hashPassword(password) !== player.passwordHash) return 'Неверный пароль';
+        setSession(player.name);
         setScreen('menu');
         return null;
       }}
@@ -454,11 +479,13 @@ export default function Index() {
         setPlayer(updated);
         saveProfile(updated);
         setIsReturningPlayer(true);
+        setSession(name);
         setScreen('menu');
         return null;
       }}
       onReset={() => {
         localStorage.removeItem(SAVE_KEY);
+        clearSession();
         setPlayer(DEFAULT_PLAYER);
         setIsReturningPlayer(false);
       }}

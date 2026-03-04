@@ -132,7 +132,7 @@ function resolveAllCollisions(cars: Car[], state: GameState) {
         // Damage based on relative speed (bumper upgrade reduces player damage)
         const relSpeed = Math.abs(a.speed - b.speed);
         if (relSpeed > 0.5) {
-          const dmg = relSpeed * 4;
+          const dmg = relSpeed * 1.5;
           const aDmg = a.isPlayer && state.playerBumper ? dmg * 0.7 : dmg;
           const bDmg = b.isPlayer && state.playerBumper ? dmg * 0.7 : dmg;
           a.hp = Math.max(0, a.hp - aDmg);
@@ -182,7 +182,7 @@ function createInitialState(playerName: string): GameState {
       y: CENTER_Y + Math.sin(orbitAngle) * orbitRadius,
       angle: orbitAngle + Math.PI / 2,
       speed: 0,
-      maxSpeed: 2.5 + Math.random() * 1.0,
+      maxSpeed: i === 0 ? 3.0 : 1.4 + Math.random() * 0.6,
       color: color.body,
       bodyColor: color.roof,
       hp: 100,
@@ -723,7 +723,7 @@ export default function GameCanvas({ playerName, upgrades, onRoundEnd, onGameEnd
 
       // Move directly toward spot (no angle physics — bots teleport smoothly)
       const hpFactor = 0.5 + (car.hp / car.maxHp) * 0.5;
-      const speed = Math.min(car.maxSpeed * hpFactor * 1.2, dist * 0.12);
+      const speed = Math.min(car.maxSpeed * hpFactor * 0.85, dist * 0.09);
       car.x += (dx / dist) * speed;
       car.y += (dy / dist) * speed;
       car.angle = Math.atan2(dx, -dy);
