@@ -2,7 +2,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import GameCanvas from '@/components/GameCanvas';
 
 // ──────────────── TYPES ────────────────
-type Screen = 'menu' | 'game' | 'gameOver' | 'garage' | 'shop' | 'profile' | 'leaderboard';
+type Screen = 'login' | 'menu' | 'game' | 'gameOver' | 'garage' | 'shop' | 'profile' | 'leaderboard';
+
+const SAVE_KEY = 'parkshow_profile_v1';
 
 interface PlayerData {
   name: string;
@@ -70,27 +72,249 @@ function levelFromXp(xp: number) {
   return l;
 }
 
+function loadProfile(): PlayerData | null {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return null;
+    const saved = JSON.parse(raw) as PlayerData;
+    // Merge saved cars with INITIAL_CARS to add new cars added in updates
+    const mergedCars = INITIAL_CARS.map(ic => {
+      const saved_car = saved.cars?.find(c => c.id === ic.id);
+      return saved_car ? { ...ic, owned: saved_car.owned, hp: saved_car.hp } : ic;
+    });
+    return { ...saved, cars: mergedCars };
+  } catch {
+    return null;
+  }
+}
+
+function saveProfile(p: PlayerData) {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(p));
+  } catch { /* ignore */ }
+}
+
+const DEFAULT_PLAYER: PlayerData = {
+  name: '',
+  emoji: '😎',
+  coins: 1000,
+  gems: 50,
+  xp: 0,
+  level: 1,
+  wins: 0,
+  gamesPlayed: 0,
+  bestPosition: 99,
+  cars: INITIAL_CARS,
+  selectedCar: 0,
+};
+
+// ──────────────── PROFILE CARD COMPONENT ────────────────
+function ProfileCard({ player, xpInLevel, xpNeeded, onEmojiChange, onNameChange }: {
+  player: PlayerData;
+  xpInLevel: number;
+  xpNeeded: number;
+  onEmojiChange: (em: string) => void;
+  onNameChange: (name: string) => void;
+}) {
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState(player.name);
+  const [nameError, setNameError] = useState('');
+
+  const saveName = () => {
+    const trimmed = nameInput.trim();
+    if (!trimmed) { setNameError('Имя не может быть пустым'); return; }
+    if (trimmed.length < 2) { setNameError('Минимум 2 символа'); return; }
+    if (trimmed.length > 16) { setNameError('Максимум 16 символов'); return; }
+    onNameChange(trimmed);
+    setEditingName(false);
+    setNameError('');
+  };
+
+  return (
+    <div className="card-game-solid p-6 flex flex-col items-center gap-4">
+      <div className="relative">
+        <div className="text-7xl animate-float">{player.emoji}</div>
+        <div className="absolute -bottom-1 -right-2 bg-yellow-400 text-gray-900 font-russo text-xs rounded-full w-7 h-7 flex items-center justify-center">{player.level}</div>
+      </div>
+
+      {/* Name (editable) */}
+      {editingName ? (
+        <div className="w-full flex flex-col items-center gap-2">
+          <input
+            type="text"
+            value={nameInput}
+            onChange={e => { setNameInput(e.target.value); setNameError(''); }}
+            onKeyDown={e => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') setEditingName(false); }}
+            maxLength={16}
+            autoFocus
+            className="w-full bg-white/10 border-2 border-yellow-400/60 rounded-2xl px-4 py-2 font-russo text-white text-lg outline-none text-center"
+          />
+          {nameError && <div className="text-red-400 text-xs font-nunito">{nameError}</div>}
+          <div className="flex gap-2">
+            <button className="btn-green text-sm py-1.5 px-4" onClick={saveName}>✓ Сохранить</button>
+            <button className="btn-game bg-white/10 text-white border-b-white/20 text-sm py-1.5 px-4" onClick={() => { setEditingName(false); setNameInput(player.name); }}>Отмена</button>
+          </div>
+        </div>
+      ) : (
+        <div className="text-center">
+          <button
+            className="group flex items-center gap-2 font-russo text-2xl text-white hover:text-yellow-400 transition-colors"
+            onClick={() => { setNameInput(player.name); setEditingName(true); }}>
+            {player.name}
+            <span className="text-white/20 group-hover:text-yellow-400/60 text-base transition-colors">✏️</span>
+          </button>
+          <div className="text-white/30 text-sm font-nunito">Уровень {player.level}</div>
+        </div>
+      )}
+
+      <div className="w-full">
+        <div className="flex justify-between text-xs font-nunito font-bold mb-1">
+          <span className="text-white/30">Опыт</span>
+          <span className="text-yellow-400">{xpInLevel} / {xpNeeded} XP</span>
+        </div>
+        <div className="damage-bar h-3">
+          <div className="hp-bar bg-yellow-400" style={{ width: `${(xpInLevel / xpNeeded) * 100}%` }} />
+        </div>
+      </div>
+
+      <div>
+        <div className="text-white/30 text-xs font-nunito mb-2 text-center">Аватар:</div>
+        <div className="flex gap-2 flex-wrap justify-center">
+          {PLAYER_EMOJIS.map(em => (
+            <button key={em} onClick={() => onEmojiChange(em)}
+              className={`text-2xl p-1.5 rounded-xl transition-all ${player.emoji === em ? 'bg-yellow-400/30 scale-110' : 'hover:bg-white/10'}`}>
+              {em}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────── LOGIN SCREEN COMPONENT ────────────────
+function LoginScreen({ player, isReturningPlayer, onStart, onReset }: {
+  player: PlayerData;
+  isReturningPlayer: boolean;
+  onStart: (name: string, emoji: string) => void;
+  onReset: () => void;
+}) {
+  const [inputName, setInputName] = useState(isReturningPlayer ? player.name : '');
+  const [selectedEmoji, setSelectedEmoji] = useState(player.emoji);
+  const [nameError, setNameError] = useState('');
+
+  const handleStart = () => {
+    const trimmed = inputName.trim();
+    if (!trimmed) { setNameError('Введи своё имя!'); return; }
+    if (trimmed.length < 2) { setNameError('Минимум 2 символа'); return; }
+    if (trimmed.length > 16) { setNameError('Максимум 16 символов'); return; }
+    onStart(trimmed, selectedEmoji);
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 relative overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {[
+          { em: '🚗', cls: 'top-8 left-8', d: '0s' }, { em: '🏎️', cls: 'top-16 right-12', d: '1.2s' },
+          { em: '🚕', cls: 'bottom-16 left-16', d: '2s' }, { em: '🚙', cls: 'bottom-12 right-10', d: '0.6s' },
+        ].map((item, i) => (
+          <div key={i} className={`absolute text-5xl animate-float ${item.cls}`} style={{ animationDelay: item.d }}>{item.em}</div>
+        ))}
+        <div className="absolute top-1/3 left-1/4 w-72 h-72 rounded-full bg-yellow-500/5 blur-3xl" />
+        <div className="absolute bottom-1/3 right-1/4 w-56 h-56 rounded-full bg-orange-500/5 blur-3xl" />
+      </div>
+
+      <div className="relative z-10 flex flex-col items-center gap-6 w-full max-w-sm animate-fade-in">
+        <div className="text-center">
+          <div className="text-7xl mb-3 animate-bounce-in">🅿️</div>
+          <h1 className="font-russo text-5xl text-yellow-400 leading-none" style={{ textShadow: '0 0 30px rgba(255,214,0,0.6)' }}>ПАРК-ШОУ</h1>
+          <p className="text-white/30 text-xs font-nunito font-bold tracking-widest uppercase mt-2">Музыкальные стульчики на колёсах</p>
+        </div>
+
+        <div className="card-game-solid p-6 flex flex-col gap-5 w-full">
+          {isReturningPlayer ? (
+            <div className="text-center">
+              <div className="text-white/40 font-nunito text-sm mb-1">С возвращением! 👋</div>
+              <div className="font-russo text-yellow-400 text-xl">{player.name}</div>
+              <div className="text-white/30 text-xs font-nunito mt-1">Lv.{player.level} · {player.wins} побед</div>
+            </div>
+          ) : (
+            <div className="text-center font-russo text-white text-lg">Создай персонажа</div>
+          )}
+
+          <div>
+            <div className="text-white/40 text-xs font-nunito mb-2 text-center uppercase tracking-wider">Выбери аватар</div>
+            <div className="flex gap-2 flex-wrap justify-center">
+              {PLAYER_EMOJIS.map(em => (
+                <button key={em} onClick={() => setSelectedEmoji(em)}
+                  className={`text-3xl p-2 rounded-2xl transition-all duration-150 ${selectedEmoji === em ? 'bg-yellow-400/30 scale-110 border-2 border-yellow-400/50' : 'hover:bg-white/10 border-2 border-transparent'}`}>
+                  {em}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-white/40 text-xs font-nunito mb-2 uppercase tracking-wider">Имя в игре</div>
+            <input
+              type="text"
+              value={inputName}
+              onChange={e => { setInputName(e.target.value); setNameError(''); }}
+              onKeyDown={e => e.key === 'Enter' && handleStart()}
+              placeholder="Например: ТурбоВася"
+              maxLength={16}
+              autoFocus
+              className="w-full bg-white/10 border-2 border-white/20 focus:border-yellow-400/60 rounded-2xl px-4 py-3 font-russo text-white text-lg outline-none transition-all placeholder:text-white/20"
+            />
+            {nameError
+              ? <div className="text-red-400 text-xs font-nunito mt-1.5 ml-1">{nameError}</div>
+              : <div className="text-white/20 text-xs font-nunito mt-1 text-right">{inputName.length}/16</div>
+            }
+          </div>
+
+          <button className="btn-yellow w-full text-xl py-4" onClick={handleStart}>
+            {isReturningPlayer ? '▶ Продолжить' : '🚀 Поехали!'}
+          </button>
+
+          {isReturningPlayer && (
+            <button
+              className="text-white/20 text-xs font-nunito text-center hover:text-red-400/70 transition-colors"
+              onClick={onReset}>
+              Сбросить прогресс и начать заново
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Index() {
-  const [screen, setScreen] = useState<Screen>('menu');
-  const [player, setPlayer] = useState<PlayerData>({
-    name: 'Игрок',
-    emoji: '😎',
-    coins: 1000,
-    gems: 50,
-    xp: 0,
-    level: 1,
-    wins: 0,
-    gamesPlayed: 0,
-    bestPosition: 99,
-    cars: INITIAL_CARS,
-    selectedCar: 0,
-  });
+  const [screen, setScreen] = useState<Screen>('login');
+  const [player, setPlayer] = useState<PlayerData>(() => loadProfile() ?? DEFAULT_PLAYER);
+  const [isReturningPlayer, setIsReturningPlayer] = useState(false);
   const [gameRound, setGameRound] = useState(1);
   const [gameKey, setGameKey] = useState(0);
   const [gameResult, setGameResult] = useState<{ position: number; coinsEarned: number } | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
   const [keys, setKeys] = useState<Set<string>>(new Set());
   const keysRef = useRef<Set<string>>(new Set());
+
+  // Detect returning player on mount
+  useEffect(() => {
+    const saved = loadProfile();
+    if (saved && saved.name) {
+      setPlayer(saved);
+      setIsReturningPlayer(true);
+    }
+  }, []);
+
+  // Autosave on every player change (except on login screen)
+  useEffect(() => {
+    if (player.name && screen !== 'login') {
+      saveProfile(player);
+    }
+  }, [player, screen]);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -131,6 +355,25 @@ export default function Index() {
     setScreen('gameOver');
   }, []);
 
+  // ── LOGIN ──
+  const renderLogin = () => (
+    <LoginScreen
+      player={player}
+      isReturningPlayer={isReturningPlayer}
+      onStart={(name, emoji) => {
+        const updated = { ...player, name, emoji };
+        setPlayer(updated);
+        saveProfile(updated);
+        setScreen('menu');
+      }}
+      onReset={() => {
+        localStorage.removeItem(SAVE_KEY);
+        setPlayer(DEFAULT_PLAYER);
+        setIsReturningPlayer(false);
+      }}
+    />
+  );
+
   // ── MENU ──
   const renderMenu = () => (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 relative overflow-hidden">
@@ -154,17 +397,20 @@ export default function Index() {
           <p className="font-nunito text-white/40 text-xs mt-2 font-bold tracking-widest uppercase">Музыкальные стульчики на колёсах</p>
         </div>
 
-        <div className="card-game p-3 flex items-center gap-3 w-full animate-fade-in">
+        <button className="card-game p-3 flex items-center gap-3 w-full animate-fade-in hover:border-yellow-400/30 transition-all" onClick={() => setScreen('login')}>
           <span className="text-3xl">{player.emoji}</span>
-          <div className="flex-1">
+          <div className="flex-1 text-left">
             <div className="font-russo text-white text-sm">{player.name}</div>
             <div className="flex items-center gap-2 mt-1">
               <span className="coin-badge text-xs">🪙 {player.coins.toLocaleString()}</span>
               <span className="gem-badge text-xs">💎 {player.gems}</span>
             </div>
           </div>
-          <div className="font-russo text-yellow-400 text-xl">Lv.{player.level}</div>
-        </div>
+          <div className="flex flex-col items-end gap-0.5">
+            <div className="font-russo text-yellow-400 text-lg">Lv.{player.level}</div>
+            <div className="text-white/20 text-xs font-nunito">сменить ↗</div>
+          </div>
+        </button>
 
         <div className="flex flex-col gap-3 w-full">
           <button className="btn-yellow w-full text-xl py-5 animate-fade-in" onClick={() => { setGameKey(k => k + 1); setGameRound(1); setScreen('game'); }}>
@@ -445,36 +691,13 @@ export default function Index() {
           <h2 className="font-russo text-2xl text-yellow-400">👤 Профиль</h2>
         </div>
 
-        <div className="card-game-solid p-6 flex flex-col items-center gap-4">
-          <div className="relative">
-            <div className="text-7xl animate-float">{player.emoji}</div>
-            <div className="absolute -bottom-1 -right-2 bg-yellow-400 text-gray-900 font-russo text-xs rounded-full w-7 h-7 flex items-center justify-center">{player.level}</div>
-          </div>
-          <div className="text-center">
-            <div className="font-russo text-2xl text-white">{player.name}</div>
-            <div className="text-white/30 text-sm font-nunito">Уровень {player.level}</div>
-          </div>
-          <div className="w-full">
-            <div className="flex justify-between text-xs font-nunito font-bold mb-1">
-              <span className="text-white/30">Опыт</span>
-              <span className="text-yellow-400">{xpInLevel} / {xpNeeded} XP</span>
-            </div>
-            <div className="damage-bar h-3">
-              <div className="hp-bar bg-yellow-400" style={{ width: `${(xpInLevel / xpNeeded) * 100}%` }} />
-            </div>
-          </div>
-          <div>
-            <div className="text-white/30 text-xs font-nunito mb-2 text-center">Аватар:</div>
-            <div className="flex gap-2 flex-wrap justify-center">
-              {PLAYER_EMOJIS.map(em => (
-                <button key={em} onClick={() => setPlayer(prev => ({ ...prev, emoji: em }))}
-                  className={`text-2xl p-1.5 rounded-xl transition-all ${player.emoji === em ? 'bg-yellow-400/30 scale-110' : 'hover:bg-white/10'}`}>
-                  {em}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
+        <ProfileCard
+          player={player}
+          xpInLevel={xpInLevel}
+          xpNeeded={xpNeeded}
+          onEmojiChange={em => setPlayer(prev => ({ ...prev, emoji: em }))}
+          onNameChange={name => { setPlayer(prev => ({ ...prev, name })); notify('✅ Имя изменено!'); }}
+        />
 
         <div className="grid grid-cols-2 gap-3">
           {[
@@ -577,6 +800,7 @@ export default function Index() {
         </div>
       )}
 
+      {screen === 'login' && renderLogin()}
       {screen === 'menu' && renderMenu()}
       {screen === 'game' && renderGame()}
       {screen === 'gameOver' && renderGameOver()}
