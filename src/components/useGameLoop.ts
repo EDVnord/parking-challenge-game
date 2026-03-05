@@ -89,25 +89,18 @@ export function useGameLoop({
           const angleDiff = Math.abs(((player.angle - orbitTangent) + Math.PI * 3) % (Math.PI * 2) - Math.PI);
           const againstOrbit = angleDiff > Math.PI / 2;
 
+          const _dx = player.x - CENTER_X;
+          const _dy = player.y - CENTER_Y;
+          const nearExcl = !state.signal && ((_dx / EXCL_RX) ** 2 + (_dy / EXCL_RY) ** 2) < 1.1;
+          const minSpeed = !state.signal ? (nearExcl ? 1.5 * hpFactor : 0.7 * hpFactor) : 0;
+
           if (currentKeys.has('ArrowUp')) {
             const capSpeed = againstOrbit ? player.maxSpeed * hpFactor * 0.35 : player.maxSpeed * hpFactor;
             player.speed = Math.min(player.speed + 0.15 * dtNorm, capSpeed);
           } else if (currentKeys.has('ArrowDown')) {
             player.speed = Math.max(player.speed - 0.2 * dtNorm, -1);
           } else {
-            player.speed *= Math.pow(0.96, dtNorm);
-          }
-
-          if (!state.signal) {
-            const dx = player.x - CENTER_X;
-            const dy = player.y - CENTER_Y;
-            const ellVal = (dx / EXCL_RX) ** 2 + (dy / EXCL_RY) ** 2;
-            const nearExcl = ellVal < 1.1;
-            const minSpeed = nearExcl ? 1.5 * hpFactor : 0.7 * hpFactor;
-            // Плавный lerp до минимальной скорости — без рывков
-            if (player.speed < minSpeed) {
-              player.speed += (minSpeed - player.speed) * Math.min(1, dt * 6);
-            }
+            player.speed = Math.max(player.speed * Math.pow(0.96, dtNorm), minSpeed);
           }
 
           player.x += Math.sin(player.angle) * player.speed * dtNorm;
