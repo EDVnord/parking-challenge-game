@@ -1,5 +1,5 @@
 import { useEffect, useRef, MutableRefObject } from 'react';
-import { Car, GameState, Upgrades, CANVAS_W, CANVAS_H, CENTER_X, CENTER_Y, EXCL_RX, EXCL_RY } from './gameTypes';
+import { Car, GameState, Upgrades, CANVAS_W, CANVAS_H, CENTER_X, CENTER_Y } from './gameTypes';
 import { makeSpotsGrid, spawnParticles, blockParkingZone, resolveAllCollisions } from './gameLogic';
 import { drawAsphalt, drawParkingArea, drawCar, drawParticles, drawSignal, drawRoundEnd, drawWinner, drawHUD, drawGpsOverlay } from './gameRenderer';
 
@@ -77,70 +77,7 @@ export function useGameLoop({
       if (state.phase === 'driving') {
         state.timer -= dt;
 
-        const player = state.cars.find(c => c.isPlayer && !c.eliminated);
-        if (player && !player.parked) {
-          const hpFactor = 0.3 + (player.hp / player.maxHp) * 0.7;
-          const dtNorm = dt * 60;
-          const turnSpeed = (0.045 + (player.hp / player.maxHp) * 0.02) * dtNorm;
-          let targetAngle = player.angle;
-          if (currentKeys.has('ArrowLeft')) targetAngle -= turnSpeed;
-          if (currentKeys.has('ArrowRight')) targetAngle += turnSpeed;
-          player.angle += (targetAngle - player.angle) * Math.min(1, dt * 18);
-
-          const orbitTangent = Math.atan2(player.x - CENTER_X, -(player.y - CENTER_Y)) + Math.PI;
-          const angleDiff = Math.abs(((player.angle - orbitTangent) + Math.PI * 3) % (Math.PI * 2) - Math.PI);
-          const againstOrbit = angleDiff > Math.PI / 2;
-
-          const _dx = player.x - CENTER_X;
-          const _dy = player.y - CENTER_Y;
-          const nearExcl = !state.signal && ((_dx / EXCL_RX) ** 2 + (_dy / EXCL_RY) ** 2) < 1.1;
-          const minSpeed = !state.signal ? (nearExcl ? 1.5 * hpFactor : 0.7 * hpFactor) : 0;
-
-          if (currentKeys.has('ArrowUp')) {
-            const capSpeed = againstOrbit ? player.maxSpeed * hpFactor * 0.35 : player.maxSpeed * hpFactor;
-            player.speed = Math.min(player.speed + 0.15 * dtNorm, capSpeed);
-          } else if (currentKeys.has('ArrowDown')) {
-            player.speed = Math.max(player.speed - 0.2 * dtNorm, -1);
-          } else {
-            player.speed = Math.max(player.speed * Math.pow(0.96, dtNorm), minSpeed);
-          }
-
-          player.x += Math.sin(player.angle) * player.speed * dtNorm;
-          player.y -= Math.cos(player.angle) * player.speed * dtNorm;
-
-          if (Math.abs(player.speed) > 1.5 && (currentKeys.has('ArrowLeft') || currentKeys.has('ArrowRight'))) {
-            state.driftMarks.push({ x: player.x, y: player.y, angle: player.angle, opacity: 0.8 });
-          }
-
-          player.x = Math.max(20, Math.min(CANVAS_W - 20, player.x));
-          player.y = Math.max(20, Math.min(CANVAS_H - 20, player.y));
-
-          if (!state.signal) {
-            blockParkingZone(player);
-          }
-
-          if (state.signal && !player.parked) {
-            const freeSpots = state.spots
-              .map((s, i) => ({ s, i }))
-              .filter(({ s }) => !s.occupied);
-
-            for (const { s, i } of freeSpots) {
-              const dist = Math.hypot(s.x - player.x, s.y - player.y);
-              if (dist < 25) {
-                player.x = s.x;
-                player.y = s.y;
-                player.parked = true;
-                player.parkSpot = i;
-                player.speed = 0;
-                s.occupied = true;
-                s.carId = player.id;
-                spawnParticles(state, player.x, player.y, '#FFD600', 15);
-                break;
-              }
-            }
-          }
-        }
-
+        // В фазе driving игрок едет по орбите автоматически (как боты)
         state.cars.forEach(car => botAI(car, state, dt));
 
         state.cars.forEach(car => {
@@ -180,17 +117,11 @@ export function useGameLoop({
           const hpFactor = 0.3 + (player.hp / player.maxHp) * 0.7;
           const dtNorm = dt * 60;
           const turnSpeed = (0.045 + (player.hp / player.maxHp) * 0.02) * dtNorm;
-          let targetAngleS = player.angle;
-          if (currentKeys.has('ArrowLeft')) targetAngleS -= turnSpeed;
-          if (currentKeys.has('ArrowRight')) targetAngleS += turnSpeed;
-          player.angle += (targetAngleS - player.angle) * Math.min(1, dt * 18);
+          if (currentKeys.has('ArrowLeft')) player.angle -= turnSpeed;
+          if (currentKeys.has('ArrowRight')) player.angle += turnSpeed;
           const nitroBoost = (currentUpgrades.nitro && currentKeys.has(' ')) ? 1.4 : 1;
-          const orbitTangentS = Math.atan2(player.x - CENTER_X, -(player.y - CENTER_Y)) + Math.PI;
-          const angleDiffS = Math.abs(((player.angle - orbitTangentS) + Math.PI * 3) % (Math.PI * 2) - Math.PI);
-          const againstOrbitS = angleDiffS > Math.PI / 2;
           if (currentKeys.has('ArrowUp')) {
-            const capSpeedS = againstOrbitS ? player.maxSpeed * hpFactor * 0.35 : player.maxSpeed * hpFactor * nitroBoost;
-            player.speed = Math.min(player.speed + 0.18 * nitroBoost * dtNorm, capSpeedS);
+            player.speed = Math.min(player.speed + 0.18 * nitroBoost * dtNorm, player.maxSpeed * hpFactor * nitroBoost);
           } else if (currentKeys.has('ArrowDown')) {
             player.speed = Math.max(player.speed - 0.2 * dtNorm, -1);
           } else {

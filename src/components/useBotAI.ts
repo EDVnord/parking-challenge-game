@@ -8,7 +8,21 @@ const TARGET_FPS = 60;
 
 export function useBotAI() {
   const botAI = useCallback((car: Car, state: GameState, dt: number) => {
-    if (car.isPlayer || car.eliminated || car.parked) return;
+    if (car.eliminated || car.parked) return;
+
+    // Игрок в driving-фазе (до сигнала) — только орбита, без выбора парковки
+    if (car.isPlayer && !state.signal) {
+      const hpFactor = 0.5 + (car.hp / car.maxHp) * 0.5;
+      const angularSpeed = car.orbitSpeed * TARGET_FPS * hpFactor;
+      car.orbitAngle += angularSpeed * dt;
+      car.orbitRadius = Math.max(220, Math.min(230, car.orbitRadius));
+      car.x = CENTER_X + Math.cos(car.orbitAngle) * car.orbitRadius;
+      car.y = CENTER_Y + Math.sin(car.orbitAngle) * car.orbitRadius;
+      car.angle = car.orbitAngle + Math.PI;
+      return;
+    }
+
+    if (car.isPlayer) return; // в signal-фазе игрок управляется вручную
 
     if (state.signal && !car.parked && car.targetSpot === null) {
       const freeSpots = state.spots
