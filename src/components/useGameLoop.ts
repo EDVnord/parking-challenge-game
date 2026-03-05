@@ -80,7 +80,8 @@ export function useGameLoop({
         const player = state.cars.find(c => c.isPlayer && !c.eliminated);
         if (player && !player.parked) {
           const hpFactor = 0.3 + (player.hp / player.maxHp) * 0.7;
-          const turnSpeed = 0.045 + (player.hp / player.maxHp) * 0.02;
+          const dtNorm = dt * 60; // нормализация к 60fps — одинаковая скорость на любом FPS
+          const turnSpeed = (0.045 + (player.hp / player.maxHp) * 0.02) * dtNorm;
           if (currentKeys.has('ArrowLeft')) player.angle -= turnSpeed;
           if (currentKeys.has('ArrowRight')) player.angle += turnSpeed;
 
@@ -90,11 +91,11 @@ export function useGameLoop({
 
           if (currentKeys.has('ArrowUp')) {
             const capSpeed = againstOrbit ? player.maxSpeed * hpFactor * 0.35 : player.maxSpeed * hpFactor;
-            player.speed = Math.min(player.speed + 0.15, capSpeed);
+            player.speed = Math.min(player.speed + 0.15 * dtNorm, capSpeed);
           } else if (currentKeys.has('ArrowDown')) {
-            player.speed = Math.max(player.speed - 0.2, -1);
+            player.speed = Math.max(player.speed - 0.2 * dtNorm, -1);
           } else {
-            player.speed *= 0.96;
+            player.speed *= Math.pow(0.96, dtNorm);
           }
 
           if (!state.signal) {
@@ -103,11 +104,14 @@ export function useGameLoop({
             const ellVal = (dx / EXCL_RX) ** 2 + (dy / EXCL_RY) ** 2;
             const nearExcl = ellVal < 1.1;
             const minSpeed = nearExcl ? 1.5 * hpFactor : 0.7 * hpFactor;
-            if (player.speed < minSpeed) player.speed = minSpeed;
+            // Плавный lerp до минимальной скорости — без рывков
+            if (player.speed < minSpeed) {
+              player.speed += (minSpeed - player.speed) * Math.min(1, dt * 6);
+            }
           }
 
-          player.x += Math.sin(player.angle) * player.speed;
-          player.y -= Math.cos(player.angle) * player.speed;
+          player.x += Math.sin(player.angle) * player.speed * dtNorm;
+          player.y -= Math.cos(player.angle) * player.speed * dtNorm;
 
           if (Math.abs(player.speed) > 1.5 && (currentKeys.has('ArrowLeft') || currentKeys.has('ArrowRight'))) {
             state.driftMarks.push({ x: player.x, y: player.y, angle: player.angle, opacity: 0.8 });
@@ -179,7 +183,8 @@ export function useGameLoop({
         const player = state.cars.find(c => c.isPlayer && !c.eliminated);
         if (player && !player.parked) {
           const hpFactor = 0.3 + (player.hp / player.maxHp) * 0.7;
-          const turnSpeed = 0.045 + (player.hp / player.maxHp) * 0.02;
+          const dtNorm = dt * 60;
+          const turnSpeed = (0.045 + (player.hp / player.maxHp) * 0.02) * dtNorm;
           if (currentKeys.has('ArrowLeft')) player.angle -= turnSpeed;
           if (currentKeys.has('ArrowRight')) player.angle += turnSpeed;
           const nitroBoost = (currentUpgrades.nitro && currentKeys.has(' ')) ? 1.4 : 1;
@@ -188,17 +193,17 @@ export function useGameLoop({
           const againstOrbitS = angleDiffS > Math.PI / 2;
           if (currentKeys.has('ArrowUp')) {
             const capSpeedS = againstOrbitS ? player.maxSpeed * hpFactor * 0.35 : player.maxSpeed * hpFactor * nitroBoost;
-            player.speed = Math.min(player.speed + 0.18 * nitroBoost, capSpeedS);
+            player.speed = Math.min(player.speed + 0.18 * nitroBoost * dtNorm, capSpeedS);
           } else if (currentKeys.has('ArrowDown')) {
-            player.speed = Math.max(player.speed - 0.2, -1);
+            player.speed = Math.max(player.speed - 0.2 * dtNorm, -1);
           } else {
-            player.speed *= 0.95;
+            player.speed *= Math.pow(0.95, dtNorm);
           }
           if (currentUpgrades.nitro && currentKeys.has(' ') && currentKeys.has('ArrowUp') && Math.random() < 0.4) {
             spawnParticles(state, player.x, player.y, '#FFD600', 3);
           }
-          player.x += Math.sin(player.angle) * player.speed;
-          player.y -= Math.cos(player.angle) * player.speed;
+          player.x += Math.sin(player.angle) * player.speed * dtNorm;
+          player.y -= Math.cos(player.angle) * player.speed * dtNorm;
           player.x = Math.max(20, Math.min(CANVAS_W - 20, player.x));
           player.y = Math.max(20, Math.min(CANVAS_H - 20, player.y));
 

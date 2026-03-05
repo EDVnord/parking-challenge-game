@@ -1,6 +1,6 @@
 """
 Авторизация игры 'Король парковки': регистрация, логин, сохранение, счётчик.
-POST / с полем action: register | login | save | count
+POST / с полем action: register | login | save | save_ya | save_anon | count
 """
 import json
 import os
@@ -181,6 +181,40 @@ def handler(event: dict, context) -> dict:
                         owned_cars = EXCLUDED.owned_cars, upgrades = EXCLUDED.upgrades,
                         updated_at = NOW()''',
                 (name, emoji, coins, gems, xp, wins, games_played, best_position, selected_car, owned_cars, upgrades, ya_id)
+            )
+            conn.commit()
+            return ok({'success': True})
+
+        elif action == 'save_anon':
+            anon_id = (body.get('playerId') or '').strip()
+            profile = body.get('profile', {})
+
+            if not anon_id:
+                return err('Нет playerId')
+
+            name = (profile.get('name') or 'Игрок').strip()[:16] or 'Игрок'
+            emoji = profile.get('emoji', '😎')
+            coins = max(0, int(profile.get('coins', 0)))
+            gems = max(0, int(profile.get('gems', 0)))
+            xp = max(0, int(profile.get('xp', 0)))
+            wins = max(0, int(profile.get('wins', 0)))
+            games_played = max(0, int(profile.get('gamesPlayed', 0)))
+            best_position = int(profile.get('bestPosition', 99))
+            selected_car = int(profile.get('selectedCar', 0))
+            owned_cars = ','.join(str(x) for x in (profile.get('ownedCars') or [0]))
+            upgrades = json.dumps(profile.get('upgrades') or {})
+
+            cur.execute(
+                f'''INSERT INTO {SCHEMA}.players (name, emoji, password_hash, coins, gems, xp, wins, games_played, best_position, selected_car, owned_cars, upgrades, anon_id)
+                    VALUES (%s, %s, '', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (anon_id) DO UPDATE SET
+                        name = EXCLUDED.name, emoji = EXCLUDED.emoji,
+                        coins = EXCLUDED.coins, gems = EXCLUDED.gems, xp = EXCLUDED.xp,
+                        wins = EXCLUDED.wins, games_played = EXCLUDED.games_played,
+                        best_position = EXCLUDED.best_position, selected_car = EXCLUDED.selected_car,
+                        owned_cars = EXCLUDED.owned_cars, upgrades = EXCLUDED.upgrades,
+                        updated_at = NOW()''',
+                (name, emoji, coins, gems, xp, wins, games_played, best_position, selected_car, owned_cars, upgrades, anon_id)
             )
             conn.commit()
             return ok({'success': True})

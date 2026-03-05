@@ -4,7 +4,7 @@ import {
   DEFAULT_PLAYER,
   loadProfile, saveProfile, profileToSavePayload,
   apiAuth, fetchLeaderboard, roomApi, getYaPlayer,
-  initYandexGames, levelFromXp,
+  initYandexGames, levelFromXp, getOrCreateAnonId,
   DAILY_STREAK_REWARDS, makeDailyQuests, todayDateStr,
 } from './parkingTypes';
 import { MenuScreen, GameScreen, GameOverScreen } from './GameScreens';
@@ -49,13 +49,17 @@ export default function Index() {
 
   // Autosave locally + sync to server on every player change
   useEffect(() => {
-    if (player.name) {
-      saveProfile(player);
-      if (player.password) {
-        apiAuth('save', { name: player.name, password: player.password, profile: profileToSavePayload(player) }).catch(() => {});
-      } else if (localPlayerId.startsWith('ya_')) {
-        apiAuth('save_ya', { yaId: localPlayerId, profile: profileToSavePayload(player) }).catch(() => {});
-      }
+    if (!player.name) return;
+    saveProfile(player);
+    if (player.password) {
+      // Зарегистрированный игрок с паролем
+      apiAuth('save', { name: player.name, password: player.password, profile: profileToSavePayload(player) }).catch(() => {});
+    } else if (localPlayerId.startsWith('ya_')) {
+      // Яндекс-игрок
+      apiAuth('save_ya', { yaId: localPlayerId, profile: profileToSavePayload(player) }).catch(() => {});
+    } else if (player.name && player.name !== 'Игрок') {
+      // Любой игрок с именем — сохраняем анонимно для лидерборда (стабильный ID из localStorage)
+      apiAuth('save_anon', { playerId: getOrCreateAnonId(), profile: profileToSavePayload(player) }).catch(() => {});
     }
   }, [player, screen, localPlayerId]);
 

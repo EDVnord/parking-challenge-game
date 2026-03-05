@@ -3,6 +3,17 @@ export type Screen = 'login' | 'menu' | 'game' | 'gameOver' | 'garage' | 'shop' 
 export const SAVE_KEY = 'king_parking_profile_v1';
 export const SESSION_KEY = 'king_parking_session';
 export const SESSION_TTL = 60 * 60 * 1000;
+export const ANON_ID_KEY = 'king_parking_anon_id';
+
+export function getOrCreateAnonId(): string {
+  try {
+    const existing = localStorage.getItem(ANON_ID_KEY);
+    if (existing) return existing;
+    const id = `anon_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    localStorage.setItem(ANON_ID_KEY, id);
+    return id;
+  } catch { return `anon_${Date.now()}`; }
+}
 
 export const AUTH_URL = 'https://functions.poehali.dev/3b4361d7-46d0-476d-be12-f345c31447fc';
 export const LEADERBOARD_URL = 'https://functions.poehali.dev/507d718a-32e2-4623-a6d8-1cf02d2af300';

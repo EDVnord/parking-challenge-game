@@ -2,8 +2,10 @@ import { useCallback } from 'react';
 import { Car, GameState, CENTER_X, CENTER_Y } from './gameTypes';
 import { spawnParticles } from './gameLogic';
 
+const BASE_ORBIT_SPEED = 0.9; // радиан/сек — константная угловая скорость
+
 export function useBotAI() {
-  const botAI = useCallback((car: Car, state: GameState, _dt: number) => {
+  const botAI = useCallback((car: Car, state: GameState, dt: number) => {
     if (car.isPlayer || car.eliminated || car.parked) return;
 
     if (state.signal && !car.parked && car.targetSpot === null) {
@@ -58,14 +60,15 @@ export function useBotAI() {
       return;
     }
 
-    const spotsLeft = state.spots.length;
-    const totalSpotsAtStart = 10;
-    const orbitShrink = 1 - (1 - spotsLeft / totalSpotsAtStart) * 0.45;
-    const effectiveRadius = car.orbitRadius * orbitShrink;
-    car.orbitAngle += car.orbitSpeed * (0.5 + (car.hp / car.maxHp) * 0.5);
-    car.x = CENTER_X + Math.cos(car.orbitAngle) * effectiveRadius;
-    car.y = CENTER_Y + Math.sin(car.orbitAngle) * effectiveRadius;
-    car.angle = car.orbitAngle + Math.PI;
+    // Орбита: угловая скорость в рад/сек, умноженная на dt — FPS-независимо
+    const hpFactor = 0.5 + (car.hp / car.maxHp) * 0.5;
+    const angularSpeed = BASE_ORBIT_SPEED * car.orbitSpeed * hpFactor;
+    car.orbitAngle += angularSpeed * dt;
+
+    // Радиус орбиты не меняем — стабильный
+    car.x = CENTER_X + Math.cos(car.orbitAngle) * car.orbitRadius;
+    car.y = CENTER_Y + Math.sin(car.orbitAngle) * car.orbitRadius;
+    car.angle = car.orbitAngle + Math.PI / 2;
 
     if (Math.random() < 0.02) {
       state.driftMarks.push({

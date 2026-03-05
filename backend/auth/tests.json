@@ -4,7 +4,7 @@
       "name": "Register new player",
       "method": "POST",
       "path": "/",
-      "body": {"action": "register", "name": "TestKingXYZ9992", "emoji": "😎", "password": "test1234"},
+      "body": {"action": "register", "name": "TestKingXYZ9993", "emoji": "😎", "password": "test1234"},
       "expectedStatus": 200,
       "expectedBody": {"success": true},
       "bodyMatcher": "partial"
@@ -13,7 +13,7 @@
       "name": "Duplicate nick rejected",
       "method": "POST",
       "path": "/",
-      "body": {"action": "register", "name": "TestKingXYZ9992", "emoji": "😎", "password": "test1234"},
+      "body": {"action": "register", "name": "TestKingXYZ9993", "emoji": "😎", "password": "test1234"},
       "expectedStatus": 400,
       "expectedBody": {"error": "Этот ник уже занят. Выбери другой!"},
       "bodyMatcher": "partial"
@@ -22,7 +22,7 @@
       "name": "Login correct password",
       "method": "POST",
       "path": "/",
-      "body": {"action": "login", "name": "TestKingXYZ9992", "password": "test1234"},
+      "body": {"action": "login", "name": "TestKingXYZ9993", "password": "test1234"},
       "expectedStatus": 200,
       "expectedBody": {"success": true},
       "bodyMatcher": "partial"
@@ -31,9 +31,18 @@
       "name": "Login wrong password",
       "method": "POST",
       "path": "/",
-      "body": {"action": "login", "name": "TestKingXYZ9992", "password": "wrongpass"},
+      "body": {"action": "login", "name": "TestKingXYZ9993", "password": "wrongpass"},
       "expectedStatus": 400,
       "expectedBody": {"error": "Неверный пароль"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Save anonymous player",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "save_anon", "playerId": "anon_test_777", "profile": {"name": "АнонИгрок", "emoji": "🚗", "coins": 300, "gems": 0, "xp": 250, "wins": 2, "gamesPlayed": 5, "bestPosition": 3, "selectedCar": 0, "ownedCars": [0], "upgrades": {}}},
+      "expectedStatus": 200,
+      "expectedBody": {"success": true},
       "bodyMatcher": "partial"
     },
     {
@@ -51,7 +60,7 @@
       "path": "/",
       "body": {"action": "count"},
       "expectedStatus": 200,
-      "expectedBody": {"count": 6},
+      "expectedBody": {"count": 8},
       "bodyMatcher": "partial"
     }
   ]
