@@ -1,14 +1,20 @@
 import GameCanvas from '@/components/GameCanvas';
-import { PlayerData, Screen } from './parkingTypes';
+import { PlayerData, Screen, DailyQuest, todayDateStr } from './parkingTypes';
 
 // ──────────────── MENU ────────────────
 interface MenuScreenProps {
   player: PlayerData;
   setScreen: (s: Screen) => void;
   onPlay: () => void;
+  onQuestClaim?: (questId: string) => void;
 }
 
 export function MenuScreen({ player, setScreen, onPlay }: MenuScreenProps) {
+  const today = todayDateStr();
+  const quests: DailyQuest[] = player.dailyQuestsDate === today ? (player.dailyQuests ?? []) : [];
+  const hasActiveQuests = quests.some(q => !q.done || q.progress < q.goal);
+  const streak = player.loginStreak ?? 0;
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 relative overflow-hidden">
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -22,7 +28,7 @@ export function MenuScreen({ player, setScreen, onPlay }: MenuScreenProps) {
         <div className="absolute bottom-1/4 right-1/4 w-48 h-48 rounded-full bg-orange-500/5 blur-3xl" />
       </div>
 
-      <div className="relative z-10 flex flex-col items-center gap-5 w-full max-w-sm">
+      <div className="relative z-10 flex flex-col items-center gap-4 w-full max-w-sm py-6">
         <div className="text-center animate-fade-in">
           <div className="text-7xl mb-2 animate-bounce-in">👑</div>
           <h1 className="font-russo text-4xl text-yellow-400 leading-none" style={{ textShadow: '0 0 30px rgba(255,214,0,0.6)' }}>КОРОЛЬ ПАРКОВКИ</h1>
@@ -40,9 +46,41 @@ export function MenuScreen({ player, setScreen, onPlay }: MenuScreenProps) {
           </div>
           <div className="flex flex-col items-end gap-0.5">
             <div className="font-russo text-yellow-400 text-lg">Lv.{player.level}</div>
+            {streak > 0 && <div className="text-orange-400 text-xs font-nunito">🔥 {streak} д.</div>}
             <div className="text-white/20 text-xs font-nunito">сменить ↗</div>
           </div>
         </button>
+
+        {quests.length > 0 && (
+          <div className="card-game w-full p-3 animate-fade-in">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-base">📋</span>
+              <span className="font-russo text-white/80 text-sm">Задания дня</span>
+              {!hasActiveQuests && <span className="ml-auto text-green-400 text-xs font-nunito">✅ Все выполнены</span>}
+            </div>
+            <div className="flex flex-col gap-1.5">
+              {quests.map(q => {
+                const pct = Math.min(100, (q.progress / q.goal) * 100);
+                return (
+                  <div key={q.id} className={`flex items-center gap-2 rounded-lg px-2 py-1.5 ${q.done ? 'bg-green-500/10 border border-green-500/20' : 'bg-white/5'}`}>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1">
+                        <span className={`font-nunito text-xs ${q.done ? 'text-green-400' : 'text-white/70'}`}>{q.label}</span>
+                        <span className="ml-auto font-nunito text-white/40 text-xs whitespace-nowrap">{q.progress}/{q.goal}</span>
+                      </div>
+                      <div className="h-1 bg-white/10 rounded-full mt-1 overflow-hidden">
+                        <div className="h-full bg-yellow-400 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-xs font-nunito text-yellow-400 whitespace-nowrap">
+                      +{q.reward.coins}🪙{q.reward.gems ? ` +${q.reward.gems}💎` : ''}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-col gap-3 w-full">
           <button className="btn-yellow w-full text-xl py-5 animate-fade-in" onClick={onPlay}>
@@ -74,7 +112,7 @@ interface GameScreenProps {
   setScreen: (s: Screen) => void;
   setPlayer: React.Dispatch<React.SetStateAction<PlayerData>>;
   handleRoundEnd: (round: number, isPlayerEliminated: boolean, playerHp: number, playerMaxHp: number) => void;
-  handleGameEnd: (position: number) => void;
+  handleGameEnd: (position: number, roundsPlayed?: number) => void;
   notify: (msg: string) => void;
 }
 

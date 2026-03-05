@@ -331,12 +331,12 @@ export default function GameCanvas({ playerName, playerHp, playerMaxHp, playerCo
             const totalCars = state.cars.length;
             const eliminatedBefore = state.cars.filter(c => c.eliminated && !c.isPlayer).length;
             const position = totalCars - eliminatedBefore;
-            onGameEnd(position);
+            onGameEnd(position, state.round);
             return;
           }
 
           if (activeCars.length <= 1 || state.round >= state.maxRounds) {
-            onGameEnd(1);
+            onGameEnd(1, state.round);
             return;
           }
 

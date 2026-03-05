@@ -6,10 +6,12 @@ import {
   getSession, setSession,
   apiAuth, fetchLeaderboard,
   levelFromXp, initYandexGames,
+  DAILY_STREAK_REWARDS, makeDailyQuests, todayDateStr,
 } from './parkingTypes';
 import LoginScreen from './LoginScreen';
 import { MenuScreen, GameScreen, GameOverScreen } from './GameScreens';
 import { GarageScreen, ShopScreen, ProfileScreen, LeaderboardScreen } from './PlayerScreens';
+import DailyBonusModal from '@/components/DailyBonusModal';
 
 export default function Index() {
   const [screen, setScreen] = useState<Screen>('login');
@@ -23,6 +25,7 @@ export default function Index() {
   const [onlineLeaders, setOnlineLeaders] = useState<LeaderEntry[]>([]);
   const [inGamePhase, setInGamePhase] = useState<'playing' | 'roundEnd'>('playing');
   const keysRef = useRef<Set<string>>(new Set());
+  const [dailyBonus, setDailyBonus] = useState<{ streak: number; coins: number; gems: number } | null>(null);
 
   // Init YaGames SDK on mount
   useEffect(() => { initYandexGames(); }, []);
@@ -38,14 +41,18 @@ export default function Index() {
   useEffect(() => {
     const saved = loadProfile();
     if (saved && saved.name) {
-      setPlayer(saved);
       setIsReturningPlayer(true);
       const session = getSession();
       if (session && session.name === saved.name) {
+        const withBonus = checkDailyBonus(saved);
+        setPlayer(withBonus);
+        saveProfile(withBonus);
         setScreen('menu');
+      } else {
+        setPlayer(saved);
       }
     }
-  }, []);
+  }, [checkDailyBonus]);
 
   // Autosave locally + sync to server on every player change (except on login screen)
   useEffect(() => {
@@ -75,6 +82,30 @@ export default function Index() {
     setTimeout(() => setNotification(null), 3000);
   };
 
+  const checkDailyBonus = useCallback((p: PlayerData): PlayerData => {
+    const today = todayDateStr();
+    if (p.lastLoginDate === today) return p;
+
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const newStreak = p.lastLoginDate === yesterday ? Math.min((p.loginStreak ?? 0) + 1, 7) : 1;
+    const rewardIdx = newStreak - 1;
+    const reward = DAILY_STREAK_REWARDS[rewardIdx] ?? DAILY_STREAK_REWARDS[0];
+
+    const refreshQuests = p.dailyQuestsDate !== today;
+    const updated: PlayerData = {
+      ...p,
+      coins: p.coins + reward.coins,
+      gems: p.gems + reward.gems,
+      loginStreak: newStreak,
+      lastLoginDate: today,
+      dailyQuests: refreshQuests ? makeDailyQuests() : p.dailyQuests,
+      dailyQuestsDate: today,
+    };
+
+    setDailyBonus({ streak: newStreak, coins: reward.coins, gems: reward.gems });
+    return updated;
+  }, []);
+
   const handleRoundEnd = useCallback((round: number, isPlayerEliminated: boolean, playerHp: number, playerMaxHp: number) => {
     setGameRound(round);
     setInGamePhase('roundEnd');
@@ -86,19 +117,35 @@ export default function Index() {
     setTimeout(() => setInGamePhase('playing'), 3000);
   }, []);
 
-  const handleGameEnd = useCallback((position: number) => {
+  const handleGameEnd = useCallback((position: number, roundsPlayed?: number) => {
     const coinsEarned = Math.max(0, (11 - position) * 50 + Math.floor(Math.random() * 100));
     const xpEarned = Math.max(0, (11 - position) * 30);
     setGameResult({ position, coinsEarned });
-    setPlayer(prev => ({
-      ...prev,
-      coins: prev.coins + coinsEarned,
-      xp: prev.xp + xpEarned,
-      level: levelFromXp(prev.xp + xpEarned),
-      wins: position === 1 ? prev.wins + 1 : prev.wins,
-      gamesPlayed: prev.gamesPlayed + 1,
-      bestPosition: prev.bestPosition === 99 ? position : Math.min(prev.bestPosition, position),
-    }));
+    setPlayer(prev => {
+      const today = todayDateStr();
+      let bonusCoins = 0;
+      const newQuests = (prev.dailyQuestsDate === today ? prev.dailyQuests : makeDailyQuests()).map(q => {
+        if (q.done) return q;
+        let progress = q.progress;
+        if (q.id === 'play3') progress = Math.min(q.goal, progress + 1);
+        if (q.id === 'top5' && position <= 5) progress = Math.min(q.goal, progress + 1);
+        if (q.id === 'survive' && (roundsPlayed ?? 0) >= 5) progress = Math.min(q.goal, progress + 1);
+        const done = progress >= q.goal;
+        if (done && !q.done) bonusCoins += q.reward.coins;
+        return { ...q, progress, done };
+      });
+      return {
+        ...prev,
+        coins: prev.coins + coinsEarned + bonusCoins,
+        xp: prev.xp + xpEarned,
+        level: levelFromXp(prev.xp + xpEarned),
+        wins: position === 1 ? prev.wins + 1 : prev.wins,
+        gamesPlayed: prev.gamesPlayed + 1,
+        bestPosition: prev.bestPosition === 99 ? position : Math.min(prev.bestPosition, position),
+        dailyQuests: newQuests,
+        dailyQuestsDate: today,
+      };
+    });
     setScreen('gameOver');
   }, []);
 
@@ -112,6 +159,15 @@ export default function Index() {
 
   return (
     <div className="relative min-h-screen">
+      {dailyBonus && (
+        <DailyBonusModal
+          streak={dailyBonus.streak}
+          coinsEarned={dailyBonus.coins}
+          gemsEarned={dailyBonus.gems}
+          onClose={() => setDailyBonus(null)}
+        />
+      )}
+
       {notification && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-bounce-in pointer-events-none">
           <div className="bg-gray-900 border-2 border-yellow-500/40 rounded-2xl px-6 py-3 font-russo text-white text-sm shadow-2xl whitespace-nowrap">
@@ -126,7 +182,8 @@ export default function Index() {
             const data = await apiAuth('login', { name, password });
             if (data.error) return data.error;
             const sp = data.profile;
-            const merged: PlayerData = {
+            const today = todayDateStr();
+            const base: PlayerData = {
               ...DEFAULT_PLAYER,
               name: sp.name ?? name,
               emoji: sp.emoji ?? '😎',
@@ -141,9 +198,14 @@ export default function Index() {
               level: levelFromXp(sp.xp ?? 0),
               cars: INITIAL_CARS.map(c => ({ ...c, owned: (sp.ownedCars ?? [0]).includes(c.id) })),
               upgrades: { ...DEFAULT_PLAYER.upgrades, ...(sp.upgrades ?? {}) },
+              loginStreak: sp.loginStreak ?? 0,
+              lastLoginDate: sp.lastLoginDate ?? '',
+              dailyQuests: sp.dailyQuestsDate === today ? (sp.dailyQuests ?? makeDailyQuests()) : makeDailyQuests(),
+              dailyQuestsDate: sp.dailyQuestsDate === today ? today : '',
             };
-            setPlayer(merged);
-            saveProfile(merged);
+            const withBonus = checkDailyBonus(base);
+            setPlayer(withBonus);
+            saveProfile(withBonus);
             setIsReturningPlayer(true);
             setSession(name, password);
             setScreen('menu');
@@ -152,9 +214,10 @@ export default function Index() {
           onRegister={async (name, emoji, password) => {
             const data = await apiAuth('register', { name, emoji, password });
             if (data.error) return data.error;
-            const updated: PlayerData = { ...DEFAULT_PLAYER, name, emoji, password };
-            setPlayer(updated);
-            saveProfile(updated);
+            const base: PlayerData = { ...DEFAULT_PLAYER, name, emoji, password };
+            const withBonus = checkDailyBonus(base);
+            setPlayer(withBonus);
+            saveProfile(withBonus);
             setIsReturningPlayer(true);
             setSession(name, password);
             setScreen('menu');
@@ -164,7 +227,18 @@ export default function Index() {
       )}
 
       {screen === 'menu' && (
-        <MenuScreen player={player} setScreen={setScreen} onPlay={handlePlay} />
+        <MenuScreen player={player} setScreen={setScreen} onPlay={handlePlay} onQuestClaim={(questId) => {
+          setPlayer(prev => {
+            const today = todayDateStr();
+            return {
+              ...prev,
+              dailyQuests: (prev.dailyQuests ?? []).map(q =>
+                q.id === questId && q.done ? { ...q, done: true } : q
+              ),
+              dailyQuestsDate: today,
+            };
+          });
+        }} />
       )}
 
       {screen === 'game' && (

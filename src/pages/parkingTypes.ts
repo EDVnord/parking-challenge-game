@@ -35,6 +35,15 @@ export function clearSession() {
   localStorage.removeItem(SESSION_KEY);
 }
 
+export interface DailyQuest {
+  id: string;
+  label: string;
+  goal: number;
+  progress: number;
+  done: boolean;
+  reward: { coins: number; gems?: number };
+}
+
 export interface PlayerData {
   name: string;
   emoji: string;
@@ -57,6 +66,10 @@ export interface PlayerData {
     turbo: boolean;
     shield: boolean;
   };
+  loginStreak: number;
+  lastLoginDate: string;
+  dailyQuests: DailyQuest[];
+  dailyQuestsDate: string;
 }
 
 export async function apiAuth(action: string, payload: Record<string, unknown>) {
@@ -148,6 +161,28 @@ export function levelFromXp(xp: number) {
   return l;
 }
 
+export const DAILY_STREAK_REWARDS: { coins: number; gems: number }[] = [
+  { coins: 100, gems: 0 },
+  { coins: 150, gems: 0 },
+  { coins: 200, gems: 1 },
+  { coins: 300, gems: 1 },
+  { coins: 400, gems: 2 },
+  { coins: 500, gems: 2 },
+  { coins: 750, gems: 5 },
+];
+
+export function makeDailyQuests(): DailyQuest[] {
+  return [
+    { id: 'play3',   label: 'Сыграй 3 игры',          goal: 3, progress: 0, done: false, reward: { coins: 150 } },
+    { id: 'top5',    label: 'Финишируй в топ-5',       goal: 1, progress: 0, done: false, reward: { coins: 200 } },
+    { id: 'survive', label: 'Доживи до 5-го раунда',   goal: 1, progress: 0, done: false, reward: { coins: 250, gems: 1 } },
+  ];
+}
+
+export function todayDateStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export const DEFAULT_PLAYER: PlayerData = {
   name: '',
   emoji: '😎',
@@ -162,6 +197,10 @@ export const DEFAULT_PLAYER: PlayerData = {
   cars: INITIAL_CARS,
   selectedCar: 0,
   upgrades: { nitro: false, gps: false, bumper: false, autoRepair: false, magnet: false, turbo: false, shield: false },
+  loginStreak: 0,
+  lastLoginDate: '',
+  dailyQuests: makeDailyQuests(),
+  dailyQuestsDate: '',
 };
 
 export function loadProfile(): PlayerData | null {
@@ -181,7 +220,17 @@ export function loadProfile(): PlayerData | null {
       return { ...ic, owned: saved_car.owned, hp: Math.min(saved_car.hp, maxHp), maxHp, armor, maxSpeed, speed: maxSpeed, hpLevel, armorLevel, speedLevel };
     });
     const mergedUpgrades = { ...DEFAULT_PLAYER.upgrades, ...(saved.upgrades ?? {}) };
-    return { ...saved, cars: mergedCars, upgrades: mergedUpgrades };
+    const today = todayDateStr();
+    const dailyQuests = saved.dailyQuestsDate === today ? (saved.dailyQuests ?? makeDailyQuests()) : makeDailyQuests();
+    return {
+      ...saved,
+      cars: mergedCars,
+      upgrades: mergedUpgrades,
+      loginStreak: saved.loginStreak ?? 0,
+      lastLoginDate: saved.lastLoginDate ?? '',
+      dailyQuests,
+      dailyQuestsDate: saved.dailyQuestsDate === today ? today : '',
+    };
   } catch {
     return null;
   }
