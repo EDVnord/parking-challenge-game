@@ -67,9 +67,10 @@ export function useBotAI() {
     const angularSpeed = car.orbitSpeed * TARGET_FPS * hpFactor; // рад/сек
     car.orbitAngle += angularSpeed * dt;
 
-    // Держим радиус орбиты в пределах трека (280–320), не даём уйти за края
-    const minR = 260;
-    const maxR = 330;
+    // Орбита близко к центру, чтобы не выезжать за экран (800×600, CENTER=400,300)
+    // minR = зона вне парковки (~220), maxR = безопасно от края (~230)
+    const minR = 220;
+    const maxR = 230;
     car.orbitRadius = Math.max(minR, Math.min(maxR, car.orbitRadius));
 
     car.x = CENTER_X + Math.cos(car.orbitAngle) * car.orbitRadius;

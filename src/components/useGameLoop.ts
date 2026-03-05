@@ -80,10 +80,12 @@ export function useGameLoop({
         const player = state.cars.find(c => c.isPlayer && !c.eliminated);
         if (player && !player.parked) {
           const hpFactor = 0.3 + (player.hp / player.maxHp) * 0.7;
-          const dtNorm = dt * 60; // нормализация к 60fps — одинаковая скорость на любом FPS
+          const dtNorm = dt * 60;
           const turnSpeed = (0.045 + (player.hp / player.maxHp) * 0.02) * dtNorm;
-          if (currentKeys.has('ArrowLeft')) player.angle -= turnSpeed;
-          if (currentKeys.has('ArrowRight')) player.angle += turnSpeed;
+          let targetAngle = player.angle;
+          if (currentKeys.has('ArrowLeft')) targetAngle -= turnSpeed;
+          if (currentKeys.has('ArrowRight')) targetAngle += turnSpeed;
+          player.angle += (targetAngle - player.angle) * Math.min(1, dt * 18);
 
           const orbitTangent = Math.atan2(player.x - CENTER_X, -(player.y - CENTER_Y)) + Math.PI;
           const angleDiff = Math.abs(((player.angle - orbitTangent) + Math.PI * 3) % (Math.PI * 2) - Math.PI);
@@ -178,8 +180,10 @@ export function useGameLoop({
           const hpFactor = 0.3 + (player.hp / player.maxHp) * 0.7;
           const dtNorm = dt * 60;
           const turnSpeed = (0.045 + (player.hp / player.maxHp) * 0.02) * dtNorm;
-          if (currentKeys.has('ArrowLeft')) player.angle -= turnSpeed;
-          if (currentKeys.has('ArrowRight')) player.angle += turnSpeed;
+          let targetAngleS = player.angle;
+          if (currentKeys.has('ArrowLeft')) targetAngleS -= turnSpeed;
+          if (currentKeys.has('ArrowRight')) targetAngleS += turnSpeed;
+          player.angle += (targetAngleS - player.angle) * Math.min(1, dt * 18);
           const nitroBoost = (currentUpgrades.nitro && currentKeys.has(' ')) ? 1.4 : 1;
           const orbitTangentS = Math.atan2(player.x - CENTER_X, -(player.y - CENTER_Y)) + Math.PI;
           const angleDiffS = Math.abs(((player.angle - orbitTangentS) + Math.PI * 3) % (Math.PI * 2) - Math.PI);

@@ -114,8 +114,8 @@ export function createInitialState(playerName: string, playerHp?: number, player
 
   const cars: Car[] = [];
   for (let i = 0; i < totalCars; i++) {
-    // Larger orbit radius, all cars go clockwise (positive orbitSpeed only)
-    const orbitRadius = 270 + (i % 3) * 20;
+    // Орбита в безопасных пределах (CENTER=400,300; края canvas=800×600)
+    const orbitRadius = 225;
     const orbitAngle = (i / totalCars) * Math.PI * 2;
     const color = CAR_COLORS[i];
     // Clockwise orbit tangent in canvas coords (y-down):
@@ -203,7 +203,7 @@ export function applyRoomState(state: GameState, room: RoomState, localPlayerId:
       existing.maxHp = rp.max_hp;
     } else {
       // Новый игрок — добавляем в state
-      const orbitRadius = 270 + (idx % 3) * 20;
+      const orbitRadius = 225;
       state.cars.push({
         id: state.cars.length,
         playerId: rp.player_id,
