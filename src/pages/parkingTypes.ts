@@ -171,11 +171,35 @@ export const DAILY_STREAK_REWARDS: { coins: number; gems: number }[] = [
   { coins: 750, gems: 5 },
 ];
 
-export function makeDailyQuests(): DailyQuest[] {
+export function makeDailyQuests(dateStr?: string): DailyQuest[] {
+  const d = new Date(dateStr ?? todayDateStr());
+  const day = d.getDay();
+  const seed = d.getDate() + d.getMonth() * 31;
+  const hard = seed % 3 === 0;
+
+  const playGoal = [3, 3, 4, 4, 5, 5, 3][day];
+  const topN = hard ? 3 : 5;
+  const surviveRound = hard ? 7 : 5;
+
   return [
-    { id: 'play3',   label: 'Сыграй 3 игры',          goal: 3, progress: 0, done: false, reward: { coins: 150 } },
-    { id: 'top5',    label: 'Финишируй в топ-5',       goal: 1, progress: 0, done: false, reward: { coins: 200 } },
-    { id: 'survive', label: 'Доживи до 5-го раунда',   goal: 1, progress: 0, done: false, reward: { coins: 250, gems: 1 } },
+    {
+      id: 'play3',
+      label: `Сыграй ${playGoal} ${playGoal === 3 ? 'игры' : 'игр'}`,
+      goal: playGoal, progress: 0, done: false,
+      reward: { coins: 100 + playGoal * 30 },
+    },
+    {
+      id: 'top5',
+      label: `Финишируй в топ-${topN}`,
+      goal: 1, progress: 0, done: false,
+      reward: { coins: topN === 3 ? 350 : 200, gems: topN === 3 ? 1 : 0 },
+    },
+    {
+      id: 'survive',
+      label: `Доживи до ${surviveRound}-го раунда`,
+      goal: surviveRound, progress: 0, done: false,
+      reward: { coins: surviveRound >= 7 ? 400 : 250, gems: 1 },
+    },
   ];
 }
 

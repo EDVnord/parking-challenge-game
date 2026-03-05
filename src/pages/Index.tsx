@@ -128,20 +128,26 @@ export default function Index() {
     setGameResult({ position, coinsEarned });
     setPlayer(prev => {
       const today = todayDateStr();
+      const baseQuests = prev.dailyQuestsDate === today ? prev.dailyQuests : makeDailyQuests(today);
       let bonusCoins = 0;
-      const newQuests = (prev.dailyQuestsDate === today ? prev.dailyQuests : makeDailyQuests()).map(q => {
+      let bonusGems = 0;
+      const newQuests = baseQuests.map(q => {
         if (q.done) return q;
         let progress = q.progress;
         if (q.id === 'play3') progress = Math.min(q.goal, progress + 1);
-        if (q.id === 'top5' && position <= 5) progress = Math.min(q.goal, progress + 1);
-        if (q.id === 'survive' && (roundsPlayed ?? 0) >= 5) progress = Math.min(q.goal, progress + 1);
+        if (q.id === 'top5' && position <= (q.label.includes('топ-3') ? 3 : 5)) progress = Math.min(q.goal, progress + 1);
+        if (q.id === 'survive') progress = Math.max(progress, Math.min(q.goal, roundsPlayed ?? 0));
         const done = progress >= q.goal;
-        if (done && !q.done) bonusCoins += q.reward.coins;
+        if (done && !q.done) {
+          bonusCoins += q.reward.coins;
+          bonusGems += q.reward.gems ?? 0;
+        }
         return { ...q, progress, done };
       });
       return {
         ...prev,
         coins: prev.coins + coinsEarned + bonusCoins,
+        gems: prev.gems + bonusGems,
         xp: prev.xp + xpEarned,
         level: levelFromXp(prev.xp + xpEarned),
         wins: position === 1 ? prev.wins + 1 : prev.wins,
