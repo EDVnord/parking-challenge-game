@@ -12,6 +12,7 @@ import { GarageScreen, ShopScreen, ProfileScreen, LeaderboardScreen } from './Pl
 import DailyBonusModal from '@/components/DailyBonusModal';
 import LobbyScreen from '@/components/LobbyScreen';
 import NicknameSetup, { getSavedNick } from '@/components/NicknameSetup';
+import { getFriends, hasFriendInRoom, FRIEND_BONUS } from '@/components/FriendsPanel';
 
 export default function Index() {
   const [screen, setScreen] = useState<Screen>('menu');
@@ -173,8 +174,17 @@ export default function Index() {
   }, []);
 
   const handleGameEnd = useCallback((position: number, roundsPlayed?: number) => {
-    const coinsEarned = Math.max(0, (11 - position) * 50 + Math.floor(Math.random() * 100));
-    const xpEarned = Math.max(0, (11 - position) * 30);
+    const friends = getFriends();
+    const roomPlayerIds = roomState?.players.map(p => p.player_id) ?? [];
+    const friendBonus = friends.length > 0 && hasFriendInRoom(roomPlayerIds, friends);
+
+    const baseCoins = Math.max(0, (11 - position) * 50 + Math.floor(Math.random() * 100));
+    const baseXp = Math.max(0, (11 - position) * 30);
+    const coinsEarned = friendBonus ? Math.round(baseCoins * (1 + FRIEND_BONUS.coins)) : baseCoins;
+    const xpEarned = friendBonus ? Math.round(baseXp * (1 + FRIEND_BONUS.xp)) : baseXp;
+
+    if (friendBonus) notify(`👥 Бонус друга! +${Math.round(baseCoins * FRIEND_BONUS.coins)} 🪙 +${Math.round(baseXp * FRIEND_BONUS.xp)} XP`);
+
     setGameResult({ position, coinsEarned });
     setPlayer(prev => {
       const today = todayDateStr();
@@ -211,7 +221,7 @@ export default function Index() {
       };
     });
     setScreen('gameOver');
-  }, [notify]);
+  }, [notify, roomState]);
 
   const stopPolling = useCallback(() => {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
@@ -275,6 +285,53 @@ export default function Index() {
     }
 
     const car = player.cars[player.selectedCar];
+    const currentPid = pid;
+    const LOBBY_WAIT_MS = 15000;
+
+    // Сразу показываем лобби с временным roomState (offline-режим)
+    const offlineRoom: RoomState = {
+      roomId: `offline_${Date.now()}`,
+      status: 'waiting',
+      round: 0,
+      phase: 'driving',
+      timerEnd: Date.now() + LOBBY_WAIT_MS,
+      players: [{
+        player_id: currentPid,
+        name: displayName,
+        emoji: player.emoji,
+        color: car?.color ?? '#FF2D55',
+        body_color: car?.bodyColor ?? '#CC0033',
+        max_hp: car?.maxHp ?? 100,
+        x: 0, y: 0, angle: 0, speed: 0, orbit_angle: 0, orbit_radius: 290,
+        parked: false, park_spot: -1, eliminated: false, is_bot: false,
+        hp: car?.maxHp ?? 100,
+        last_seen: Date.now(),
+      }],
+      spots: [],
+    };
+    setRoomState(offlineRoom);
+    setIsLobby(true);
+    stopPolling();
+
+    const startOfflineGame = () => {
+      setIsLobby(false);
+      setRoomState(null);
+      setGameKey(k => k + 1);
+      setScreen('game');
+    };
+
+    const startOnlineGame = (st: RoomState, roomId: string) => {
+      setRoomState(st);
+      setIsLobby(false);
+      setGameKey(k => k + 1);
+      setScreen('game');
+      stopPolling();
+      startGamePollingRef.current(roomId, currentPid);
+    };
+
+    // Пробуем подключиться к онлайн-комнате в фоне
+    const offlineTimer = setTimeout(startOfflineGame, LOBBY_WAIT_MS);
+
     try {
       const joinPromise = roomApi('join', {
         playerId: pid,
@@ -284,7 +341,7 @@ export default function Index() {
         bodyColor: car?.bodyColor ?? '#CC0033',
         maxHp: car?.maxHp ?? 100,
       });
-      // Таймаут 4 сек — если CSP или сеть блокирует, уходим в офлайн-режим
+      // Таймаут 4 сек — если CSP или сеть блокирует, остаёмся в оффлайн-лобби
       const data = await Promise.race([
         joinPromise,
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000)),
@@ -292,64 +349,51 @@ export default function Index() {
 
       if (data.error) throw new Error(data.error);
 
-      setRoomState(data as RoomState);
-
-      if (data.status === 'waiting') {
-        setIsLobby(true);
-        stopPolling();
-        const lobbyRoomId = data.roomId;
-        const lobbyTimerEnd = data.timerEnd as number;
-        const currentPid = pid;
-
-        const startGame = (st: RoomState) => {
-          setRoomState(st);
-          setIsLobby(false);
-          setGameKey(k => k + 1);
-          setScreen('game');
-          stopPolling();
-          startGamePollingRef.current(lobbyRoomId, currentPid);
-        };
-
-        // Клиентский таймер: через 15с явно запрашиваем старт с ботами
-        const forceTimer = setTimeout(async () => {
-          try {
-            const st = await roomApi('join', {
-              playerId: currentPid,
-              name: displayName,
-              emoji: player.emoji,
-              color: player.cars[player.selectedCar]?.color ?? '#FF2D55',
-              bodyColor: player.cars[player.selectedCar]?.bodyColor ?? '#CC0033',
-              maxHp: player.cars[player.selectedCar]?.maxHp ?? 100,
-              forceStart: true,
-            });
-            if (st.status === 'playing') startGame(st as RoomState);
-          } catch { /* ignore */ }
-        }, Math.max(0, lobbyTimerEnd - Date.now()) + 500);
-
-        pollRef.current = setInterval(async () => {
-          try {
-            const st = await roomApi('state', { roomId: lobbyRoomId });
-            setRoomState(st as RoomState);
-            if (st.status === 'playing') {
-              clearTimeout(forceTimer);
-              startGame(st as RoomState);
-            }
-          } catch { /* ignore */ }
-        }, 800);
-      } else {
-        // Комната уже стартовала
-        setIsLobby(false);
-        setGameKey(k => k + 1);
-        setScreen('game');
-        startGamePollingRef.current(data.roomId, pid);
+      if (data.status === 'playing') {
+        // Комната уже стартовала — сразу в игру
+        clearTimeout(offlineTimer);
+        startOnlineGame(data as RoomState, data.roomId);
+        return;
       }
+
+      // Онлайн-комната в режиме ожидания — обновляем roomState
+      setRoomState(data as RoomState);
+      const lobbyRoomId = data.roomId;
+      const lobbyTimerEnd = data.timerEnd as number;
+
+      // Клиентский таймер: принудительный старт с ботами
+      const forceTimer = setTimeout(async () => {
+        try {
+          const st = await roomApi('join', {
+            playerId: currentPid,
+            name: displayName,
+            emoji: player.emoji,
+            color: player.cars[player.selectedCar]?.color ?? '#FF2D55',
+            bodyColor: player.cars[player.selectedCar]?.bodyColor ?? '#CC0033',
+            maxHp: player.cars[player.selectedCar]?.maxHp ?? 100,
+            forceStart: true,
+          });
+          if (st.status === 'playing') {
+            clearTimeout(offlineTimer);
+            startOnlineGame(st as RoomState, lobbyRoomId);
+          }
+        } catch { startOfflineGame(); }
+      }, Math.max(0, lobbyTimerEnd - Date.now()) + 500);
+
+      pollRef.current = setInterval(async () => {
+        try {
+          const st = await roomApi('state', { roomId: lobbyRoomId });
+          setRoomState(st as RoomState);
+          if (st.status === 'playing') {
+            clearTimeout(forceTimer);
+            clearTimeout(offlineTimer);
+            startOnlineGame(st as RoomState, lobbyRoomId);
+          }
+        } catch { /* ignore */ }
+      }, 800);
+
     } catch {
-      // Fallback — офлайн-игра с ботами (CSP или сеть недоступны)
-      notify('🤖 Онлайн недоступен — играем с ботами!');
-      setRoomState(null);
-      setIsLobby(false);
-      setGameKey(k => k + 1);
-      setScreen('game');
+      // Сервер недоступен — лобби уже показано, ждём таймер и запустим офлайн
     }
   }, [player, localPlayerId, stopPolling, notify]);
 
@@ -401,8 +445,8 @@ export default function Index() {
       )}
 
       {notification && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-bounce-in pointer-events-none">
-          <div className="bg-gray-900 border-2 border-yellow-500/40 rounded-2xl px-6 py-3 font-russo text-white text-sm shadow-2xl whitespace-nowrap">
+        <div className="fixed top-4 left-0 right-0 flex justify-center z-50 pointer-events-none">
+          <div className="bg-gray-900 border-2 border-yellow-500/40 rounded-2xl px-6 py-3 font-russo text-white text-sm shadow-2xl whitespace-nowrap animate-fade-in">
             {notification}
           </div>
         </div>

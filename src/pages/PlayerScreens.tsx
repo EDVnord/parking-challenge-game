@@ -1,5 +1,6 @@
 import { PlayerData, LeaderEntry, Screen, RARITIES, xpForLevel, UPGRADE_COSTS, UPGRADE_BONUS } from './parkingTypes';
 import { ProfileCard } from './LoginScreen';
+import FriendsPanel from '@/components/FriendsPanel';
 
 // ──────────────── GARAGE ────────────────
 interface GarageScreenProps {
@@ -343,6 +344,9 @@ export function ProfileScreen({ player, setScreen, setPlayer, notify }: ProfileS
           </div>
         ))}
       </div>
+
+      <h3 className="font-russo text-white/40 text-xs uppercase tracking-wider">👥 Друзья</h3>
+      <FriendsPanel playerName={player.name} playerEmoji={player.emoji} notify={notify} />
     </div>
   );
 }

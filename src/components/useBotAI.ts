@@ -2,7 +2,9 @@ import { useCallback } from 'react';
 import { Car, GameState, CENTER_X, CENTER_Y } from './gameTypes';
 import { spawnParticles } from './gameLogic';
 
-const BASE_ORBIT_SPEED = 0.9; // радиан/сек — константная угловая скорость
+// Оригинальная скорость орбиты — каждый кадр при 60fps добавлялось ~0.016–0.024 рад
+// orbitSpeed хранится в рад/кадр при 60fps, умножаем на 60 чтобы получить рад/сек
+const TARGET_FPS = 60;
 
 export function useBotAI() {
   const botAI = useCallback((car: Car, state: GameState, dt: number) => {
@@ -60,14 +62,19 @@ export function useBotAI() {
       return;
     }
 
-    // Орбита: угловая скорость в рад/сек, умноженная на dt — FPS-независимо
+    // Орбита: orbitSpeed — рад/кадр при 60fps, умножаем на TARGET_FPS*dt для FPS-независимости
     const hpFactor = 0.5 + (car.hp / car.maxHp) * 0.5;
-    const angularSpeed = BASE_ORBIT_SPEED * car.orbitSpeed * hpFactor;
+    const angularSpeed = car.orbitSpeed * TARGET_FPS * hpFactor; // рад/сек
     car.orbitAngle += angularSpeed * dt;
 
-    // Радиус орбиты не меняем — стабильный
+    // Держим радиус орбиты в пределах трека (280–320), не даём уйти за края
+    const minR = 260;
+    const maxR = 330;
+    car.orbitRadius = Math.max(minR, Math.min(maxR, car.orbitRadius));
+
     car.x = CENTER_X + Math.cos(car.orbitAngle) * car.orbitRadius;
     car.y = CENTER_Y + Math.sin(car.orbitAngle) * car.orbitRadius;
+    // Направление машины — по касательной к окружности (против часовой = orbitAngle + PI/2)
     car.angle = car.orbitAngle + Math.PI / 2;
 
     if (Math.random() < 0.02) {
