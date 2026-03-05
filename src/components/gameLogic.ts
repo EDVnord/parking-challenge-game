@@ -1,5 +1,5 @@
 import {
-  Car, ParkingSpot, GameState,
+  Car, ParkingSpot, GameState, RoomPlayer, RoomState,
   CENTER_X, CENTER_Y,
   PARK_LEFT, PARK_RIGHT, PARK_TOP, PARK_BOTTOM,
   EXCL_LEFT, EXCL_RIGHT, EXCL_TOP, EXCL_BOTTOM,
@@ -125,6 +125,7 @@ export function createInitialState(playerName: string, playerHp?: number, player
     const startAngle = orbitAngle + Math.PI;
     cars.push({
       id: i,
+      playerId: i === 0 ? 'local_player' : `bot_${i}`,
       x: CENTER_X + Math.cos(orbitAngle) * orbitRadius,
       y: CENTER_Y + Math.sin(orbitAngle) * orbitRadius,
       angle: startAngle,
@@ -135,6 +136,7 @@ export function createInitialState(playerName: string, playerHp?: number, player
       hp: i === 0 ? (playerHp ?? 100) : 100,
       maxHp: i === 0 ? (playerMaxHp ?? 100) : 100,
       isPlayer: i === 0,
+      isBot: i !== 0,
       name: i === 0 ? playerName : CAR_NAMES[i],
       orbitRadius,
       orbitAngle,
@@ -167,4 +169,70 @@ export function createInitialState(playerName: string, playerHp?: number, player
     playerBumper: false,
     playerAutoRepair: false,
   };
+}
+
+/**
+ * Синхронизирует локальный GameState с данными комнаты с бэкенда.
+ * Обновляет позиции удалённых игроков, сохраняет управление локальным.
+ */
+export function applyRoomState(state: GameState, room: RoomState, localPlayerId: string) {
+  // Обновить спот-занятость
+  state.spots = room.spots.map(s => ({
+    x: s.x, y: s.y,
+    occupied: s.occupied,
+    carId: s.car_id !== null ? (s.car_id as unknown as number) : null,
+    available: true,
+  }));
+
+  // Синхронизировать каждого игрока
+  room.players.forEach((rp: RoomPlayer, idx: number) => {
+    const existing = state.cars.find(c => c.playerId === rp.player_id);
+    if (existing) {
+      // Не перезаписывать позицию локального игрока — он управляет сам
+      if (rp.player_id !== localPlayerId) {
+        existing.x = rp.x;
+        existing.y = rp.y;
+        existing.angle = rp.angle;
+        existing.speed = rp.speed;
+        existing.orbitAngle = rp.orbit_angle;
+        existing.parked = rp.parked;
+        existing.parkSpot = rp.park_spot >= 0 ? rp.park_spot : null;
+        existing.eliminated = rp.eliminated;
+      }
+      existing.hp = rp.hp;
+      existing.maxHp = rp.max_hp;
+    } else {
+      // Новый игрок — добавляем в state
+      const orbitRadius = 270 + (idx % 3) * 20;
+      state.cars.push({
+        id: state.cars.length,
+        playerId: rp.player_id,
+        x: rp.x, y: rp.y,
+        angle: rp.angle, speed: rp.speed,
+        maxSpeed: 2.5 + Math.random() * 0.5,
+        color: rp.color, bodyColor: rp.body_color,
+        hp: rp.hp, maxHp: rp.max_hp,
+        isPlayer: rp.player_id === localPlayerId,
+        isBot: rp.is_bot,
+        name: rp.name,
+        orbitRadius,
+        orbitAngle: rp.orbit_angle,
+        orbitSpeed: 0.016 + Math.random() * 0.008,
+        parked: rp.parked,
+        parkSpot: rp.park_spot >= 0 ? rp.park_spot : null,
+        targetSpot: null,
+        eliminated: rp.eliminated,
+        emoji: rp.emoji,
+        blinkTimer: 0,
+      });
+    }
+  });
+
+  // Обновить фазу/раунд
+  state.round = room.round;
+  if (room.phase === 'driving' && state.phase !== 'driving') {
+    state.phase = 'driving';
+    state.signal = false;
+  }
+  if (room.isFinal) state.isFinalRound = true;
 }

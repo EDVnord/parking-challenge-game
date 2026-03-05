@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  Screen, PlayerData, LeaderEntry,
+  Screen, PlayerData, LeaderEntry, RoomState,
   DEFAULT_PLAYER, INITIAL_CARS,
   loadProfile, saveProfile, profileToSavePayload,
   getSession, setSession,
-  apiAuth, fetchLeaderboard,
+  apiAuth, fetchLeaderboard, roomApi, getYaPlayer,
   levelFromXp, initYandexGames,
   DAILY_STREAK_REWARDS, makeDailyQuests, todayDateStr,
 } from './parkingTypes';
@@ -12,6 +12,7 @@ import LoginScreen from './LoginScreen';
 import { MenuScreen, GameScreen, GameOverScreen } from './GameScreens';
 import { GarageScreen, ShopScreen, ProfileScreen, LeaderboardScreen } from './PlayerScreens';
 import DailyBonusModal from '@/components/DailyBonusModal';
+import LobbyScreen from '@/components/LobbyScreen';
 
 export default function Index() {
   const [screen, setScreen] = useState<Screen>('login');
@@ -26,6 +27,12 @@ export default function Index() {
   const [inGamePhase, setInGamePhase] = useState<'playing' | 'roundEnd'>('playing');
   const keysRef = useRef<Set<string>>(new Set());
   const [dailyBonus, setDailyBonus] = useState<{ streak: number; coins: number; gems: number } | null>(null);
+
+  // Мультиплеер
+  const [roomState, setRoomState] = useState<RoomState | null>(null);
+  const [localPlayerId, setLocalPlayerId] = useState<string>('');
+  const [isLobby, setIsLobby] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Init YaGames SDK on mount
   useEffect(() => { initYandexGames(); }, []);
@@ -167,13 +174,91 @@ export default function Index() {
     setScreen('gameOver');
   }, [notify]);
 
-  const handlePlay = () => {
-    setGameKey(k => k + 1);
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+  }, []);
+
+  const handlePlay = useCallback(async () => {
+    setGameResult(null);
     setGameRound(0);
     setInGamePhase('playing');
-    setGameResult(null);
-    setScreen('game');
-  };
+
+    // Попробовать войти через Яндекс ID или fallback на имя игрока
+    let pid = localPlayerId;
+    if (!pid) {
+      const ya = await getYaPlayer();
+      pid = ya?.id || `user_${player.name}_${Date.now()}`;
+      setLocalPlayerId(pid);
+    }
+
+    const car = player.cars[player.selectedCar];
+    try {
+      const data = await roomApi('join', {
+        playerId: pid,
+        name: player.name,
+        emoji: player.emoji,
+        color: car?.color ?? '#FF2D55',
+        bodyColor: car?.bodyColor ?? '#CC0033',
+        maxHp: car?.maxHp ?? 100,
+      });
+
+      if (data.error) throw new Error(data.error);
+
+      setRoomState(data as RoomState);
+
+      if (data.status === 'waiting') {
+        setIsLobby(true);
+        // Polling пока в лобби
+        stopPolling();
+        pollRef.current = setInterval(async () => {
+          const st = await roomApi('state', { roomId: data.roomId });
+          setRoomState(st as RoomState);
+          if (st.status === 'playing') {
+            setIsLobby(false);
+            setGameKey(k => k + 1);
+            setScreen('game');
+            stopPolling();
+            startGamePolling(st.roomId, pid);
+          }
+        }, 1500);
+      } else {
+        // Комната уже стартовала
+        setIsLobby(false);
+        setGameKey(k => k + 1);
+        setScreen('game');
+        startGamePolling(data.roomId, pid);
+      }
+    } catch {
+      // Fallback — одиночная игра без комнаты
+      setRoomState(null);
+      setIsLobby(false);
+      setGameKey(k => k + 1);
+      setScreen('game');
+    }
+  }, [player, localPlayerId, stopPolling]); // startGamePolling добавлен ниже через ref
+
+  const startGamePolling = useCallback((roomId: string, _pid: string) => {
+    stopPolling();
+    pollRef.current = setInterval(async () => {
+      try {
+        const st = await roomApi('state', { roomId });
+        setRoomState(st as RoomState);
+        if (st.status === 'finished') stopPolling();
+      } catch { /* ignore */ }
+    }, 300);
+  }, [stopPolling]);
+
+  // Отправка позиции игрока на сервер
+  const handlePlayerMove = useCallback((mv: {
+    x: number; y: number; angle: number; speed: number;
+    hp: number; orbitAngle: number; parked: boolean; parkSpot: number; eliminated: boolean;
+  }) => {
+    if (!roomState?.roomId || !localPlayerId) return;
+    roomApi('move', { roomId: roomState.roomId, playerId: localPlayerId, ...mv }).catch(() => {});
+  }, [roomState, localPlayerId]);
+
+  // Очистка при размонтировании
+  useEffect(() => () => stopPolling(), [stopPolling]);
 
   return (
     <div className="relative min-h-screen">
@@ -259,7 +344,15 @@ export default function Index() {
         }} />
       )}
 
-      {screen === 'game' && (
+      {isLobby && roomState && (
+        <LobbyScreen
+          room={roomState}
+          localPlayerId={localPlayerId}
+          onCancel={() => { stopPolling(); setIsLobby(false); setRoomState(null); }}
+        />
+      )}
+
+      {screen === 'game' && !isLobby && (
         <GameScreen
           player={player}
           gameKey={gameKey}
@@ -273,6 +366,9 @@ export default function Index() {
           handleRoundEnd={handleRoundEnd}
           handleGameEnd={handleGameEnd}
           notify={notify}
+          roomState={roomState}
+          localPlayerId={localPlayerId}
+          onPlayerMove={handlePlayerMove}
         />
       )}
 

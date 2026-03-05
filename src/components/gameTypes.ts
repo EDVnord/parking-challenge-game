@@ -1,5 +1,6 @@
 export interface Car {
   id: number;
+  playerId: string;
   x: number;
   y: number;
   angle: number;
@@ -10,6 +11,7 @@ export interface Car {
   hp: number;
   maxHp: number;
   isPlayer: boolean;
+  isBot: boolean;
   name: string;
   orbitRadius: number;
   orbitAngle: number;
@@ -60,8 +62,11 @@ export interface Upgrades {
   shield: boolean;
 }
 
+import type { RoomPlayer, RoomState } from '../pages/parkingTypes';
+
 export interface GameCanvasProps {
   playerName: string;
+  playerId?: string;
   playerHp?: number;
   playerMaxHp?: number;
   playerColor?: string;
@@ -69,10 +74,15 @@ export interface GameCanvasProps {
   playerEmoji?: string;
   playerMaxSpeed?: number;
   upgrades: Upgrades;
+  // Мультиплеер
+  roomState?: RoomState | null;
+  onPlayerMove?: (state: { x: number; y: number; angle: number; speed: number; hp: number; orbitAngle: number; parked: boolean; parkSpot: number; eliminated: boolean }) => void;
   onRoundEnd: (round: number, isPlayerEliminated: boolean, playerHp: number, playerMaxHp: number) => void;
   onGameEnd: (position: number, roundsPlayed?: number) => void;
   keys: Set<string>;
 }
+
+export type { RoomPlayer, RoomState };
 
 // Canvas dimensions
 export const CANVAS_W = 800;

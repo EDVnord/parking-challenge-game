@@ -6,15 +6,84 @@ export const SESSION_TTL = 60 * 60 * 1000;
 
 export const AUTH_URL = 'https://functions.poehali.dev/3b4361d7-46d0-476d-be12-f345c31447fc';
 export const LEADERBOARD_URL = 'https://functions.poehali.dev/507d718a-32e2-4623-a6d8-1cf02d2af300';
+export const ROOM_URL = 'https://functions.poehali.dev/85e13db6-7b27-41b4-95fe-bf60d5d7bed7';
+
+// Тип одного игрока в комнате (с бэкенда)
+export interface RoomPlayer {
+  player_id: string;
+  name: string;
+  emoji: string;
+  color: string;
+  body_color: string;
+  x: number;
+  y: number;
+  angle: number;
+  speed: number;
+  hp: number;
+  max_hp: number;
+  orbit_angle: number;
+  orbit_radius: number;
+  parked: boolean;
+  park_spot: number;
+  eliminated: boolean;
+  is_bot: boolean;
+  last_seen: number;
+}
+
+// Состояние комнаты
+export interface RoomState {
+  roomId: string;
+  status: 'waiting' | 'playing' | 'finished';
+  round: number;
+  phase: string;
+  timerEnd: number;
+  spots: { x: number; y: number; occupied: boolean; car_id: string | null }[];
+  players: RoomPlayer[];
+  isFinal?: boolean;
+}
 
 declare global {
-  interface Window { YaGames?: { init: () => Promise<unknown> }; }
+  interface Window {
+    YaGames?: { init: () => Promise<YaSDK> };
+    _yaSDK?: YaSDK;
+  }
 }
+
+interface YaSDK {
+  getPlayer: (opts?: { scopes?: boolean }) => Promise<{ getUniqueID: () => string; getName: () => string; getPhoto: (size: string) => string }>;
+}
+
+let _ysdk: YaSDK | null = null;
 
 export async function initYandexGames() {
   if (window.YaGames) {
-    try { await window.YaGames.init(); } catch { /* not in YG env */ }
+    try {
+      _ysdk = await window.YaGames.init();
+      window._yaSDK = _ysdk;
+    } catch { /* not in YG env */ }
   }
+}
+
+export async function getYaPlayer(): Promise<{ id: string; name: string } | null> {
+  try {
+    const sdk = _ysdk ?? window._yaSDK;
+    if (!sdk) return null;
+    const p = await sdk.getPlayer({ scopes: false });
+    const uid = p.getUniqueID();
+    if (!uid) return null;
+    return { id: `ya_${uid}`, name: p.getName() || 'Игрок' };
+  } catch {
+    return null;
+  }
+}
+
+export async function roomApi(action: string, payload: Record<string, unknown>): Promise<RoomState & Record<string, unknown>> {
+  const res = await fetch(ROOM_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, ...payload }),
+  });
+  return res.json();
 }
 
 export function getSession(): { name: string; password: string } | null {

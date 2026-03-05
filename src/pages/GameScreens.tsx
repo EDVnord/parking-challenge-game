@@ -1,5 +1,5 @@
 import GameCanvas from '@/components/GameCanvas';
-import { PlayerData, Screen, DailyQuest, todayDateStr } from './parkingTypes';
+import { PlayerData, Screen, DailyQuest, RoomState, todayDateStr } from './parkingTypes';
 
 // ──────────────── MENU ────────────────
 interface MenuScreenProps {
@@ -114,11 +114,15 @@ interface GameScreenProps {
   handleRoundEnd: (round: number, isPlayerEliminated: boolean, playerHp: number, playerMaxHp: number) => void;
   handleGameEnd: (position: number, roundsPlayed?: number) => void;
   notify: (msg: string) => void;
+  roomState?: RoomState | null;
+  localPlayerId?: string;
+  onPlayerMove?: (state: { x: number; y: number; angle: number; speed: number; hp: number; orbitAngle: number; parked: boolean; parkSpot: number; eliminated: boolean }) => void;
 }
 
 export function GameScreen({
   player, gameKey, gameRound, gameResult, inGamePhase,
   keys, keysRef, setScreen, setPlayer, handleRoundEnd, handleGameEnd, notify,
+  roomState, localPlayerId, onPlayerMove,
 }: GameScreenProps) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 gap-4">
@@ -134,6 +138,7 @@ export function GameScreen({
         <GameCanvas
           key={gameKey}
           playerName={player.name}
+          playerId={localPlayerId}
           playerHp={player.cars[player.selectedCar]?.hp}
           playerMaxHp={player.cars[player.selectedCar]?.maxHp}
           playerColor={player.cars[player.selectedCar]?.color}
@@ -144,6 +149,8 @@ export function GameScreen({
           onRoundEnd={handleRoundEnd}
           onGameEnd={handleGameEnd}
           keys={keys}
+          roomState={roomState}
+          onPlayerMove={onPlayerMove}
         />
         {inGamePhase === 'roundEnd' && !gameResult && (() => {
           const car = player.cars[player.selectedCar];

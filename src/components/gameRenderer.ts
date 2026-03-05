@@ -103,7 +103,8 @@ export function drawCar(ctx: CanvasRenderingContext2D, car: Car, time: number) {
     }
   }
 
-  // Player indicator
+  // Player indicator + nickname
+  const labelY = -carH / 2 - 22;
   if (car.isPlayer) {
     ctx.beginPath();
     ctx.arc(0, -carH / 2 - 10, 5, 0, Math.PI * 2);
@@ -112,7 +113,6 @@ export function drawCar(ctx: CanvasRenderingContext2D, car: Car, time: number) {
     ctx.strokeStyle = '#AA8800';
     ctx.lineWidth = 1;
     ctx.stroke();
-    // Blinking star for player
     if (Math.sin(time * 4) > 0) {
       ctx.fillStyle = 'rgba(255,214,0,0.6)';
       ctx.font = '8px Arial';
@@ -120,6 +120,16 @@ export function drawCar(ctx: CanvasRenderingContext2D, car: Car, time: number) {
       ctx.fillText('★', 0, -carH / 2 - 18);
     }
   }
+  // Nickname above car
+  const nick = car.name.length > 8 ? car.name.slice(0, 7) + '…' : car.name;
+  ctx.font = `bold ${car.isPlayer ? 11 : 9}px Nunito, sans-serif`;
+  ctx.textAlign = 'center';
+  const nickColor = car.isPlayer ? '#FFD600' : (car.isBot ? 'rgba(255,255,255,0.45)' : '#7DDFFF');
+  ctx.fillStyle = nickColor;
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 4;
+  ctx.fillText(nick, 0, labelY);
+  ctx.shadowBlur = 0;
 
   // HP bar
   const barW = carW + 4;
@@ -382,6 +392,29 @@ export function drawHUD(ctx: CanvasRenderingContext2D, state: GameState, time: n
   ctx.font = '13px Nunito, sans-serif';
   ctx.fillText(`🚗 Машин: ${activeCars}`, 20, 52);
   ctx.fillText(`🅿️ Мест: ${activeSpots}`, 20, 68);
+  ctx.restore();
+
+  // Список живых игроков справа
+  const aliveCars = state.cars.filter(c => !c.eliminated);
+  const listW = 150;
+  const listH = Math.min(aliveCars.length, 10) * 18 + 24;
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.beginPath();
+  ctx.roundRect(CANVAS_W - listW - 10, 10, listW, listH, 10);
+  ctx.fill();
+  ctx.fillStyle = '#FFD600';
+  ctx.font = 'bold 11px Russo One, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('ЖИВЫЕ', CANVAS_W - listW, 24);
+  aliveCars.slice(0, 10).forEach((c, i) => {
+    const yy = 40 + i * 18;
+    const isMe = c.isPlayer;
+    ctx.fillStyle = isMe ? '#FFD600' : c.isBot ? 'rgba(255,255,255,0.4)' : '#7DDFFF';
+    ctx.font = `${isMe ? 'bold ' : ''}10px Nunito, sans-serif`;
+    const hpPct = Math.round(c.hp / c.maxHp * 100);
+    ctx.fillText(`${c.emoji} ${c.name.slice(0,8)} ${hpPct}%`, CANVAS_W - listW, yy);
+  });
   ctx.restore();
 
   // Timer (during driving phase)

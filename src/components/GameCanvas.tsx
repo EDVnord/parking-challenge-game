@@ -1,19 +1,26 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { Car, GameState, GameCanvasProps, CANVAS_W, CANVAS_H, CENTER_X, CENTER_Y, EXCL_LEFT, EXCL_RIGHT, EXCL_TOP, EXCL_BOTTOM } from './gameTypes';
-import { createInitialState, makeSpotsGrid, spawnParticles, blockParkingZone, resolveAllCollisions } from './gameLogic';
+import { createInitialState, makeSpotsGrid, applyRoomState, spawnParticles, blockParkingZone, resolveAllCollisions } from './gameLogic';
 import { drawAsphalt, drawParkingArea, drawCar, drawParticles, drawSignal, drawRoundEnd, drawWinner, drawHUD, drawGpsOverlay } from './gameRenderer';
 
 function randomRoundTimer(round: number): number {
-  // Round 0: a bit longer so players settle. Rounds 1+: 1–12s, skewed shorter in finals
   if (round === 0) return 4 + Math.random() * 3;
   return 1 + Math.random() * 11;
 }
 
-export default function GameCanvas({ playerName, playerHp, playerMaxHp, playerColor, playerBodyColor, playerEmoji, playerMaxSpeed, upgrades, onRoundEnd, onGameEnd, keys }: GameCanvasProps) {
+export default function GameCanvas({ playerName, playerId, playerHp, playerMaxHp, playerColor, playerBodyColor, playerEmoji, playerMaxSpeed, upgrades, onRoundEnd, onGameEnd, keys, roomState, onPlayerMove }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stateRef = useRef<GameState>(createInitialState(playerName, playerHp, playerMaxHp, playerColor, playerBodyColor, playerEmoji, playerMaxSpeed));
   const animRef = useRef<number>(0);
   const timeRef = useRef<number>(0);
+  const moveThrottleRef = useRef<number>(0);
+  const localId = playerId || 'local_player';
+
+  // Назначить localId игроку в стейте
+  useEffect(() => {
+    const playerCar = stateRef.current.cars.find(c => c.isPlayer);
+    if (playerCar) playerCar.playerId = localId;
+  }, [localId]);
 
   const botAI = useCallback((car: Car, state: GameState, _dt: number) => {
     if (car.isPlayer || car.eliminated || car.parked) return;
@@ -105,10 +112,14 @@ export default function GameCanvas({ playerName, playerHp, playerMaxHp, playerCo
   useEffect(() => {
     if (playerHp === undefined) return;
     const playerCar = stateRef.current.cars.find(c => c.isPlayer);
-    if (playerCar) {
-      playerCar.hp = playerHp;
-    }
+    if (playerCar) playerCar.hp = playerHp;
   }, [playerHp]);
+
+  // Синхронизация с бэкендом: применяем roomState к локальному стейту
+  useEffect(() => {
+    if (!roomState) return;
+    applyRoomState(stateRef.current, roomState, localId);
+  }, [roomState, localId]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -232,6 +243,21 @@ export default function GameCanvas({ playerName, playerHp, playerMaxHp, playerCo
         // Collisions between all cars
         resolveAllCollisions(state.cars, state);
 
+        // Отправляем позицию игрока во время езды (не чаще раза в 200мс)
+        if (onPlayerMove && time - moveThrottleRef.current > 0.2) {
+          moveThrottleRef.current = time;
+          const drivingPlayer = state.cars.find(c => c.isPlayer);
+          if (drivingPlayer) {
+            onPlayerMove({
+              x: drivingPlayer.x, y: drivingPlayer.y, angle: drivingPlayer.angle,
+              speed: drivingPlayer.speed, hp: drivingPlayer.hp,
+              orbitAngle: drivingPlayer.orbitAngle,
+              parked: drivingPlayer.parked, parkSpot: drivingPlayer.parkSpot ?? -1,
+              eliminated: drivingPlayer.eliminated,
+            });
+          }
+        }
+
         // Signal trigger
         if (state.timer <= 0 && !state.signal) {
           state.signal = true;
@@ -296,6 +322,21 @@ export default function GameCanvas({ playerName, playerHp, playerMaxHp, playerCo
 
         // Collisions during signal phase too
         resolveAllCollisions(state.cars, state);
+
+        // Отправляем позицию игрока на сервер (не чаще раза в 200мс)
+        if (onPlayerMove && time - moveThrottleRef.current > 0.2) {
+          moveThrottleRef.current = time;
+          const playerCar = state.cars.find(c => c.isPlayer);
+          if (playerCar) {
+            onPlayerMove({
+              x: playerCar.x, y: playerCar.y, angle: playerCar.angle,
+              speed: playerCar.speed, hp: playerCar.hp,
+              orbitAngle: playerCar.orbitAngle,
+              parked: playerCar.parked, parkSpot: playerCar.parkSpot ?? -1,
+              eliminated: playerCar.eliminated,
+            });
+          }
+        }
 
         // Check if all active cars resolved
         const activeCars = state.cars.filter(c => !c.eliminated);

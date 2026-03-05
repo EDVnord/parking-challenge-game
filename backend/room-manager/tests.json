@@ -1,0 +1,22 @@
+{
+  "tests": [
+    {
+      "name": "Join room",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "join", "playerId": "test_player_42", "name": "Тестер", "emoji": "🚗", "color": "#FF2D55", "bodyColor": "#CC0033", "maxHp": 100},
+      "expectedStatus": 200,
+      "expectedBody": {"status": "waiting"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Get state unknown room",
+      "method": "POST",
+      "path": "/",
+      "body": {"action": "state", "roomId": "00000000-0000-0000-0000-000000000000"},
+      "expectedStatus": 404,
+      "expectedBody": {"error": "room not found"},
+      "bodyMatcher": "partial"
+    }
+  ]
+}
