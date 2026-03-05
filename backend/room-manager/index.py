@@ -12,7 +12,7 @@ import psycopg2
 
 SCHEMA = 't_p25425030_parking_challenge_ga'
 MAX_PLAYERS = 10
-LOBBY_TIMEOUT = 10  # секунд ожидания до добавления ботов
+LOBBY_TIMEOUT = 15  # секунд ожидания до добавления ботов
 LOBBY_MIN_REAL = 1  # минимум реальных игроков для старта (1 = хватит одного)
 BOT_NAMES = ['Вася', 'Петя', 'Коля', 'Маша', 'Катя', 'Женя', 'Саша', 'Лёша', 'Дима', 'Игорь']
 BOT_EMOJIS = ['🚕', '🚙', '🏎️', '🚓', '🚑', '🚒', '🛻', '🚐', '🚌', '🚗']
@@ -147,6 +147,37 @@ def add_bots(db, room_id: str, players: list, max_players: int):
     db.commit()
 
 
+def maybe_start_room(db, room_id: str, room: dict, players: list) -> tuple:
+    """Проверяет условия старта и запускает комнату если нужно. Возвращает (room, players)."""
+    if room['status'] != 'waiting':
+        return room, players
+
+    now_ms = int(time.time() * 1000)
+    real_players = [p for p in players if not p['is_bot']]
+
+    should_start = (
+        len(players) >= MAX_PLAYERS or
+        (now_ms >= room['timer_end'] and len(real_players) >= LOBBY_MIN_REAL)
+    )
+
+    if not should_start:
+        return room, players
+
+    add_bots(db, room_id, players, MAX_PLAYERS)
+    players = get_room_players(db, room_id)
+    spots = make_spots(MAX_PLAYERS)
+    round_timer = now_ms + 7000  # 7с на тренировочный раунд
+    cur = db.cursor()
+    cur.execute(
+        f"UPDATE {SCHEMA}.rooms SET status='playing', round=0, phase='driving', "
+        f"timer_end=%s, spots_json=%s, started_at=%s WHERE id=%s",
+        (round_timer, json.dumps(spots), now_ms, room_id)
+    )
+    db.commit()
+    room = get_room(db, room_id)
+    return room, players
+
+
 def action_join(db, body: dict) -> dict:
     """Игрок входит в комнату ожидания."""
     player_id = body.get('playerId', '')
@@ -185,28 +216,7 @@ def action_join(db, body: dict) -> dict:
         players = get_room_players(db, room_id)
 
     room = get_room(db, room_id)
-    now_ms = int(time.time() * 1000)
-    real_players = [p for p in players if not p['is_bot']]
-
-    # Старт: 10 реальных OR таймаут истёк и есть хоть LOBBY_MIN_REAL реальных
-    should_start = (
-        len(players) >= MAX_PLAYERS or
-        (now_ms >= room['timer_end'] and len(real_players) >= LOBBY_MIN_REAL)
-    )
-
-    if should_start and room['status'] == 'waiting':
-        add_bots(db, room_id, players, MAX_PLAYERS)
-        players = get_room_players(db, room_id)
-        spots = make_spots(MAX_PLAYERS)  # round 0: всем места
-        round_timer = int(time.time() * 1000) + 7000  # 7с тренировка
-        cur = db.cursor()
-        cur.execute(
-            f"UPDATE {SCHEMA}.rooms SET status='playing', round=0, phase='driving', "
-            f"timer_end=%s, spots_json=%s, started_at=%s WHERE id=%s",
-            (round_timer, json.dumps(spots), now_ms, room_id)
-        )
-        db.commit()
-        room = get_room(db, room_id)
+    room, players = maybe_start_room(db, room_id, room, players)
 
     return resp({
         'roomId': room_id,
@@ -221,7 +231,7 @@ def action_join(db, body: dict) -> dict:
 
 
 def action_state(db, body: dict) -> dict:
-    """Получить текущее состояние комнаты."""
+    """Получить текущее состояние комнаты. Также проверяет таймаут лобби."""
     room_id = body.get('roomId', '')
     if not room_id:
         return resp({'error': 'roomId required'}, 400)
@@ -229,6 +239,10 @@ def action_state(db, body: dict) -> dict:
     if not room:
         return resp({'error': 'room not found'}, 404)
     players = get_room_players(db, room_id)
+
+    # Каждый поллинг проверяет — не пора ли стартовать
+    room, players = maybe_start_room(db, room_id, room, players)
+
     return resp({
         'roomId': room_id,
         'status': room['status'],

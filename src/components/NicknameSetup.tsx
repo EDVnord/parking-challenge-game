@@ -1,13 +1,28 @@
 import { useState } from 'react';
 import { PLAYER_EMOJIS } from '@/pages/parkingTypes';
 
+const NICK_KEY = 'parking_nick';
+const EMOJI_KEY = 'parking_emoji';
+
+export function getSavedNick(): { name: string; emoji: string } | null {
+  const name = localStorage.getItem(NICK_KEY);
+  const emoji = localStorage.getItem(EMOJI_KEY);
+  if (name && name.length >= 2 && name.length <= 16) return { name, emoji: emoji ?? '😎' };
+  return null;
+}
+
+function saveNick(name: string, emoji: string) {
+  localStorage.setItem(NICK_KEY, name);
+  localStorage.setItem(EMOJI_KEY, emoji);
+}
+
 interface NicknameSetupProps {
   onDone: (name: string, emoji: string) => void;
 }
 
 export default function NicknameSetup({ onDone }: NicknameSetupProps) {
-  const [name, setName] = useState('');
-  const [emoji, setEmoji] = useState('😎');
+  const [name, setName] = useState(() => localStorage.getItem(NICK_KEY) ?? '');
+  const [emoji, setEmoji] = useState(() => localStorage.getItem(EMOJI_KEY) ?? '😎');
   const [error, setError] = useState('');
 
   const handle = () => {
@@ -16,6 +31,7 @@ export default function NicknameSetup({ onDone }: NicknameSetupProps) {
     if (trimmed.length < 2) { setError('Минимум 2 символа'); return; }
     if (trimmed.length > 16) { setError('Максимум 16 символов'); return; }
     if (!/^[a-zA-Zа-яА-ЯёЁ0-9_\- ]+$/.test(trimmed)) { setError('Только буквы, цифры, _ и -'); return; }
+    saveNick(trimmed, emoji);
     onDone(trimmed, emoji);
   };
 

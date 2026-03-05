@@ -13,7 +13,7 @@ import { MenuScreen, GameScreen, GameOverScreen } from './GameScreens';
 import { GarageScreen, ShopScreen, ProfileScreen, LeaderboardScreen } from './PlayerScreens';
 import DailyBonusModal from '@/components/DailyBonusModal';
 import LobbyScreen from '@/components/LobbyScreen';
-import NicknameSetup from '@/components/NicknameSetup';
+import NicknameSetup, { getSavedNick } from '@/components/NicknameSetup';
 
 export default function Index() {
   const [screen, setScreen] = useState<Screen>('login');
@@ -188,24 +188,35 @@ export default function Index() {
     // Попробовать войти через Яндекс ID
     let pid = localPlayerId;
     let displayName = player.name;
+
+    // Проверяем сохранённый ник из localStorage
+    const savedNick = getSavedNick();
+    if (savedNick) {
+      displayName = savedNick.name;
+      // Обновим эмодзи игрока если он там другой
+      if (savedNick.emoji !== player.emoji) {
+        setPlayer(prev => ({ ...prev, emoji: savedNick.emoji }));
+      }
+    }
+
     if (!pid) {
       const ya = await getYaPlayer();
       if (ya) {
         pid = ya.id;
-        // Яндекс-имя может быть пустым или длинным — просим ник
-        if (!ya.name || ya.name.length > 16 || ya.name.length < 2) {
+        // Яндекс-имя может быть пустым или длинным — просим ник (если нет сохранённого)
+        if (!savedNick && (!ya.name || ya.name.length > 16 || ya.name.length < 2)) {
           setLocalPlayerId(pid);
           setNeedNickname(true);
           return;
         }
-        displayName = ya.name;
+        if (!savedNick) displayName = ya.name;
       } else {
         pid = `user_${player.name}`;
       }
       setLocalPlayerId(pid);
     }
 
-    // Если имя ещё не задано (новый игрок без логина)
+    // Если имя ещё не задано (новый игрок без сохранённого ника)
     if (!displayName || displayName.length < 2) {
       setNeedNickname(true);
       return;
@@ -230,17 +241,20 @@ export default function Index() {
         setIsLobby(true);
         // Polling пока в лобби
         stopPolling();
+        const lobbyRoomId = data.roomId;
         pollRef.current = setInterval(async () => {
-          const st = await roomApi('state', { roomId: data.roomId });
-          setRoomState(st as RoomState);
-          if (st.status === 'playing') {
-            setIsLobby(false);
-            setGameKey(k => k + 1);
-            setScreen('game');
-            stopPolling();
-            startGamePolling(st.roomId, pid);
-          }
-        }, 1500);
+          try {
+            const st = await roomApi('state', { roomId: lobbyRoomId });
+            setRoomState(st as RoomState);
+            if (st.status === 'playing') {
+              setIsLobby(false);
+              setGameKey(k => k + 1);
+              setScreen('game');
+              stopPolling();
+              startGamePolling(lobbyRoomId, pid);
+            }
+          } catch { /* ignore */ }
+        }, 800);
       } else {
         // Комната уже стартовала
         setIsLobby(false);

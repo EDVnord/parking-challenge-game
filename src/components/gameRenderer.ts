@@ -217,44 +217,62 @@ export function drawParkingArea(ctx: CanvasRenderingContext2D, spots: ParkingSpo
 }
 
 export function drawAsphalt(ctx: CanvasRenderingContext2D, driftMarks: GameState['driftMarks']) {
-  // Main asphalt
-  ctx.fillStyle = '#1e1e2e';
+  // Wet dark asphalt base
+  ctx.fillStyle = '#141420';
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
-  // Texture dots
-  ctx.fillStyle = 'rgba(255,255,255,0.02)';
-  for (let x = 0; x < CANVAS_W; x += 20) {
-    for (let y = 0; y < CANVAS_H; y += 20) {
-      ctx.fillRect(x + Math.sin(x * y) * 3, y + Math.cos(x + y) * 3, 2, 2);
-    }
-  }
-
-  // Circuit lines (oval track)
+  // Wet reflection — radial gradient puddles
   ctx.save();
-  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-  ctx.lineWidth = 60;
-  ctx.setLineDash([]);
-  ctx.beginPath();
-  ctx.ellipse(CENTER_X, CENTER_Y, 255, 180, 0, 0, Math.PI * 2);
-  ctx.stroke();
-
-  ctx.strokeStyle = 'rgba(255,214,0,0.08)';
-  ctx.lineWidth = 1;
-  ctx.setLineDash([15, 10]);
-  ctx.beginPath();
-  ctx.ellipse(CENTER_X, CENTER_Y, 255, 180, 0, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.setLineDash([]);
+  const puddles = [
+    { x: 180, y: 120, rx: 160, ry: 70 },
+    { x: 620, y: 480, rx: 140, ry: 60 },
+    { x: 650, y: 140, rx: 120, ry: 55 },
+    { x: 130, y: 450, rx: 130, ry: 65 },
+    { x: 400, y: 520, rx: 180, ry: 40 },
+  ];
+  puddles.forEach(p => {
+    const grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.rx);
+    grd.addColorStop(0, 'rgba(80,100,160,0.18)');
+    grd.addColorStop(0.6, 'rgba(50,70,120,0.09)');
+    grd.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grd;
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y, p.rx, p.ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+  });
   ctx.restore();
 
-  // Drift marks
+  // Subtle asphalt grain — tiny scattered dots
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.025)';
+  for (let i = 0; i < 600; i++) {
+    const gx = (i * 137.508) % CANVAS_W;
+    const gy = (i * 93.271) % CANVAS_H;
+    ctx.fillRect(gx, gy, 1, 1);
+  }
+  ctx.restore();
+
+  // Wet sheen lines — horizontal light streaks
+  ctx.save();
+  for (let y = 30; y < CANVAS_H; y += 55) {
+    const alpha = 0.02 + Math.sin(y * 0.15) * 0.01;
+    ctx.fillStyle = `rgba(100,130,200,${alpha})`;
+    ctx.fillRect(0, y, CANVAS_W, 1.5);
+  }
+  ctx.restore();
+
+  // Drift / tyre marks
   driftMarks.forEach(mark => {
     ctx.save();
     ctx.translate(mark.x, mark.y);
     ctx.rotate(mark.angle);
-    ctx.fillStyle = `rgba(30,10,0,${mark.opacity * 0.4})`;
+    // Two tyre tracks side by side
+    ctx.fillStyle = `rgba(10,5,0,${mark.opacity * 0.55})`;
     ctx.beginPath();
-    ctx.roundRect(-2, -15, 4, 30, 2);
+    ctx.roundRect(-5, -18, 3, 36, 1);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.roundRect(2, -18, 3, 36, 1);
     ctx.fill();
     ctx.restore();
   });
