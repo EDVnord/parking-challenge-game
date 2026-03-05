@@ -29,7 +29,7 @@ export function useGameHandlers({ player, setPlayer, roomState, setScreen, notif
     setTimeout(() => setInGamePhase('playing'), 3000);
   }, [notify, setPlayer]);
 
-  const handleGameEnd = useCallback((position: number, roundsPlayed?: number) => {
+  const handleGameEnd = useCallback((position: number, roundsPlayed?: number, finalHp?: number) => {
     const friends = getFriends();
     const roomPlayerIds = roomStateRef.current?.players.map(p => p.player_id) ?? [];
     const friendBonus = friends.length > 0 && hasFriendInRoom(roomPlayerIds, friends);
@@ -42,6 +42,13 @@ export function useGameHandlers({ player, setPlayer, roomState, setScreen, notif
     if (friendBonus) notify(`👥 Бонус друга! +${Math.round(baseCoins * FRIEND_BONUS.coins)} 🪙 +${Math.round(baseXp * FRIEND_BONUS.xp)} XP`);
 
     setGameResult({ position, coinsEarned });
+    // Сохраняем финальный hp машины — он не восстанавливается автоматически между играми
+    if (finalHp !== undefined && finalHp >= 0) {
+      setPlayer(prev => ({
+        ...prev,
+        cars: prev.cars.map((c, i) => i === prev.selectedCar ? { ...c, hp: Math.round(finalHp) } : c),
+      }));
+    }
     setPlayer(prev => {
       const today = todayDateStr();
       const baseQuests = prev.dailyQuestsDate === today ? prev.dailyQuests : makeDailyQuests(today);

@@ -78,7 +78,7 @@ export interface GameCanvasProps {
   roomState?: RoomState | null;
   onPlayerMove?: (state: { x: number; y: number; angle: number; speed: number; hp: number; orbitAngle: number; parked: boolean; parkSpot: number; eliminated: boolean }) => void;
   onRoundEnd: (round: number, isPlayerEliminated: boolean, playerHp: number, playerMaxHp: number) => void;
-  onGameEnd: (position: number, roundsPlayed?: number) => void;
+  onGameEnd: (position: number, roundsPlayed?: number, finalHp?: number) => void;
   keys: Set<string>;
 }
 

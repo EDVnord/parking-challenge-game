@@ -130,7 +130,7 @@ interface GameScreenProps {
   setScreen: (s: Screen) => void;
   setPlayer: React.Dispatch<React.SetStateAction<PlayerData>>;
   handleRoundEnd: (round: number, isPlayerEliminated: boolean, playerHp: number, playerMaxHp: number) => void;
-  handleGameEnd: (position: number, roundsPlayed?: number) => void;
+  handleGameEnd: (position: number, roundsPlayed?: number, finalHp?: number) => void;
   notify: (msg: string) => void;
   roomState?: RoomState | null;
   localPlayerId?: string;

@@ -347,44 +347,93 @@ export function drawRoundEnd(ctx: CanvasRenderingContext2D, eliminated: Car | nu
 
 export function drawWinner(ctx: CanvasRenderingContext2D, player: Car | null, time: number) {
   ctx.save();
-  ctx.fillStyle = 'rgba(0,0,0,0.75)';
+
+  // Тёмный фон с градиентом
+  const grad = ctx.createRadialGradient(CENTER_X, CENTER_Y, 0, CENTER_X, CENTER_Y, 420);
+  grad.addColorStop(0, 'rgba(30,20,0,0.92)');
+  grad.addColorStop(1, 'rgba(0,0,0,0.97)');
+  ctx.fillStyle = grad;
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
-  // Pulsing crown
-  const scale = 1 + Math.sin(time * 6) * 0.08;
+  // Лучи света из центра
+  for (let i = 0; i < 12; i++) {
+    const angle = (i / 12) * Math.PI * 2 + time * 0.3;
+    const rayGrad = ctx.createLinearGradient(CENTER_X, CENTER_Y, CENTER_X + Math.cos(angle) * 380, CENTER_Y + Math.sin(angle) * 380);
+    rayGrad.addColorStop(0, 'rgba(255,214,0,0.10)');
+    rayGrad.addColorStop(1, 'rgba(255,214,0,0)');
+    ctx.beginPath();
+    ctx.moveTo(CENTER_X, CENTER_Y);
+    ctx.lineTo(CENTER_X + Math.cos(angle - 0.06) * 380, CENTER_Y + Math.sin(angle - 0.06) * 380);
+    ctx.lineTo(CENTER_X + Math.cos(angle + 0.06) * 380, CENTER_Y + Math.sin(angle + 0.06) * 380);
+    ctx.closePath();
+    ctx.fillStyle = rayGrad;
+    ctx.fill();
+  }
+
+  // Пульсирующая корона
+  const crownScale = 1 + Math.sin(time * 5) * 0.12;
+  const crownY = CENTER_Y - 110 + Math.sin(time * 2) * 6;
   ctx.save();
-  ctx.translate(CENTER_X, CENTER_Y - 80);
-  ctx.scale(scale, scale);
-  ctx.font = '80px Arial';
+  ctx.translate(CENTER_X, crownY);
+  ctx.scale(crownScale, crownScale);
+  ctx.font = '90px Arial';
   ctx.fillText('👑', 0, 0);
   ctx.restore();
 
+  // Заголовок ПОБЕДА!
+  const titleScale = 1 + Math.sin(time * 4 + 1) * 0.04;
+  ctx.save();
+  ctx.translate(CENTER_X, CENTER_Y - 15);
+  ctx.scale(titleScale, titleScale);
   ctx.fillStyle = '#FFD600';
-  ctx.font = 'bold 52px Russo One, sans-serif';
+  ctx.font = 'bold 62px Russo One, sans-serif';
   ctx.shadowColor = '#FFD600';
-  ctx.shadowBlur = 40;
-  ctx.fillText('ПОБЕДА!', CENTER_X, CENTER_Y + 10);
+  ctx.shadowBlur = 60;
+  ctx.fillText('ПОБЕДА!', 0, 0);
   ctx.shadowBlur = 0;
+  ctx.restore();
 
+  // Имя победителя
   if (player) {
-    ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    ctx.font = 'bold 26px Russo One, sans-serif';
-    ctx.fillText(`${player.emoji} ${player.name} — КОРОЛЬ ПАРКОВКИ!`, CENTER_X, CENTER_Y + 65);
+    // Подложка
+    ctx.fillStyle = 'rgba(255,214,0,0.12)';
+    ctx.beginPath();
+    ctx.roundRect(CENTER_X - 220, CENTER_Y + 35, 440, 50, 12);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,214,0,0.4)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 28px Russo One, sans-serif';
+    ctx.shadowColor = '#FFD600';
+    ctx.shadowBlur = 15;
+    ctx.fillText(`${player.emoji}  ${player.name}`, CENTER_X, CENTER_Y + 60);
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = 'rgba(255,214,0,0.7)';
+    ctx.font = '16px Nunito, sans-serif';
+    ctx.fillText('КОРОЛЬ ПАРКОВКИ', CENTER_X, CENTER_Y + 90);
   }
 
-  // Stars flying
-  const starColors = ['#FFD600','#FF6B35','#AF52DE','#34C759'];
-  for (let i = 0; i < 6; i++) {
-    const angle = (i / 6) * Math.PI * 2 + time * 1.5;
-    const r = 130 + Math.sin(time * 3 + i) * 20;
+  // Вращающиеся звёзды
+  const starColors = ['#FFD600','#FF6B35','#AF52DE','#34C759','#FF2D55','#5AC8FA'];
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2 + time * 1.2;
+    const r = 155 + Math.sin(time * 2.5 + i) * 22;
     const sx = CENTER_X + Math.cos(angle) * r;
-    const sy = CENTER_Y + Math.sin(angle) * r - 30;
+    const sy = CENTER_Y - 15 + Math.sin(angle) * r * 0.55;
+    const starScale = 0.8 + Math.sin(time * 3 + i * 1.3) * 0.3;
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.scale(starScale, starScale);
     ctx.fillStyle = starColors[i % starColors.length];
-    ctx.font = '22px Arial';
-    ctx.fillText('⭐', sx, sy);
+    ctx.font = '20px Arial';
+    ctx.fillText('⭐', 0, 0);
+    ctx.restore();
   }
 
   ctx.restore();

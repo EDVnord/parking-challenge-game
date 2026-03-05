@@ -275,8 +275,31 @@ export function useGameLoop({
             onRoundEndRef.current(state.round, false, playerCar2?.hp ?? 100, playerCar2?.maxHp ?? 100);
           }
 
-          state.phase = 'roundEnd';
-          state.roundEndTimer = 3;
+          // Проверяем — если после выбывания осталась 1 машина (победитель) — сразу winner
+          const activeCarsAfter = state.cars.filter(c => !c.eliminated);
+          const playerAliveAfter = activeCarsAfter.some(c => c.isPlayer);
+
+          if (!playerAliveAfter) {
+            // Игрок выбыл — показываем roundEnd чтобы увидел результат
+            state.phase = 'roundEnd';
+            state.roundEndTimer = 3;
+          } else if (activeCarsAfter.length <= 1 || state.round >= state.maxRounds) {
+            // Победа! Сразу переходим к winner без roundEnd-оверлея
+            state.phase = 'winner';
+            state.winnerTimer = 5;
+            state.eliminatedThisRound = null;
+            for (let i = 0; i < 8; i++) {
+              setTimeout(() => {
+                const p = state.cars.find(c => c.isPlayer);
+                if (p) spawnParticles(state, p.x, p.y, '#FFD600', 25);
+                spawnParticles(state, CENTER_X + (Math.random()-0.5)*300, CENTER_Y + (Math.random()-0.5)*200,
+                  ['#FF6B35','#AF52DE','#34C759','#FF2D55','#5AC8FA'][Math.floor(Math.random()*5)], 18);
+              }, i * 300);
+            }
+          } else {
+            state.phase = 'roundEnd';
+            state.roundEndTimer = 3;
+          }
         }
       } else if (state.phase === 'roundEnd') {
         state.roundEndTimer -= dt;
@@ -289,20 +312,21 @@ export function useGameLoop({
             const totalCars = state.cars.length;
             const eliminatedBefore = state.cars.filter(c => c.eliminated && !c.isPlayer).length;
             const position = totalCars - eliminatedBefore;
-            onGameEndRef.current(position, state.round);
+            const playerCar = state.cars.find(c => c.isPlayer);
+            onGameEndRef.current(position, state.round, playerCar?.hp ?? 0);
             return;
           }
 
           if (activeCars.length <= 1 || state.round >= state.maxRounds) {
             state.phase = 'winner';
-            state.winnerTimer = 3;
-            for (let i = 0; i < 5; i++) {
+            state.winnerTimer = 5;
+            for (let i = 0; i < 8; i++) {
               setTimeout(() => {
                 const player = state.cars.find(c => c.isPlayer);
-                if (player) spawnParticles(state, player.x, player.y, '#FFD600', 20);
-                spawnParticles(state, CENTER_X + (Math.random()-0.5)*200, CENTER_Y + (Math.random()-0.5)*150, '#FF6B35', 15);
-                spawnParticles(state, CENTER_X + (Math.random()-0.5)*200, CENTER_Y + (Math.random()-0.5)*150, '#AF52DE', 15);
-              }, i * 400);
+                if (player) spawnParticles(state, player.x, player.y, '#FFD600', 25);
+                spawnParticles(state, CENTER_X + (Math.random()-0.5)*300, CENTER_Y + (Math.random()-0.5)*200,
+                  ['#FF6B35','#AF52DE','#34C759','#FF2D55','#5AC8FA'][Math.floor(Math.random()*5)], 18);
+              }, i * 300);
             }
             return;
           }
@@ -370,7 +394,8 @@ export function useGameLoop({
         }
 
         if (state.winnerTimer <= 0) {
-          onGameEndRef.current(1, state.round);
+          const playerCar = state.cars.find(c => c.isPlayer);
+          onGameEndRef.current(1, state.round, playerCar?.hp ?? 0);
           return;
         }
       }
