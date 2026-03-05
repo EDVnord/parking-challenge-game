@@ -1,11 +1,31 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  PlayerData, DEFAULT_PLAYER,
+  PlayerData, DEFAULT_PLAYER, FRIENDS_URL,
   loadProfile, saveProfile, profileToSavePayload,
   apiAuth, getYaPlayer, initYandexGames, getOrCreateAnonId,
   DAILY_STREAK_REWARDS, makeDailyQuests, todayDateStr,
 } from '@/pages/parkingTypes';
 import { getSavedNick } from '@/components/NicknameSetup';
+
+async function prefetchFriendCode(localPlayerId: string) {
+  try {
+    const ids = localPlayerId.startsWith('ya_')
+      ? { yaId: localPlayerId }
+      : { playerId: localPlayerId || getOrCreateAnonId() };
+    const res = await fetch(FRIENDS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'list', ...ids }),
+    });
+    const data = await res.json();
+    if (data.myCode) {
+      localStorage.setItem('parking_my_friend_code', data.myCode);
+    }
+    if (data.friends) {
+      localStorage.setItem('parking_friends_cache_v2', JSON.stringify(data.friends));
+    }
+  } catch { /* ignore */ }
+}
 
 export function usePlayerAuth(notify: (msg: string) => void) {
   const [player, setPlayer] = useState<PlayerData>(() => loadProfile() ?? DEFAULT_PLAYER);
@@ -67,6 +87,7 @@ export function usePlayerAuth(notify: (msg: string) => void) {
             };
           }
           setLocalPlayerId(ya.id);
+          prefetchFriendCode(ya.id);
         } else if (saved && saved.name) {
           // Пробуем подгрузить актуальные данные с сервера по anon_id
           try {
@@ -80,6 +101,7 @@ export function usePlayerAuth(notify: (msg: string) => void) {
           } catch {
             base = saved;
           }
+          prefetchFriendCode(getOrCreateAnonId());
         } else {
           base = { ...DEFAULT_PLAYER, name: 'Игрок' };
           setNeedNickname(true);

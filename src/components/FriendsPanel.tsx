@@ -21,12 +21,7 @@ export function getFriends(): Friend[] {
 }
 
 export function getMyFriendCode(): string {
-  const cached = localStorage.getItem('parking_my_friend_code');
-  if (cached) return cached;
-  const id = getOrCreateAnonId();
-  const parts = id.split('_');
-  const unique = parts.slice(2).join('') || parts[1] || id;
-  return unique.slice(0, 6).toUpperCase().padEnd(6, '0');
+  return localStorage.getItem('parking_my_friend_code') ?? '...';
 }
 
 export function hasFriendInRoom(roomPlayerIds: string[], myFriends: Friend[]): boolean {
@@ -36,39 +31,13 @@ export function hasFriendInRoom(roomPlayerIds: string[], myFriends: Friend[]): b
 
 export const FRIEND_BONUS = { coins: FRIEND_BONUS_COINS, xp: FRIEND_BONUS_XP };
 
-function getPlayerId(): { yaId?: string; playerId?: string } {
-  const yaSDK = (window as Window & { _yaSDK?: { getPlayer: (o?: unknown) => Promise<{ getUniqueID: () => string }> } })._yaSDK;
-  if (yaSDK) {
-    return {};
-  }
-  return { playerId: getOrCreateAnonId() };
+function buildIds(localPlayerId: string): { yaId?: string; playerId?: string } {
+  if (localPlayerId.startsWith('ya_')) return { yaId: localPlayerId };
+  return { playerId: localPlayerId || getOrCreateAnonId() };
 }
 
-async function friendsApi(action: string, payload: Record<string, unknown>) {
-  const ids = getPlayerId();
-  const res = await fetch(FRIENDS_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, ...ids, ...payload }),
-  });
-  return res.json();
-}
-
-// Хук для получения ya_id асинхронно
-async function resolveIds(): Promise<{ yaId?: string; playerId?: string }> {
-  const w = window as Window & { _yaSDK?: { getPlayer: (o?: { scopes?: boolean }) => Promise<{ getUniqueID: () => string }> } };
-  if (w._yaSDK) {
-    try {
-      const p = await w._yaSDK.getPlayer({ scopes: false });
-      const uid = p.getUniqueID();
-      if (uid) return { yaId: `ya_${uid}` };
-    } catch { /* ignore */ }
-  }
-  return { playerId: getOrCreateAnonId() };
-}
-
-async function friendsApiResolved(action: string, payload: Record<string, unknown>) {
-  const ids = await resolveIds();
+async function friendsApiWith(localPlayerId: string, action: string, payload: Record<string, unknown>) {
+  const ids = buildIds(localPlayerId);
   const res = await fetch(FRIENDS_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -80,10 +49,11 @@ async function friendsApiResolved(action: string, payload: Record<string, unknow
 interface FriendsPanelProps {
   playerName: string;
   playerEmoji: string;
+  localPlayerId: string;
   notify: (msg: string) => void;
 }
 
-export default function FriendsPanel({ playerName, playerEmoji, notify }: FriendsPanelProps) {
+export default function FriendsPanel({ playerName, playerEmoji, localPlayerId, notify }: FriendsPanelProps) {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [myCode, setMyCode] = useState<string>('...');
   const [inputCode, setInputCode] = useState('');
@@ -94,7 +64,7 @@ export default function FriendsPanel({ playerName, playerEmoji, notify }: Friend
   const loadFriends = useCallback(async () => {
     setListLoading(true);
     try {
-      const data = await friendsApiResolved('list', {});
+      const data = await friendsApiWith(localPlayerId, 'list', {});
       if (data.friends) {
         setFriends(data.friends);
         localStorage.setItem(FRIENDS_CACHE_KEY, JSON.stringify(data.friends));
@@ -105,7 +75,7 @@ export default function FriendsPanel({ playerName, playerEmoji, notify }: Friend
       }
     } catch { /* ignore */ }
     setListLoading(false);
-  }, []);
+  }, [localPlayerId]);
 
   useEffect(() => { loadFriends(); }, [loadFriends]);
 
@@ -118,7 +88,7 @@ export default function FriendsPanel({ playerName, playerEmoji, notify }: Friend
 
     setLoading(true);
     try {
-      const data = await friendsApiResolved('add', { code });
+      const data = await friendsApiWith(localPlayerId, 'add', { code });
       if (data.error) {
         notify(`❌ ${data.error}`);
       } else {
@@ -137,7 +107,7 @@ export default function FriendsPanel({ playerName, playerEmoji, notify }: Friend
     const prev = friends;
     setFriends(f => f.filter(x => x.code !== code));
     try {
-      await friendsApiResolved('remove', { code });
+      await friendsApiWith(localPlayerId, 'remove', { code });
     } catch {
       setFriends(prev);
     }

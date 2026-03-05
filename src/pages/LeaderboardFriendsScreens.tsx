@@ -5,18 +5,19 @@ import FriendsPanel from '@/components/FriendsPanel';
 // ──────────────── FRIENDS ────────────────
 interface FriendsScreenProps {
   player: PlayerData;
+  localPlayerId: string;
   setScreen: (s: Screen) => void;
   notify: (msg: string) => void;
 }
 
-export function FriendsScreen({ player, setScreen, notify }: FriendsScreenProps) {
+export function FriendsScreen({ player, localPlayerId, setScreen, notify }: FriendsScreenProps) {
   return (
     <div className="min-h-screen flex flex-col px-4 py-6 gap-5 max-w-lg mx-auto">
       <div className="flex items-center gap-3">
         <button className="btn-game bg-white/10 text-white border-b-white/20 py-2 px-4" onClick={() => setScreen('menu')}>←</button>
         <h2 className="font-russo text-2xl text-yellow-400">👥 Друзья</h2>
       </div>
-      <FriendsPanel playerName={player.name} playerEmoji={player.emoji} notify={notify} />
+      <FriendsPanel playerName={player.name} playerEmoji={player.emoji} localPlayerId={localPlayerId} notify={notify} />
     </div>
   );
 }
