@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { PLAYER_EMOJIS } from './parkingTypes';
 
 // ──────────────── PROFILE CARD ────────────────
+const MAX_NICKNAME_CHANGES = 2;
+
 interface ProfileCardProps {
-  player: { name: string; emoji: string; level: number };
+  player: { name: string; emoji: string; level: number; nicknameChanges?: number };
   xpInLevel: number;
   xpNeeded: number;
   onEmojiChange: (em: string) => void;
@@ -14,6 +16,10 @@ export function ProfileCard({ player, xpInLevel, xpNeeded, onEmojiChange, onName
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(player.name);
   const [nameError, setNameError] = useState('');
+  const [showWarning, setShowWarning] = useState(false);
+
+  const changesLeft = MAX_NICKNAME_CHANGES - (player.nicknameChanges ?? 0);
+  const canChange = changesLeft > 0;
 
   const saveName = () => {
     const trimmed = nameInput.trim();
@@ -22,7 +28,14 @@ export function ProfileCard({ player, xpInLevel, xpNeeded, onEmojiChange, onName
     if (trimmed.length > 16) { setNameError('Максимум 16 символов'); return; }
     onNameChange(trimmed);
     setEditingName(false);
+    setShowWarning(false);
     setNameError('');
+  };
+
+  const handleEditClick = () => {
+    if (!canChange) return;
+    setNameInput(player.name);
+    setShowWarning(true);
   };
 
   return (
@@ -32,13 +45,27 @@ export function ProfileCard({ player, xpInLevel, xpNeeded, onEmojiChange, onName
         <div className="absolute -bottom-1 -right-2 bg-yellow-400 text-gray-900 font-russo text-xs rounded-full w-7 h-7 flex items-center justify-center">{player.level}</div>
       </div>
 
-      {editingName ? (
+      {showWarning && !editingName ? (
+        <div className="w-full flex flex-col items-center gap-3">
+          <div className="bg-orange-500/15 border border-orange-500/40 rounded-2xl px-4 py-3 text-center">
+            <div className="font-russo text-orange-400 text-sm mb-1">⚠️ Внимание!</div>
+            <div className="font-nunito text-white/70 text-xs">
+              Смена ника возможна только <span className="text-orange-400 font-bold">{MAX_NICKNAME_CHANGES} раза</span> за всё время.<br/>
+              У тебя осталось <span className="text-yellow-400 font-bold">{changesLeft}</span> из {MAX_NICKNAME_CHANGES}.
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button className="btn-yellow text-sm py-1.5 px-4" onClick={() => { setShowWarning(false); setEditingName(true); }}>Понял, изменить</button>
+            <button className="btn-game bg-white/10 text-white border-b-white/20 text-sm py-1.5 px-4" onClick={() => setShowWarning(false)}>Отмена</button>
+          </div>
+        </div>
+      ) : editingName ? (
         <div className="w-full flex flex-col items-center gap-2">
           <input
             type="text"
             value={nameInput}
             onChange={e => { setNameInput(e.target.value); setNameError(''); }}
-            onKeyDown={e => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') setEditingName(false); }}
+            onKeyDown={e => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') { setEditingName(false); setShowWarning(false); } }}
             maxLength={16}
             autoFocus
             className="w-full bg-white/10 border-2 border-yellow-400/60 rounded-2xl px-4 py-2 font-russo text-white text-lg outline-none text-center"
@@ -52,12 +79,20 @@ export function ProfileCard({ player, xpInLevel, xpNeeded, onEmojiChange, onName
       ) : (
         <div className="text-center">
           <button
-            className="group flex items-center gap-2 font-russo text-2xl text-white hover:text-yellow-400 transition-colors"
-            onClick={() => { setNameInput(player.name); setEditingName(true); }}>
+            className={`group flex items-center gap-2 font-russo text-2xl text-white transition-colors ${canChange ? 'hover:text-yellow-400 cursor-pointer' : 'cursor-not-allowed opacity-60'}`}
+            onClick={handleEditClick}
+            disabled={!canChange}>
             {player.name}
-            <span className="text-white/20 group-hover:text-yellow-400/60 text-base transition-colors">✏️</span>
+            {canChange
+              ? <span className="text-white/20 group-hover:text-yellow-400/60 text-base transition-colors">✏️</span>
+              : <span className="text-white/20 text-base">🔒</span>
+            }
           </button>
           <div className="text-white/30 text-sm font-nunito">Уровень {player.level}</div>
+          {canChange
+            ? <div className="text-white/20 text-xs font-nunito mt-1">Смен ника осталось: {changesLeft}</div>
+            : <div className="text-red-400/60 text-xs font-nunito mt-1">Смена ника недоступна</div>
+          }
         </div>
       )}
 

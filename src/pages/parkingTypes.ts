@@ -147,6 +147,7 @@ export interface PlayerData {
   lastLoginDate: string;
   dailyQuests: DailyQuest[];
   dailyQuestsDate: string;
+  nicknameChanges?: number;
 }
 
 export async function apiAuth(action: string, payload: Record<string, unknown>) {

@@ -4,7 +4,7 @@ import {
   DEFAULT_PLAYER,
   loadProfile, saveProfile, profileToSavePayload,
   apiAuth, fetchLeaderboard, roomApi, getYaPlayer,
-  initYandexGames,
+  initYandexGames, levelFromXp,
   DAILY_STREAK_REWARDS, makeDailyQuests, todayDateStr,
 } from './parkingTypes';
 import { MenuScreen, GameScreen, GameOverScreen } from './GameScreens';
@@ -211,6 +211,21 @@ export default function Index() {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
   }, []);
 
+  const startGamePollingRef = useRef<(roomId: string, pid: string) => void>(() => {});
+
+  const startGamePolling = useCallback((roomId: string, _pid: string) => {
+    stopPolling();
+    pollRef.current = setInterval(async () => {
+      try {
+        const st = await roomApi('state', { roomId });
+        setRoomState(st as RoomState);
+        if (st.status === 'finished') stopPolling();
+      } catch { /* ignore */ }
+    }, 300);
+  }, [stopPolling]);
+
+  useEffect(() => { startGamePollingRef.current = startGamePolling; }, [startGamePolling]);
+
   const handlePlay = useCallback(async () => {
     setGameResult(null);
     setGameRound(0);
@@ -281,7 +296,7 @@ export default function Index() {
           setGameKey(k => k + 1);
           setScreen('game');
           stopPolling();
-          startGamePolling(lobbyRoomId, currentPid);
+          startGamePollingRef.current(lobbyRoomId, currentPid);
         };
 
         // Клиентский таймер: через 15с явно запрашиваем старт с ботами
@@ -315,7 +330,7 @@ export default function Index() {
         setIsLobby(false);
         setGameKey(k => k + 1);
         setScreen('game');
-        startGamePolling(data.roomId, pid);
+        startGamePollingRef.current(data.roomId, pid);
       }
     } catch {
       // Fallback — одиночная игра без комнаты
@@ -324,18 +339,7 @@ export default function Index() {
       setGameKey(k => k + 1);
       setScreen('game');
     }
-  }, [player, localPlayerId, stopPolling]); // startGamePolling добавлен ниже через ref
-
-  const startGamePolling = useCallback((roomId: string, _pid: string) => {
-    stopPolling();
-    pollRef.current = setInterval(async () => {
-      try {
-        const st = await roomApi('state', { roomId });
-        setRoomState(st as RoomState);
-        if (st.status === 'finished') stopPolling();
-      } catch { /* ignore */ }
-    }, 300);
-  }, [stopPolling]);
+  }, [player, localPlayerId, stopPolling]);
 
   // Отправка позиции игрока на сервер
   const handlePlayerMove = useCallback((mv: {

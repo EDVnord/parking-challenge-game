@@ -312,7 +312,7 @@ export function ProfileScreen({ player, setScreen, setPlayer, notify }: ProfileS
         xpInLevel={xpInLevel}
         xpNeeded={xpNeeded}
         onEmojiChange={em => setPlayer(prev => ({ ...prev, emoji: em }))}
-        onNameChange={name => { setPlayer(prev => ({ ...prev, name })); notify('✅ Имя изменено!'); }}
+        onNameChange={name => { setPlayer(prev => ({ ...prev, name, nicknameChanges: (prev.nicknameChanges ?? 0) + 1 })); notify('✅ Имя изменено!'); }}
       />
 
       <div className="grid grid-cols-2 gap-3">
