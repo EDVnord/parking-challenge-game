@@ -17,6 +17,19 @@ export function drawCar(ctx: CanvasRenderingContext2D, car: Car, time: number) {
   const carW = 20;
   const carH = 34;
 
+  // Player glow (pulsing halo — drawn before car body so it's behind)
+  if (car.isPlayer) {
+    const pulse = 0.55 + 0.45 * Math.sin(time * 3.5);
+    const glowRadius = 28 + 6 * pulse;
+    const grad = ctx.createRadialGradient(0, 0, 10, 0, 0, glowRadius);
+    grad.addColorStop(0, `rgba(255,214,0,${0.28 * pulse})`);
+    grad.addColorStop(1, 'rgba(255,214,0,0)');
+    ctx.beginPath();
+    ctx.arc(0, 0, glowRadius, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+  }
+
   // Shadow
   ctx.save();
   ctx.shadowColor = 'rgba(0,0,0,0.4)';
@@ -104,22 +117,7 @@ export function drawCar(ctx: CanvasRenderingContext2D, car: Car, time: number) {
     }
   }
 
-  // Player indicator (dot, rotates with car — OK)
-  if (car.isPlayer) {
-    ctx.beginPath();
-    ctx.arc(0, -carH / 2 - 10, 5, 0, Math.PI * 2);
-    ctx.fillStyle = '#FFD600';
-    ctx.fill();
-    ctx.strokeStyle = '#AA8800';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    if (Math.sin(time * 4) > 0) {
-      ctx.fillStyle = 'rgba(255,214,0,0.6)';
-      ctx.font = '8px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText('★', 0, -carH / 2 - 18);
-    }
-  }
+  // (player arrow drawn after restore, below)
 
   // HP bar
   const barW = carW + 4;
@@ -138,16 +136,43 @@ export function drawCar(ctx: CanvasRenderingContext2D, car: Car, time: number) {
 
   ctx.restore();
 
+  // Player arrow indicator — drawn in world space (never rotates)
+  if (car.isPlayer) {
+    const bounce = Math.sin(time * 4) * 2.5;
+    const ax = car.x;
+    const ay = car.y - 46 + bounce;
+    const aw = 10;
+    const ah = 8;
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.7)';
+    ctx.shadowBlur = 4;
+    ctx.fillStyle = '#FFD600';
+    ctx.strokeStyle = '#AA7700';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(ax, ay + ah);
+    ctx.lineTo(ax - aw, ay);
+    ctx.lineTo(ax - aw / 2.5, ay);
+    ctx.lineTo(ax - aw / 2.5, ay - ah * 0.8);
+    ctx.lineTo(ax + aw / 2.5, ay - ah * 0.8);
+    ctx.lineTo(ax + aw / 2.5, ay);
+    ctx.lineTo(ax + aw, ay);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
   // Nickname — drawn AFTER restore so it never rotates with the car
   const nick = car.name.length > 9 ? car.name.slice(0, 8) + '…' : car.name;
   const nickColor = car.isPlayer ? '#FFD600' : (car.isBot ? 'rgba(255,255,255,0.45)' : '#7DDFFF');
   ctx.save();
-  ctx.font = `bold ${car.isPlayer ? 11 : 9}px Nunito, sans-serif`;
+  ctx.font = `bold ${car.isPlayer ? 12 : 9}px Nunito, sans-serif`;
   ctx.textAlign = 'center';
   ctx.fillStyle = nickColor;
   ctx.shadowColor = 'rgba(0,0,0,0.9)';
-  ctx.shadowBlur = 5;
-  ctx.fillText(nick, car.x, car.y - 26);
+  ctx.shadowBlur = 6;
+  ctx.fillText(nick, car.x, car.y - 58 + Math.sin(time * 4) * 2.5);
   ctx.shadowBlur = 0;
   ctx.restore();
 }
