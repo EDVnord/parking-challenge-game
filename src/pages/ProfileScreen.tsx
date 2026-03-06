@@ -20,7 +20,7 @@ function claimAch(id: string) {
   if (!claimed.includes(id)) localStorage.setItem(CLAIMABLE_ACH_KEY, JSON.stringify([...claimed, id]));
 }
 
-interface AchDef {
+export interface AchDef {
   id: string;
   emoji: string;
   title: string;
@@ -30,7 +30,7 @@ interface AchDef {
   check: (p: PlayerData) => boolean;
 }
 
-const ALL_ACHIEVEMENTS: AchDef[] = [
+export const ALL_ACHIEVEMENTS: AchDef[] = [
   // 🎮 Игровой опыт
   { id: 'play_1',    emoji: '🎮', title: 'Первый старт',      desc: 'Сыграй 1 игру',         category: 'Игры',    reward: { coins: 100 },          check: p => p.gamesPlayed >= 1 },
   { id: 'play_10',   emoji: '🕹️', title: 'Втянулся',          desc: 'Сыграй 10 игр',         category: 'Игры',    reward: { coins: 300 },          check: p => p.gamesPlayed >= 10 },

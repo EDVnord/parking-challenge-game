@@ -12,7 +12,7 @@ export function useBotAI() {
 
     // Игрок в driving-фазе (до сигнала) — только орбита, без выбора парковки
     if (car.isPlayer && !state.signal) {
-      const hpFactor = 0.5 + (car.hp / car.maxHp) * 0.5;
+      const hpFactor = 0.3 + (car.hp / car.maxHp) * 0.7;
       const angularSpeed = car.orbitSpeed * TARGET_FPS * hpFactor;
       car.orbitAngle += angularSpeed * dt;
       car.orbitRadius = Math.max(220, Math.min(230, car.orbitRadius));
@@ -77,7 +77,7 @@ export function useBotAI() {
     }
 
     // Орбита: orbitSpeed — рад/кадр при 60fps, умножаем на TARGET_FPS*dt для FPS-независимости
-    const hpFactor = 0.5 + (car.hp / car.maxHp) * 0.5;
+    const hpFactor = 0.3 + (car.hp / car.maxHp) * 0.7;
     const angularSpeed = car.orbitSpeed * TARGET_FPS * hpFactor; // рад/сек
     car.orbitAngle += angularSpeed * dt;
 

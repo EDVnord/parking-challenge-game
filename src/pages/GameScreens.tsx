@@ -176,7 +176,7 @@ export function MenuScreen({ player, setScreen, onPlay, onQuestClaim, onWeeklyQu
 
         </div>
 
-        <p className="text-white/20 text-xs font-nunito">v0.1.0 — Ранний доступ</p>
+        <p className="text-white/20 text-xs font-nunito">v0.2.0</p>
       </div>
     </div>
   );

@@ -447,25 +447,49 @@ export function drawWinner(ctx: CanvasRenderingContext2D, player: Car | null, ti
 
   // Имя победителя
   if (player) {
-    // Подложка
-    ctx.fillStyle = 'rgba(255,214,0,0.12)';
+    const BOX_W = 420;
+    const BOX_H = 60;
+    const boxX = CENTER_X - BOX_W / 2;
+    const boxY = CENTER_Y + 30;
+
+    // Подложка с градиентом
+    const boxGrad = ctx.createLinearGradient(boxX, boxY, boxX + BOX_W, boxY + BOX_H);
+    boxGrad.addColorStop(0, 'rgba(255,214,0,0.08)');
+    boxGrad.addColorStop(0.5, 'rgba(255,214,0,0.18)');
+    boxGrad.addColorStop(1, 'rgba(255,214,0,0.08)');
+    ctx.fillStyle = boxGrad;
     ctx.beginPath();
-    ctx.roundRect(CENTER_X - 220, CENTER_Y + 35, 440, 50, 12);
+    ctx.roundRect(boxX, boxY, BOX_W, BOX_H, 14);
     ctx.fill();
-    ctx.strokeStyle = 'rgba(255,214,0,0.4)';
+    ctx.strokeStyle = 'rgba(255,214,0,0.55)';
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
+    // Замеряем текст и уменьшаем шрифт если не влезает
+    const maxTextW = BOX_W - 32;
+    let fontSize = 26;
+    const label = `${player.emoji}  ${player.name}`;
+    ctx.font = `bold ${fontSize}px Russo One, sans-serif`;
+    while (ctx.measureText(label).width > maxTextW && fontSize > 14) {
+      fontSize -= 1;
+      ctx.font = `bold ${fontSize}px Russo One, sans-serif`;
+    }
+
+    // Clip внутри рамки чтобы текст точно не вылез
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(boxX + 4, boxY + 2, BOX_W - 8, BOX_H - 4, 12);
+    ctx.clip();
     ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 28px Russo One, sans-serif';
     ctx.shadowColor = '#FFD600';
-    ctx.shadowBlur = 15;
-    ctx.fillText(`${player.emoji}  ${player.name}`, CENTER_X, CENTER_Y + 60);
+    ctx.shadowBlur = 18;
+    ctx.fillText(label, CENTER_X, boxY + BOX_H / 2);
     ctx.shadowBlur = 0;
+    ctx.restore();
 
     ctx.fillStyle = 'rgba(255,214,0,0.7)';
-    ctx.font = '16px Nunito, sans-serif';
-    ctx.fillText('КОРОЛЬ ПАРКОВКИ', CENTER_X, CENTER_Y + 90);
+    ctx.font = '15px Nunito, sans-serif';
+    ctx.fillText('КОРОЛЬ ПАРКОВКИ', CENTER_X, CENTER_Y + 108);
   }
 
   // Вращающиеся звёзды

@@ -268,21 +268,9 @@ export function useGameLoop({
           state.isFinalRound = nextActiveCars.length === 2;
           state.timer = randomRoundTimer(state.round, state.isFinalRound);
 
-          if (state.round === 1) {
-            const availableIdxs = state.spots.map((s, i) => ({ s, i })).filter(({ s }) => s.available).map(({ i }) => i);
-            if (availableIdxs.length > 0) {
-              const removeIdx = availableIdxs[Math.floor(Math.random() * availableIdxs.length)];
-              state.spots.splice(removeIdx, 1);
-            }
-          } else if (state.isFinalRound) {
-            state.spots.splice(0, state.spots.length, ...makeSpotsGrid(1));
-          } else {
-            const availableIdxs = state.spots.map((s, i) => ({ s, i })).filter(({ s }) => s.available).map(({ i }) => i);
-            if (availableIdxs.length > 0) {
-              const removeIdx = availableIdxs[Math.floor(Math.random() * availableIdxs.length)];
-              state.spots.splice(removeIdx, 1);
-            }
-          }
+          // Количество мест = (активных машин - 1), но не меньше 1
+          const spotsCount = Math.max(1, nextActiveCars.length - 1);
+          state.spots.splice(0, state.spots.length, ...makeSpotsGrid(spotsCount));
           state.spots.forEach(s => { s.carId = null; });
 
           if (state.playerAutoRepair) {

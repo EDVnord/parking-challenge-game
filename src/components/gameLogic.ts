@@ -85,6 +85,23 @@ export function spawnParticles(
 }
 
 export function makeSpotsGrid(count: number): ParkingSpot[] {
+  if (count === 1) {
+    return [{ x: CENTER_X, y: CENTER_Y, occupied: false, carId: null, available: true }];
+  }
+  // При малом числе мест (<=6) располагаем по кругу — равные условия для всех
+  if (count <= 6) {
+    const spots: ParkingSpot[] = [];
+    const radius = count === 2 ? 0 : Math.min(80, 50 + count * 8);
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2 - Math.PI / 2;
+      spots.push({
+        x: count === 2 ? CENTER_X + (i === 0 ? -70 : 70) : CENTER_X + Math.cos(angle) * radius,
+        y: count === 2 ? CENTER_Y : CENTER_Y + Math.sin(angle) * radius,
+        occupied: false, carId: null, available: true,
+      });
+    }
+    return spots;
+  }
   const spots: ParkingSpot[] = [];
   const SPOT_COLS = 5;
   const SPOT_ROW_GAP = 80;

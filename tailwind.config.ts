@@ -84,6 +84,13 @@ export default {
 				'pulse-glow': { '0%,100%': { boxShadow: '0 0 20px rgba(255,214,0,0.4)' }, '50%': { boxShadow: '0 0 40px rgba(255,214,0,0.8)' } },
 				'spin-slow': { from: { transform: 'rotate(0deg)' }, to: { transform: 'rotate(360deg)' } },
 				'slide-up': { from: { opacity: '0', transform: 'translateY(30px)' }, to: { opacity: '1', transform: 'translateY(0)' } },
+				'achievement-pop': {
+					'0%': { opacity: '0', transform: 'translateY(-20px) scale(0.85)' },
+					'12%': { opacity: '1', transform: 'translateY(0) scale(1.05)' },
+					'20%': { transform: 'translateY(0) scale(1)' },
+					'75%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+					'100%': { opacity: '0', transform: 'translateY(-12px) scale(0.95)' },
+				},
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
@@ -96,6 +103,7 @@ export default {
 				'pulse-glow': 'pulse-glow 2s ease-in-out infinite',
 				'spin-slow': 'spin-slow 8s linear infinite',
 				'slide-up': 'slide-up 0.4s ease-out',
+				'achievement-pop': 'achievement-pop 3.5s cubic-bezier(0.22,1,0.36,1) forwards',
 			}
 		}
 	},

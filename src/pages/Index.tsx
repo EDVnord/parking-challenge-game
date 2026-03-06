@@ -6,6 +6,7 @@ import DailyBonusModal from '@/components/DailyBonusModal';
 import LobbyScreen from '@/components/LobbyScreen';
 import NicknameSetup from '@/components/NicknameSetup';
 import { useNotify } from '@/hooks/useNotify';
+import AchievementToast from '@/components/AchievementToast';
 import { usePlayerAuth } from '@/hooks/usePlayerAuth';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
 import { useGameHandlers } from '@/hooks/useGameHandlers';
@@ -159,6 +160,8 @@ export default function Index() {
           onClose={() => setDailyBonus(null)}
         />
       )}
+
+      <AchievementToast player={player} />
 
       {notification && (
         <div className="fixed top-4 left-0 right-0 flex justify-center z-50 pointer-events-none">
