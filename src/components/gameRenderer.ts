@@ -22,8 +22,8 @@ export function drawCar(ctx: CanvasRenderingContext2D, car: Car, time: number) {
     const pulse = 0.55 + 0.45 * Math.sin(time * 3.5);
     const glowRadius = 28 + 6 * pulse;
     const grad = ctx.createRadialGradient(0, 0, 10, 0, 0, glowRadius);
-    grad.addColorStop(0, `rgba(255,214,0,${0.28 * pulse})`);
-    grad.addColorStop(1, 'rgba(255,214,0,0)');
+    grad.addColorStop(0, `rgba(0,230,118,${0.32 * pulse})`);
+    grad.addColorStop(1, 'rgba(0,230,118,0)');
     ctx.beginPath();
     ctx.arc(0, 0, glowRadius, 0, Math.PI * 2);
     ctx.fillStyle = grad;
@@ -146,8 +146,8 @@ export function drawCar(ctx: CanvasRenderingContext2D, car: Car, time: number) {
     ctx.save();
     ctx.shadowColor = 'rgba(0,0,0,0.7)';
     ctx.shadowBlur = 4;
-    ctx.fillStyle = '#FFD600';
-    ctx.strokeStyle = '#AA7700';
+    ctx.fillStyle = '#00E676';
+    ctx.strokeStyle = '#00994D';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(ax, ay + ah);
@@ -165,7 +165,7 @@ export function drawCar(ctx: CanvasRenderingContext2D, car: Car, time: number) {
 
   // Nickname — drawn AFTER restore so it never rotates with the car
   const nick = car.name.length > 9 ? car.name.slice(0, 8) + '…' : car.name;
-  const nickColor = car.isPlayer ? '#FFD600' : (car.isBot ? 'rgba(255,255,255,0.45)' : '#7DDFFF');
+  const nickColor = car.isPlayer ? '#00E676' : (car.isBot ? 'rgba(255,255,255,0.45)' : '#7DDFFF');
   ctx.save();
   ctx.font = `bold ${car.isPlayer ? 12 : 9}px Nunito, sans-serif`;
   ctx.textAlign = 'center';
@@ -242,13 +242,14 @@ export function drawParkingArea(ctx: CanvasRenderingContext2D, spots: ParkingSpo
   });
 }
 
-export function drawAsphalt(ctx: CanvasRenderingContext2D, driftMarks: GameState['driftMarks']) {
-  // Wet dark asphalt base
-  ctx.fillStyle = '#141420';
-  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-
-  // Wet reflection — radial gradient puddles
-  ctx.save();
+let _asphaltCache: HTMLCanvasElement | null = null;
+function getAsphaltCache(): HTMLCanvasElement {
+  if (_asphaltCache) return _asphaltCache;
+  const oc = document.createElement('canvas');
+  oc.width = CANVAS_W; oc.height = CANVAS_H;
+  const c = oc.getContext('2d')!;
+  c.fillStyle = '#141420';
+  c.fillRect(0, 0, CANVAS_W, CANVAS_H);
   const puddles = [
     { x: 180, y: 120, rx: 160, ry: 70 },
     { x: 620, y: 480, rx: 140, ry: 60 },
@@ -257,35 +258,30 @@ export function drawAsphalt(ctx: CanvasRenderingContext2D, driftMarks: GameState
     { x: 400, y: 520, rx: 180, ry: 40 },
   ];
   puddles.forEach(p => {
-    const grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.rx);
+    const grd = c.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.rx);
     grd.addColorStop(0, 'rgba(80,100,160,0.18)');
     grd.addColorStop(0.6, 'rgba(50,70,120,0.09)');
     grd.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = grd;
-    ctx.beginPath();
-    ctx.ellipse(p.x, p.y, p.rx, p.ry, 0, 0, Math.PI * 2);
-    ctx.fill();
+    c.fillStyle = grd;
+    c.beginPath();
+    c.ellipse(p.x, p.y, p.rx, p.ry, 0, 0, Math.PI * 2);
+    c.fill();
   });
-  ctx.restore();
-
-  // Subtle asphalt grain — tiny scattered dots
-  ctx.save();
-  ctx.fillStyle = 'rgba(255,255,255,0.025)';
+  c.fillStyle = 'rgba(255,255,255,0.025)';
   for (let i = 0; i < 600; i++) {
-    const gx = (i * 137.508) % CANVAS_W;
-    const gy = (i * 93.271) % CANVAS_H;
-    ctx.fillRect(gx, gy, 1, 1);
+    c.fillRect((i * 137.508) % CANVAS_W, (i * 93.271) % CANVAS_H, 1, 1);
   }
-  ctx.restore();
-
-  // Wet sheen lines — horizontal light streaks
-  ctx.save();
   for (let y = 30; y < CANVAS_H; y += 55) {
     const alpha = 0.02 + Math.sin(y * 0.15) * 0.01;
-    ctx.fillStyle = `rgba(100,130,200,${alpha})`;
-    ctx.fillRect(0, y, CANVAS_W, 1.5);
+    c.fillStyle = `rgba(100,130,200,${alpha})`;
+    c.fillRect(0, y, CANVAS_W, 1.5);
   }
-  ctx.restore();
+  _asphaltCache = oc;
+  return oc;
+}
+
+export function drawAsphalt(ctx: CanvasRenderingContext2D, driftMarks: GameState['driftMarks']) {
+  ctx.drawImage(getAsphaltCache(), 0, 0);
 
   // Drift / tyre marks
   driftMarks.forEach(mark => {
@@ -305,15 +301,16 @@ export function drawAsphalt(ctx: CanvasRenderingContext2D, driftMarks: GameState
 }
 
 export function drawParticles(ctx: CanvasRenderingContext2D, particles: GameState['particles']) {
-  particles.forEach(p => {
-    ctx.save();
+  if (!particles.length) return;
+  ctx.save();
+  for (const p of particles) {
     ctx.globalAlpha = p.life;
     ctx.fillStyle = p.color;
     ctx.beginPath();
     ctx.arc(p.x, p.y, Math.max(0, p.size * p.life), 0, Math.PI * 2);
     ctx.fill();
-    ctx.restore();
-  });
+  }
+  ctx.restore();
 }
 
 export function drawSignal(ctx: CanvasRenderingContext2D, time: number) {
