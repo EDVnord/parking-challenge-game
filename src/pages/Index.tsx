@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Screen, LeaderboardResult, RoomState, fetchLeaderboard, todayDateStr } from './parkingTypes';
+import { Screen, LeaderboardResult, RoomState, fetchLeaderboard, todayDateStr, weeklyDateStr } from './parkingTypes';
 import { MenuScreen, GameScreen, GameOverScreen } from './GameScreens';
 import { GarageScreen, ShopScreen, ProfileScreen, LeaderboardScreen, FriendsScreen } from './PlayerScreens';
 import DailyBonusModal from '@/components/DailyBonusModal';
@@ -109,6 +109,22 @@ export default function Index() {
     });
   }, [notify, setPlayer]);
 
+  const handleWeeklyQuestClaim = useCallback((questId: string) => {
+    setPlayer(prev => {
+      const thisWeek = weeklyDateStr();
+      const quest = (prev.weeklyQuests ?? []).find(q => q.id === questId);
+      if (!quest || quest.claimed || quest.progress < quest.goal) return prev;
+      notify(`🏆 ${quest.label} +${quest.reward.coins}🪙 +${quest.reward.gems}💎`);
+      return {
+        ...prev,
+        coins: prev.coins + quest.reward.coins,
+        gems: prev.gems + quest.reward.gems,
+        weeklyQuests: prev.weeklyQuests.map(q => q.id === questId ? { ...q, claimed: true } : q),
+        weeklyQuestsDate: thisWeek,
+      };
+    });
+  }, [notify, setPlayer]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-950">
@@ -157,7 +173,7 @@ export default function Index() {
       )}
 
       {screen === 'menu' && (
-        <MenuScreen player={player} setScreen={setScreen} onPlay={handlePlay} onQuestClaim={handleQuestClaim} />
+        <MenuScreen player={player} setScreen={setScreen} onPlay={handlePlay} onQuestClaim={handleQuestClaim} onWeeklyQuestClaim={handleWeeklyQuestClaim} />
       )}
 
       {screen === 'game' && !isLobby && (

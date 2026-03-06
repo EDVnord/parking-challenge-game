@@ -133,6 +133,16 @@ export interface DailyQuest {
   reward: { coins: number; gems?: number };
 }
 
+export interface WeeklyQuest {
+  id: string;
+  label: string;
+  goal: number;
+  progress: number;
+  done: boolean;
+  claimed: boolean;
+  reward: { coins: number; gems: number };
+}
+
 export interface PlayerData {
   name: string;
   emoji: string;
@@ -159,6 +169,8 @@ export interface PlayerData {
   lastLoginDate: string;
   dailyQuests: DailyQuest[];
   dailyQuestsDate: string;
+  weeklyQuests: WeeklyQuest[];
+  weeklyQuestsDate: string;
   nicknameChanges?: number;
 }
 
@@ -351,6 +363,82 @@ export function todayDateStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
+export function weeklyDateStr() {
+  const d = new Date();
+  const day = d.getDay();
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - ((day + 6) % 7));
+  return monday.toISOString().slice(0, 10);
+}
+
+export function makeWeeklyQuests(weekStr?: string): WeeklyQuest[] {
+  const w = weekStr ?? weeklyDateStr();
+  const parts = w.split('-').map(Number);
+  const seed = parts[0] * 10000 + parts[1] * 100 + parts[2];
+
+  function rng(s: number) {
+    const x = Math.sin(s * 127.1 + 311.7) * 43758.5453;
+    return x - Math.floor(x);
+  }
+
+  const allWeekly: WeeklyQuest[] = [
+    {
+      id: 'w_play15',
+      label: 'Сыграй 15 игр за неделю',
+      goal: 15, progress: 0, done: false, claimed: false,
+      reward: { coins: 800, gems: 3 },
+    },
+    {
+      id: 'w_play25',
+      label: 'Сыграй 25 игр за неделю',
+      goal: 25, progress: 0, done: false, claimed: false,
+      reward: { coins: 1500, gems: 5 },
+    },
+    {
+      id: 'w_win5',
+      label: 'Победи 5 раз за неделю',
+      goal: 5, progress: 0, done: false, claimed: false,
+      reward: { coins: 1000, gems: 4 },
+    },
+    {
+      id: 'w_win10',
+      label: 'Победи 10 раз за неделю',
+      goal: 10, progress: 0, done: false, claimed: false,
+      reward: { coins: 2000, gems: 8 },
+    },
+    {
+      id: 'w_top3_10',
+      label: 'Финишируй в топ-3 десять раз',
+      goal: 10, progress: 0, done: false, claimed: false,
+      reward: { coins: 1200, gems: 5 },
+    },
+    {
+      id: 'w_survive8_3',
+      label: 'Доживи до 8-го раунда 3 раза',
+      goal: 3, progress: 0, done: false, claimed: false,
+      reward: { coins: 900, gems: 4 },
+    },
+    {
+      id: 'w_daily7',
+      label: 'Выполни все дневные задания 3 дня подряд',
+      goal: 3, progress: 0, done: false, claimed: false,
+      reward: { coins: 1500, gems: 7 },
+    },
+    {
+      id: 'w_streak7',
+      label: 'Входи 7 дней подряд',
+      goal: 7, progress: 0, done: false, claimed: false,
+      reward: { coins: 1000, gems: 10 },
+    },
+  ];
+
+  const idx1 = Math.floor(rng(seed + 1) * 2);
+  const idx2 = 2 + Math.floor(rng(seed + 2) * 2);
+  const idx3 = 4 + Math.floor(rng(seed + 3) * 4);
+
+  return [allWeekly[idx1], allWeekly[idx2], allWeekly[idx3]];
+}
+
 export const DEFAULT_PLAYER: PlayerData = {
   name: '',
   emoji: '😎',
@@ -369,6 +457,8 @@ export const DEFAULT_PLAYER: PlayerData = {
   lastLoginDate: '',
   dailyQuests: makeDailyQuests(),
   dailyQuestsDate: '',
+  weeklyQuests: makeWeeklyQuests(),
+  weeklyQuestsDate: '',
 };
 
 export function loadProfile(): PlayerData | null {
@@ -389,7 +479,9 @@ export function loadProfile(): PlayerData | null {
     });
     const mergedUpgrades = { ...DEFAULT_PLAYER.upgrades, ...(saved.upgrades ?? {}) };
     const today = todayDateStr();
+    const thisWeek = weeklyDateStr();
     const dailyQuests = saved.dailyQuestsDate === today ? (saved.dailyQuests ?? makeDailyQuests()) : makeDailyQuests();
+    const weeklyQuests = saved.weeklyQuestsDate === thisWeek ? (saved.weeklyQuests ?? makeWeeklyQuests()) : makeWeeklyQuests();
     return {
       ...saved,
       cars: mergedCars,
@@ -398,6 +490,8 @@ export function loadProfile(): PlayerData | null {
       lastLoginDate: saved.lastLoginDate ?? '',
       dailyQuests,
       dailyQuestsDate: saved.dailyQuestsDate === today ? today : '',
+      weeklyQuests,
+      weeklyQuestsDate: saved.weeklyQuestsDate === thisWeek ? thisWeek : '',
     };
   } catch {
     return null;

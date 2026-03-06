@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { PlayerData, RoomState, makeDailyQuests, todayDateStr, levelFromXp } from '@/pages/parkingTypes';
+import { PlayerData, RoomState, makeDailyQuests, makeWeeklyQuests, todayDateStr, weeklyDateStr, levelFromXp } from '@/pages/parkingTypes';
 import { getFriends, hasFriendInRoom, FRIEND_BONUS } from '@/components/FriendsPanel';
 
 interface UseGameHandlersOptions {
@@ -51,9 +51,12 @@ export function useGameHandlers({ player, setPlayer, roomState, setScreen, notif
     }
     setPlayer(prev => {
       const today = todayDateStr();
+      const thisWeek = weeklyDateStr();
       const baseQuests = prev.dailyQuestsDate === today ? prev.dailyQuests : makeDailyQuests(today);
+      const baseWeekly = prev.weeklyQuestsDate === thisWeek ? (prev.weeklyQuests ?? []) : makeWeeklyQuests(thisWeek);
       const newCompletedLabels: string[] = [];
       const rounds = roundsPlayed ?? 0;
+
       const newQuests = baseQuests.map(q => {
         if (q.done) return q;
         let progress = q.progress;
@@ -73,17 +76,40 @@ export function useGameHandlers({ player, setPlayer, roomState, setScreen, notif
         if (done && !q.done) newCompletedLabels.push(`🎯 ${q.label} — готово! Забери награду`);
         return { ...q, progress, done };
       });
-      newCompletedLabels.forEach((msg, i) => setTimeout(() => notify(msg), i * 2000));
+
+      const allDailyDone = newQuests.every(q => q.done || q.claimed);
+      const newWeekly = baseWeekly.map(q => {
+        if (q.done) return q;
+        let progress = q.progress;
+        if (q.id === 'w_play15' || q.id === 'w_play25') progress = Math.min(q.goal, progress + 1);
+        if ((q.id === 'w_win5' || q.id === 'w_win10') && position === 1) progress = Math.min(q.goal, progress + 1);
+        if (q.id === 'w_top3_10' && position <= 3) progress = Math.min(q.goal, progress + 1);
+        if (q.id === 'w_survive8_3' && rounds >= 8) progress = Math.min(q.goal, progress + 1);
+        if (q.id === 'w_daily7' && allDailyDone) progress = Math.min(q.goal, progress + 1);
+        if (q.id === 'w_streak7') progress = Math.min(q.goal, prev.loginStreak + 1);
+        const done = progress >= q.goal;
+        if (done && !q.done) newCompletedLabels.push(`🏆 ${q.label} — недельное готово! Забери награду`);
+        return { ...q, progress, done };
+      });
+
+      const newLevel = levelFromXp(prev.xp + xpEarned);
+      if (newLevel > prev.level) {
+        setTimeout(() => notify(`🆙 Уровень ${newLevel}! +200🪙`), 500);
+      }
+
+      newCompletedLabels.forEach((msg, i) => setTimeout(() => notify(msg), (i + (newLevel > prev.level ? 1 : 0)) * 2000));
       return {
         ...prev,
-        coins: prev.coins + coinsEarned,
+        coins: prev.coins + coinsEarned + (newLevel > prev.level ? 200 : 0),
         xp: prev.xp + xpEarned,
-        level: levelFromXp(prev.xp + xpEarned),
+        level: newLevel,
         wins: position === 1 ? prev.wins + 1 : prev.wins,
         gamesPlayed: prev.gamesPlayed + 1,
         bestPosition: prev.bestPosition === 99 ? position : Math.min(prev.bestPosition, position),
         dailyQuests: newQuests,
         dailyQuestsDate: today,
+        weeklyQuests: newWeekly,
+        weeklyQuestsDate: thisWeek,
       };
     });
     setScreen('gameOver');
