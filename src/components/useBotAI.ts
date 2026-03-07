@@ -1,11 +1,9 @@
 import { useCallback } from 'react';
-import { Car, GameState, CENTER_X, CENTER_Y, EXCL_RX, EXCL_RY } from './gameTypes';
+import { Car, GameState, CENTER_X, CENTER_Y } from './gameTypes';
 import { spawnParticles } from './gameLogic';
 
-// Орбита снаружи эллипса exclusion zone с запасом
-const ORBIT_PAD = 20;
-const ORBIT_RX = EXCL_RX + ORBIT_PAD; // 280
-const ORBIT_RY = EXCL_RY + ORBIT_PAD; // 215
+// Круговая орбита снаружи exclusion zone (берём max из полуосей + запас)
+const ORBIT_R = 290;
 
 // Оригинальная скорость орбиты — каждый кадр при 60fps добавлялось ~0.016–0.024 рад
 // orbitSpeed хранится в рад/кадр при 60fps, умножаем на 60 чтобы получить рад/сек
@@ -15,15 +13,14 @@ export function useBotAI() {
   const botAI = useCallback((car: Car, state: GameState, dt: number) => {
     if (car.eliminated || car.parked) return;
 
-    // Игрок в driving-фазе (до сигнала) — эллиптическая орбита снаружи зоны
+    // Игрок в driving-фазе (до сигнала) — круговая орбита по часовой стрелке
     if (car.isPlayer && !state.signal) {
       const hpFactor = 0.3 + (car.hp / car.maxHp) * 0.7;
       const angularSpeed = car.orbitSpeed * TARGET_FPS * hpFactor;
       car.orbitAngle += angularSpeed * dt;
-      car.x = CENTER_X + Math.cos(car.orbitAngle) * ORBIT_RX;
-      car.y = CENTER_Y + Math.sin(car.orbitAngle) * ORBIT_RY;
-      // Тангент к эллипсу как направление носа
-      car.angle = Math.atan2(Math.sin(car.orbitAngle) * ORBIT_RX, Math.cos(car.orbitAngle) * ORBIT_RY) + Math.PI / 2;
+      car.x = CENTER_X + Math.cos(car.orbitAngle) * ORBIT_R;
+      car.y = CENTER_Y + Math.sin(car.orbitAngle) * ORBIT_R;
+      car.angle = car.orbitAngle + Math.PI / 2;
       return;
     }
 
@@ -81,14 +78,14 @@ export function useBotAI() {
       return;
     }
 
-    // Орбита бота — эллиптическая, снаружи exclusion zone
+    // Орбита бота — круговая, по часовой стрелке
     const hpFactor = 0.3 + (car.hp / car.maxHp) * 0.7;
     const angularSpeed = car.orbitSpeed * TARGET_FPS * hpFactor;
     car.orbitAngle += angularSpeed * dt;
 
-    car.x = CENTER_X + Math.cos(car.orbitAngle) * ORBIT_RX;
-    car.y = CENTER_Y + Math.sin(car.orbitAngle) * ORBIT_RY;
-    car.angle = Math.atan2(Math.sin(car.orbitAngle) * ORBIT_RX, Math.cos(car.orbitAngle) * ORBIT_RY) + Math.PI / 2;
+    car.x = CENTER_X + Math.cos(car.orbitAngle) * ORBIT_R;
+    car.y = CENTER_Y + Math.sin(car.orbitAngle) * ORBIT_R;
+    car.angle = car.orbitAngle + Math.PI / 2;
 
     if (Math.random() < 0.02) {
       state.driftMarks.push({
