@@ -1,5 +1,5 @@
 import React from 'react';
-import { PlayerData, Screen, xpForLevel } from './parkingTypes';
+import { PlayerData, Screen, xpForLevel, getGemPurchaseLog, GemPurchaseEntry } from './parkingTypes';
 import { ProfileCard } from './LoginScreen';
 import FriendsPanel from '@/components/FriendsPanel';
 
@@ -56,12 +56,27 @@ export const ALL_ACHIEVEMENTS: AchDef[] = [
   { id: 'streak_30', emoji: '👑', title: 'Целый месяц!',      desc: 'Зайди 30 дней подряд',  category: 'Серия',   reward: { coins: 1500, gems: 20},check: p => (p.loginStreak ?? 0) >= 30 },
 ];
 
+const GEM_PACK_LABELS: Record<string, string> = {
+  gems_100: '100 💎',
+  gems_300: '350 💎',
+  gems_700: '850 💎',
+  gems_1500: '2000 💎',
+};
+
+function formatDate(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  } catch { return iso; }
+}
+
 export function ProfileScreen({ player, setScreen, setPlayer, notify }: ProfileScreenProps) {
   const xpInLevel = player.xp % xpForLevel(player.level);
   const xpNeeded = xpForLevel(player.level);
   const claimedAchs = getClaimedAchs();
   const totalDone = ALL_ACHIEVEMENTS.filter(a => a.check(player)).length;
   const hasClaimable = ALL_ACHIEVEMENTS.some(a => a.check(player) && !claimedAchs.includes(a.id));
+  const gemLog: GemPurchaseEntry[] = getGemPurchaseLog();
 
   return (
     <div className="min-h-screen flex flex-col px-4 py-6 gap-5 max-w-lg mx-auto">
@@ -112,6 +127,26 @@ export function ProfileScreen({ player, setScreen, setPlayer, notify }: ProfileS
         {hasClaimable && <span className="text-xs font-nunito text-yellow-300 animate-pulse mr-1">● Награды!</span>}
         <div className="text-white/30 text-sm">→</div>
       </button>
+
+      {gemLog.length > 0 && (
+        <>
+          <h3 className="font-russo text-white/40 text-xs uppercase tracking-wider">💎 История покупок</h3>
+          <div className="flex flex-col gap-2">
+            {gemLog.slice(0, 10).map((entry, i) => (
+              <div key={i} className="card-game px-4 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">💎</span>
+                  <div>
+                    <div className="font-russo text-white text-sm">{GEM_PACK_LABELS[entry.productId] ?? `${entry.gems} 💎`}</div>
+                    <div className="text-white/30 text-xs font-nunito">{formatDate(entry.date)}</div>
+                  </div>
+                </div>
+                <span className="text-green-400 font-russo text-sm">+{entry.gems}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       <h3 className="font-russo text-white/40 text-xs uppercase tracking-wider">👥 Друзья</h3>
       <FriendsPanel playerName={player.name} playerEmoji={player.emoji} notify={notify} />

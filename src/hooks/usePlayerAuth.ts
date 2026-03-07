@@ -3,7 +3,7 @@ import {
   PlayerData, DEFAULT_PLAYER, FRIENDS_URL,
   loadProfile, saveProfile, profileToSavePayload,
   apiAuth, getYaPlayer, initYandexGames, notifyGameReady, getOrCreateAnonId,
-  DAILY_STREAK_REWARDS, makeDailyQuests, todayDateStr,
+  DAILY_STREAK_REWARDS, makeDailyQuests, todayDateStr, restoreGemPurchases,
 } from '@/pages/parkingTypes';
 import { initI18n } from '@/i18n';
 import { getSavedNick } from '@/components/NicknameSetup';
@@ -107,6 +107,13 @@ export function usePlayerAuth(notify: (msg: string) => void) {
         } else {
           base = { ...DEFAULT_PLAYER, name: 'Игрок' };
           setNeedNickname(true);
+        }
+
+        // Проверяем незавершённые покупки при старте (требование Яндекса)
+        const restored = await restoreGemPurchases();
+        if (restored.restored > 0) {
+          base = { ...base, gems: base.gems + restored.restored };
+          notify(`✅ Восстановлено ${restored.restored} 💎 из незавершённых покупок`);
         }
 
         const withBonus = checkDailyBonus(base);

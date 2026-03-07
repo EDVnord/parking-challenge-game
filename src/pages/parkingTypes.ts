@@ -137,6 +137,8 @@ export async function buyGems(productId: string): Promise<{ ok: boolean; error?:
     const purchase = await payments.purchase({ id: productId });
     if (purchase?.purchaseToken) {
       await payments.consumePurchase(purchase.purchaseToken);
+      const gems = GEM_PACK_MAP[productId];
+      if (gems) appendGemLog(productId, gems);
     }
     return { ok: true };
   } catch (e: unknown) {
@@ -154,6 +156,24 @@ const GEM_PACK_MAP: Record<string, number> = {
   gems_1500: 2000,
 };
 
+const GEM_LOG_KEY = 'parking_gem_purchases_v1';
+
+export interface GemPurchaseEntry {
+  productId: string;
+  gems: number;
+  date: string; // ISO date string
+}
+
+export function getGemPurchaseLog(): GemPurchaseEntry[] {
+  try { return JSON.parse(localStorage.getItem(GEM_LOG_KEY) ?? '[]'); } catch { return []; }
+}
+
+function appendGemLog(productId: string, gems: number) {
+  const log = getGemPurchaseLog();
+  log.unshift({ productId, gems, date: new Date().toISOString() });
+  localStorage.setItem(GEM_LOG_KEY, JSON.stringify(log.slice(0, 50)));
+}
+
 export async function restoreGemPurchases(): Promise<{ restored: number; count: number }> {
   try {
     const sdk = _ysdk ?? window._yaSDK;
@@ -165,7 +185,10 @@ export async function restoreGemPurchases(): Promise<{ restored: number; count: 
       const gems = GEM_PACK_MAP[p.productID];
       if (gems) {
         totalGems += gems;
-        try { await payments.consumePurchase(p.purchaseToken); } catch { /* already consumed */ }
+        try {
+          await payments.consumePurchase(p.purchaseToken);
+          appendGemLog(p.productID, gems);
+        } catch { /* already consumed */ }
       }
     }
     return { restored: totalGems, count: purchases.length };
