@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import GameCanvas from '@/components/GameCanvas';
 import { setAudioMuted } from '@/components/gameAudio';
-import VirtualJoystick from '@/components/VirtualJoystick';
 import Icon from '@/components/ui/icon';
 import { PlayerData, Screen, DailyQuest, WeeklyQuest, RoomState, todayDateStr, weeklyDateStr, xpForLevel } from './parkingTypes';
 import { t } from '@/i18n';
@@ -310,9 +309,51 @@ export function GameScreen({
         </div>
       )}
 
-      {/* Джойстик — только мобиль */}
-      <div className="relative">
-        <VirtualJoystick keysRef={keysRef} />
+      {/* Управление — только мобиль */}
+      <div className="md:hidden shrink-0 flex items-end justify-center gap-4 px-2 pb-2 pt-1 select-none">
+        {/* Стрелки */}
+        <div className="grid grid-cols-3 gap-1.5 w-[168px]">
+          <div />
+          <button
+            className="bg-white/20 active:bg-white/40 text-white rounded-2xl h-14 text-2xl font-bold touch-none"
+            onTouchStart={e => { e.preventDefault(); keysRef.current.add('ArrowUp'); }}
+            onTouchEnd={e => { e.preventDefault(); keysRef.current.delete('ArrowUp'); }}
+            onTouchCancel={() => keysRef.current.delete('ArrowUp')}
+          >↑</button>
+          <div />
+          <button
+            className="bg-white/20 active:bg-white/40 text-white rounded-2xl h-14 text-2xl font-bold touch-none"
+            onTouchStart={e => { e.preventDefault(); keysRef.current.add('ArrowLeft'); }}
+            onTouchEnd={e => { e.preventDefault(); keysRef.current.delete('ArrowLeft'); }}
+            onTouchCancel={() => keysRef.current.delete('ArrowLeft')}
+          >←</button>
+          <button
+            className="bg-white/20 active:bg-white/40 text-white rounded-2xl h-14 text-2xl font-bold touch-none"
+            onTouchStart={e => { e.preventDefault(); keysRef.current.add('ArrowDown'); }}
+            onTouchEnd={e => { e.preventDefault(); keysRef.current.delete('ArrowDown'); }}
+            onTouchCancel={() => keysRef.current.delete('ArrowDown')}
+          >↓</button>
+          <button
+            className="bg-white/20 active:bg-white/40 text-white rounded-2xl h-14 text-2xl font-bold touch-none"
+            onTouchStart={e => { e.preventDefault(); keysRef.current.add('ArrowRight'); }}
+            onTouchEnd={e => { e.preventDefault(); keysRef.current.delete('ArrowRight'); }}
+            onTouchCancel={() => keysRef.current.delete('ArrowRight')}
+          >→</button>
+        </div>
+
+        {/* Нитро */}
+        {(player.upgrades?.nitro) && (
+          <button
+            className="touch-none rounded-2xl flex flex-col items-center justify-center gap-1 active:scale-95 transition-transform"
+            style={{ width: 64, height: 64, background: 'rgba(255,180,0,0.2)', border: '2px solid rgba(255,200,0,0.5)' }}
+            onTouchStart={e => { e.preventDefault(); keysRef.current.add(' '); keysRef.current.add('ArrowUp'); }}
+            onTouchEnd={e => { e.preventDefault(); keysRef.current.delete(' '); keysRef.current.delete('ArrowUp'); }}
+            onTouchCancel={() => { keysRef.current.delete(' '); keysRef.current.delete('ArrowUp'); }}
+          >
+            <span style={{ fontSize: 24 }}>⚡</span>
+            <span style={{ fontSize: 10, color: 'rgba(255,210,0,0.9)', fontWeight: 700 }}>НИТРО</span>
+          </button>
+        )}
       </div>
 
       <p className="text-white/30 text-xs text-center font-nunito hidden md:block pb-1">
