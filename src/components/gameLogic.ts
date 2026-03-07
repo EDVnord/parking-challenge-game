@@ -36,26 +36,49 @@ export function resolveAllCollisions(cars: Car[], state: GameState, noDamage = f
       const dx = b.x - a.x;
       const dy = b.y - a.y;
       const dist = Math.hypot(dx, dy);
-      const minDist = 26;
+      const minDist = 30;
       if (dist < minDist && dist > 0) {
         const overlap = minDist - dist;
         const nx = dx / dist;
         const ny = dy / dist;
-        a.x -= nx * overlap * 0.5;
-        a.y -= ny * overlap * 0.5;
-        b.x += nx * overlap * 0.5;
-        b.y += ny * overlap * 0.5;
+
+        // Сила выталкивания: полный overlap, не половина
+        const pushA = a.isPlayer ? 0.45 : 0.55;
+        const pushB = b.isPlayer ? 0.45 : 0.55;
+        a.x -= nx * overlap * pushA;
+        a.y -= ny * overlap * pushA;
+        b.x += nx * overlap * pushB;
+        b.y += ny * overlap * pushB;
+
+        // Отбрасываем скорость игрока при столкновении с ботом
+        if (a.isPlayer && !noDamage) {
+          const dot = a.speed * nx + 0; // проекция
+          if (dot < 0) a.speed *= 0.4;
+        }
+        if (b.isPlayer && !noDamage) {
+          const dot = b.speed * (-nx) + 0;
+          if (dot < 0) b.speed *= 0.4;
+        }
+
         if (!noDamage) {
-          const relSpeed = Math.abs(a.speed - b.speed);
-          if (relSpeed > 0.5) {
-            const dmg = relSpeed * 0.6;
-            const aDmg = a.isPlayer && state.playerBumper ? dmg * 0.5 : dmg;
-            const bDmg = b.isPlayer && state.playerBumper ? dmg * 0.5 : dmg;
+          // Для ботов используем их эффективную скорость по targetSpot
+          const aEffSpeed = a.isBot && a.targetSpot !== null ? a.maxSpeed * 0.8 : Math.abs(a.speed);
+          const bEffSpeed = b.isBot && b.targetSpot !== null ? b.maxSpeed * 0.8 : Math.abs(b.speed);
+          const relSpeed = Math.abs(aEffSpeed - bEffSpeed) + Math.min(aEffSpeed, bEffSpeed) * 0.5;
+
+          if (relSpeed > 0.4) {
+            const dmg = relSpeed * 0.8;
+            const shieldA = a.isPlayer && state.playerShield && !state.shieldUsed;
+            const shieldB = b.isPlayer && state.playerShield && !state.shieldUsed;
+            const aDmg = shieldA ? 0 : (a.isPlayer && state.playerBumper ? dmg * 0.5 : dmg);
+            const bDmg = shieldB ? 0 : (b.isPlayer && state.playerBumper ? dmg * 0.5 : dmg);
+            if (shieldA) state.shieldUsed = true;
+            if (shieldB) state.shieldUsed = true;
             a.hp = Math.max(0, a.hp - aDmg);
             b.hp = Math.max(0, b.hp - bDmg);
-            if (relSpeed > 1.5) {
-              spawnParticles(state, (a.x + b.x) / 2, (a.y + b.y) / 2, '#FF6B35', 6);
-              state.shakeTimer = Math.max(state.shakeTimer, 0.15);
+            if (relSpeed > 1.2) {
+              spawnParticles(state, (a.x + b.x) / 2, (a.y + b.y) / 2, '#FF6B35', 8);
+              state.shakeTimer = Math.max(state.shakeTimer, 0.2);
             }
           }
         }
@@ -190,6 +213,7 @@ export function createInitialState(playerName: string, playerHp?: number, player
     playerMagnet: false,
     playerTurbo: false,
     playerShield: false,
+    shieldUsed: false,
   };
 }
 

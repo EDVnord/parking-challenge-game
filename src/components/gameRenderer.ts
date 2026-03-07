@@ -137,6 +137,9 @@ export function drawCar(ctx: CanvasRenderingContext2D, car: Car, time: number) {
     }
   }
 
+  // Shield glow (только если щит активен и ещё не использован)
+  // Доступа к state здесь нет — щит рисуется через внешний флаг в drawHUD
+
   // (player arrow drawn after restore, below)
 
   // HP bar
@@ -627,12 +630,29 @@ export function drawHUD(ctx: CanvasRenderingContext2D, state: GameState, time: n
     if (u.autoRepair === true) activeUpgrades.push('🔧');
     if (u.magnet === true) activeUpgrades.push('🧲');
     if (u.turbo === true) activeUpgrades.push('🚀');
-    if (u.shield === true) activeUpgrades.push('🔵');
+    const shieldActive = u.shield === true && !state.shieldUsed;
+    if (shieldActive) activeUpgrades.push('🔵');
+    else if (u.shield === true && state.shieldUsed) activeUpgrades.push('⬛'); // щит использован
     if (activeUpgrades.length > 0) {
       ctx.font = '12px sans-serif';
       activeUpgrades.forEach((icon, i) => {
         ctx.fillText(icon, 20 + i * 18, CANVAS_H - 22);
       });
+    }
+
+    // Кольцо щита вокруг машины игрока
+    if (shieldActive) {
+      ctx.save();
+      ctx.translate(player.x, player.y);
+      const sPulse = 0.7 + 0.3 * Math.sin(time * 6);
+      ctx.strokeStyle = `rgba(90,200,255,${sPulse})`;
+      ctx.lineWidth = 3;
+      ctx.shadowColor = '#5AC8FA';
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.arc(0, 0, 26, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
     }
   }
   ctx.restore();

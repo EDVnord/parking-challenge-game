@@ -55,6 +55,7 @@ export interface GameState {
   playerMagnet: boolean;
   playerTurbo: boolean;
   playerShield: boolean;
+  shieldUsed: boolean;
 }
 
 export interface Upgrades {

@@ -268,6 +268,7 @@ export function useGameLoop({
           state.round++;
           state.signal = false;
           state.phase = 'driving';
+          state.shieldUsed = false; // щит восстанавливается каждый раунд
 
           const nextActiveCars = state.cars.filter(c => !c.eliminated);
           state.isFinalRound = nextActiveCars.length === 2;
