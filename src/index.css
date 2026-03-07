@@ -59,6 +59,18 @@
       #0f0f1a 100%
     );
     min-height: 100vh;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+  }
+
+  canvas {
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: none;
   }
 }
 

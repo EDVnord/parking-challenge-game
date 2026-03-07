@@ -2,9 +2,10 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   PlayerData, DEFAULT_PLAYER, FRIENDS_URL,
   loadProfile, saveProfile, profileToSavePayload,
-  apiAuth, getYaPlayer, initYandexGames, getOrCreateAnonId,
+  apiAuth, getYaPlayer, initYandexGames, notifyGameReady, getOrCreateAnonId,
   DAILY_STREAK_REWARDS, makeDailyQuests, todayDateStr,
 } from '@/pages/parkingTypes';
+import { initI18n } from '@/i18n';
 import { getSavedNick } from '@/components/NicknameSetup';
 
 async function prefetchFriendCode(localPlayerId: string) {
@@ -64,6 +65,7 @@ export function usePlayerAuth(notify: (msg: string) => void) {
     (async () => {
       try {
         await initYandexGames();
+        initI18n();
         const ya = await getYaPlayer();
         const saved = loadProfile();
         let base: PlayerData;
@@ -120,6 +122,7 @@ export function usePlayerAuth(notify: (msg: string) => void) {
       } finally {
         clearTimeout(fallback);
         setIsLoading(false);
+        notifyGameReady();
       }
     })();
   }, [checkDailyBonus]);

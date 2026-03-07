@@ -63,6 +63,14 @@ declare global {
 
 interface YaSDK {
   getPlayer: (opts?: { scopes?: boolean }) => Promise<{ getUniqueID: () => string; getName: () => string; getPhoto: (size: string) => string }>;
+  features: {
+    LoadingAPI?: { ready: () => void };
+  };
+  environment: {
+    i18n: { lang: string };
+    app: { id: string };
+    payload?: string;
+  };
 }
 
 let _ysdk: YaSDK | null = null;
@@ -81,6 +89,22 @@ export async function initYandexGames() {
       window._yaSDK = _ysdk;
     } catch { /* not in YG env or timeout */ }
   }
+}
+
+export function notifyGameReady() {
+  try {
+    const sdk = _ysdk ?? window._yaSDK;
+    if (sdk?.features?.LoadingAPI) {
+      sdk.features.LoadingAPI.ready();
+    }
+  } catch { /* ignore */ }
+}
+
+export function getYaLang(): string {
+  try {
+    const sdk = _ysdk ?? window._yaSDK;
+    return sdk?.environment?.i18n?.lang ?? 'ru';
+  } catch { return 'ru'; }
 }
 
 export async function getYaPlayer(): Promise<{ id: string; name: string } | null> {

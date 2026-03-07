@@ -2,6 +2,7 @@ import { useState } from 'react';
 import GameCanvas from '@/components/GameCanvas';
 import Icon from '@/components/ui/icon';
 import { PlayerData, Screen, DailyQuest, WeeklyQuest, RoomState, todayDateStr, weeklyDateStr, xpForLevel } from './parkingTypes';
+import { t } from '@/i18n';
 
 const MUTE_KEY = 'king_parking_muted';
 function useMute() {
@@ -57,8 +58,8 @@ export function MenuScreen({ player, setScreen, onPlay, onQuestClaim, onWeeklyQu
       <div className="relative z-10 flex flex-col items-center gap-4 w-full max-w-sm py-6">
         <div className="text-center animate-fade-in">
           <div className="text-7xl mb-2 animate-bounce-in">👑</div>
-          <h1 className="font-russo text-4xl text-yellow-400 leading-none" style={{ textShadow: '0 0 30px rgba(255,214,0,0.6)' }}>КОРОЛЬ ПАРКОВКИ</h1>
-          <p className="font-nunito text-white/40 text-xs mt-2 font-bold tracking-widest uppercase">Захвати место — стань королём!</p>
+          <h1 className="font-russo text-4xl text-yellow-400 leading-none" style={{ textShadow: '0 0 30px rgba(255,214,0,0.6)' }}>{t('title')}</h1>
+          <p className="font-nunito text-white/40 text-xs mt-2 font-bold tracking-widest uppercase">{t('subtitle')}</p>
         </div>
 
         <button className="card-game p-3 flex items-center gap-3 w-full animate-fade-in hover:border-yellow-400/30 transition-all" onClick={() => setScreen('profile')}>
@@ -92,14 +93,14 @@ export function MenuScreen({ player, setScreen, onPlay, onQuestClaim, onWeeklyQu
                 onClick={() => setQuestTab('daily')}
                 className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-russo transition-all ${questTab === 'daily' ? 'bg-yellow-400/20 text-yellow-300 border border-yellow-400/30' : 'text-white/40 hover:text-white/60'}`}
               >
-                📋 Дневные
+                {t('daily_quests')}
                 {hasClaimableDaily && <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 inline-block" />}
               </button>
               <button
                 onClick={() => setQuestTab('weekly')}
                 className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-russo transition-all ${questTab === 'weekly' ? 'bg-purple-400/20 text-purple-300 border border-purple-400/30' : 'text-white/40 hover:text-white/60'}`}
               >
-                🏆 Недельные
+                {t('weekly_quests')}
                 {hasClaimableWeekly && <span className="w-1.5 h-1.5 rounded-full bg-purple-400 inline-block" />}
               </button>
             </div>
@@ -172,17 +173,17 @@ export function MenuScreen({ player, setScreen, onPlay, onQuestClaim, onWeeklyQu
 
         <div className="flex flex-col gap-3 w-full">
           <button className="btn-yellow w-full text-xl py-5 animate-fade-in" onClick={onPlay}>
-            🚀 ИГРАТЬ
+            {t('play')}
           </button>
           <div className="grid grid-cols-2 gap-3">
-            <button className="btn-blue animate-fade-in" onClick={() => setScreen('garage')}>🔧 Гараж</button>
-            <button className="btn-purple animate-fade-in" onClick={() => setScreen('shop')}>🛒 Магазин</button>
-            <button className="btn-orange animate-fade-in" onClick={() => setScreen('profile')}>👤 Профиль</button>
-            <button className="btn-green animate-fade-in" onClick={() => setScreen('leaderboard')}>🏆 Топ игроков</button>
+            <button className="btn-blue animate-fade-in" onClick={() => setScreen('garage')}>{t('garage')}</button>
+            <button className="btn-purple animate-fade-in" onClick={() => setScreen('shop')}>{t('shop')}</button>
+            <button className="btn-orange animate-fade-in" onClick={() => setScreen('profile')}>{t('profile')}</button>
+            <button className="btn-green animate-fade-in" onClick={() => setScreen('leaderboard')}>{t('leaderboard')}</button>
             <button className="col-span-2 animate-fade-in card-game py-2.5 flex items-center justify-center gap-2 hover:border-yellow-400/30 transition-all" onClick={() => setScreen('friends')}>
               <span className="text-lg">👥</span>
-              <span className="font-russo text-white/70 text-sm">Друзья</span>
-              <span className="text-white/30 text-xs ml-1">+10% монет при игре вместе</span>
+              <span className="font-russo text-white/70 text-sm">{t('friends')}</span>
+              <span className="text-white/30 text-xs ml-1">{t('friends_bonus')}</span>
             </button>
           </div>
 
@@ -219,36 +220,52 @@ export function GameScreen({
   roomState, localPlayerId, onPlayerMove,
 }: GameScreenProps) {
   const { muted, toggle: toggleMute } = useMute();
+  const car = player.cars[player.selectedCar];
+  const repairInfo = (() => {
+    if (inGamePhase !== 'roundEnd' || gameResult || !car || car.hp >= car.maxHp) return null;
+    const cost = Math.round(car.repairCost * (1 - car.hp / car.maxHp));
+    const heal = Math.round(car.maxHp * 0.4);
+    return { cost, heal, pct: Math.round((1 - car.hp / car.maxHp) * 100) };
+  })();
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-2 py-2 gap-2">
-      <div className="flex items-center justify-between w-full max-w-3xl">
-        <button className="btn-red text-sm py-2 px-4" onClick={() => setScreen('menu')}>← Выйти</button>
-        <div className={`font-russo text-lg ${gameRound === 0 ? 'text-green-400' : 'text-yellow-400'}`}>
-          {gameRound === 0 ? '🟢 Тренировка' : `Раунд ${gameRound}`}
+    <div
+      className="flex flex-col w-full overflow-hidden"
+      style={{ height: '100dvh' }}
+      onContextMenu={e => e.preventDefault()}
+    >
+      {/* Топ-бар — минимальная высота */}
+      <div className="flex items-center justify-between px-2 py-1 shrink-0 gap-2">
+        <button
+          className="font-russo text-xs px-3 py-1.5 rounded-xl bg-red-500/20 border border-red-500/40 text-red-400 active:bg-red-500/40 transition-all"
+          onClick={() => setScreen('menu')}
+        >{t('exit')}</button>
+        <div className={`font-russo text-sm ${gameRound === 0 ? 'text-green-400' : 'text-yellow-400'}`}>
+          {gameRound === 0 ? t('training') : `${t('round')} ${gameRound}`}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <button
-            className={`rounded-xl px-3 py-2 transition-all border ${muted ? 'bg-red-500/20 border-red-500/40 text-red-400' : 'bg-white/10 border-white/20 text-white/70 hover:text-white'}`}
+            className={`rounded-lg px-2 py-1 transition-all border ${muted ? 'bg-red-500/20 border-red-500/40 text-red-400' : 'bg-white/10 border-white/20 text-white/60'}`}
             onClick={toggleMute}
-            title={muted ? 'Включить звук' : 'Выключить звук'}
           >
-            <Icon name={muted ? 'VolumeX' : 'Volume2'} size={18} />
+            <Icon name={muted ? 'VolumeX' : 'Volume2'} size={14} />
           </button>
-          <div className="coin-badge">🪙 {player.coins.toLocaleString()}</div>
+          <div className="coin-badge text-xs py-1 px-2">🪙 {player.coins.toLocaleString()}</div>
         </div>
       </div>
 
-      <div className="w-full max-w-3xl">
+      {/* Canvas — занимает всё доступное пространство */}
+      <div className="flex-1 min-h-0 w-full px-1">
         <GameCanvas
           key={gameKey}
           playerName={player.name}
           playerId={localPlayerId}
-          playerHp={player.cars[player.selectedCar]?.hp}
-          playerMaxHp={player.cars[player.selectedCar]?.maxHp}
-          playerColor={player.cars[player.selectedCar]?.color}
-          playerBodyColor={player.cars[player.selectedCar]?.bodyColor}
-          playerEmoji={player.cars[player.selectedCar]?.emoji}
-          playerMaxSpeed={player.cars[player.selectedCar]?.maxSpeed}
+          playerHp={car?.hp}
+          playerMaxHp={car?.maxHp}
+          playerColor={car?.color}
+          playerBodyColor={car?.bodyColor}
+          playerEmoji={car?.emoji}
+          playerMaxSpeed={car?.maxSpeed}
           upgrades={player.upgrades ?? { nitro: false, gps: false, bumper: false, autoRepair: false, magnet: false, turbo: false, shield: false }}
           onRoundEnd={handleRoundEnd}
           onGameEnd={handleGameEnd}
@@ -259,64 +276,60 @@ export function GameScreen({
         />
       </div>
 
-      {inGamePhase === 'roundEnd' && !gameResult && (() => {
-        const car = player.cars[player.selectedCar];
-        if (!car || car.hp >= car.maxHp) return null;
-        const repairCost = Math.round(car.repairCost * (1 - car.hp / car.maxHp));
-        const healAmt = Math.round(car.maxHp * 0.4);
-        return (
-          <div className="flex justify-center animate-bounce-in">
-            <button
-              className="btn-green px-6 py-3 text-base font-russo shadow-2xl"
-              onClick={() => {
-                if (player.coins >= repairCost) {
-                  setPlayer(prev => {
-                    const newCars = prev.cars.map((c, i) => i === prev.selectedCar ? { ...c, hp: Math.min(c.maxHp, c.hp + healAmt) } : c);
-                    return { ...prev, coins: prev.coins - repairCost, cars: newCars };
-                  });
-                  notify(`🔧 Машина подлатана! +${healAmt} HP`);
-                } else {
-                  notify('❌ Недостаточно монет!');
-                }
-              }}
-            >
-              🔧 Починить {Math.round((1 - car.hp / car.maxHp) * 100)}% — {repairCost} 🪙
-            </button>
-          </div>
-        );
-      })()}
+      {/* Ремонт (межраундовая пауза) */}
+      {repairInfo && (
+        <div className="shrink-0 flex justify-center px-2 py-1 animate-bounce-in">
+          <button
+            className="btn-green px-5 py-2 text-sm font-russo shadow-2xl"
+            onClick={() => {
+              if (player.coins >= repairInfo.cost) {
+                setPlayer(prev => {
+                  const newCars = prev.cars.map((c, i) => i === prev.selectedCar ? { ...c, hp: Math.min(c.maxHp, c.hp + repairInfo.heal) } : c);
+                  return { ...prev, coins: prev.coins - repairInfo.cost, cars: newCars };
+                });
+                notify(`🔧 +${repairInfo.heal} HP`);
+              } else {
+                notify('❌ Мало монет!');
+              }
+            }}
+          >
+            🔧 {repairInfo.pct}% — {repairInfo.cost}🪙
+          </button>
+        </div>
+      )}
 
-      <div className="grid grid-cols-3 gap-2 md:hidden w-full max-w-xs mx-auto select-none">
+      {/* Джойстик — компактный, только мобиль */}
+      <div className="md:hidden shrink-0 grid grid-cols-3 gap-1.5 px-2 pb-2 pt-1 w-full max-w-[280px] mx-auto select-none">
         <div />
         <button
-          className="bg-white/20 active:bg-white/40 text-white rounded-2xl h-16 text-3xl font-bold touch-none"
+          className="bg-white/20 active:bg-white/40 text-white rounded-2xl h-14 text-2xl font-bold touch-none"
           onTouchStart={e => { e.preventDefault(); keysRef.current.add('ArrowUp'); }}
           onTouchEnd={e => { e.preventDefault(); keysRef.current.delete('ArrowUp'); }}
           onTouchCancel={() => keysRef.current.delete('ArrowUp')}
         >↑</button>
         <div />
         <button
-          className="bg-white/20 active:bg-white/40 text-white rounded-2xl h-16 text-3xl font-bold touch-none"
+          className="bg-white/20 active:bg-white/40 text-white rounded-2xl h-14 text-2xl font-bold touch-none"
           onTouchStart={e => { e.preventDefault(); keysRef.current.add('ArrowLeft'); }}
           onTouchEnd={e => { e.preventDefault(); keysRef.current.delete('ArrowLeft'); }}
           onTouchCancel={() => keysRef.current.delete('ArrowLeft')}
         >←</button>
         <button
-          className="bg-white/20 active:bg-white/40 text-white rounded-2xl h-16 text-3xl font-bold touch-none"
+          className="bg-white/20 active:bg-white/40 text-white rounded-2xl h-14 text-2xl font-bold touch-none"
           onTouchStart={e => { e.preventDefault(); keysRef.current.add('ArrowDown'); }}
           onTouchEnd={e => { e.preventDefault(); keysRef.current.delete('ArrowDown'); }}
           onTouchCancel={() => keysRef.current.delete('ArrowDown')}
         >↓</button>
         <button
-          className="bg-white/20 active:bg-white/40 text-white rounded-2xl h-16 text-3xl font-bold touch-none"
+          className="bg-white/20 active:bg-white/40 text-white rounded-2xl h-14 text-2xl font-bold touch-none"
           onTouchStart={e => { e.preventDefault(); keysRef.current.add('ArrowRight'); }}
           onTouchEnd={e => { e.preventDefault(); keysRef.current.delete('ArrowRight'); }}
           onTouchCancel={() => keysRef.current.delete('ArrowRight')}
         >→</button>
       </div>
 
-      <p className="text-white/30 text-xs text-center font-nunito hidden md:block">
-        Стрелки — движение · При сигнале «ПАРКУЙСЯ!» — займи свободное место 🅿️ · Можно таранить соперников!
+      <p className="text-white/30 text-xs text-center font-nunito hidden md:block pb-1">
+        {t('park_hint')}
       </p>
     </div>
   );
@@ -339,10 +352,10 @@ export function GameOverScreen({ gameResult, onRestart, onMenu }: GameOverScreen
         <div className="text-7xl">{isWin ? '🏆' : position <= 3 ? '🥈' : '😅'}</div>
         <div className="text-center">
           <div className={`font-russo text-4xl ${isWin ? 'text-yellow-400' : 'text-white'}`} style={isWin ? { textShadow: '0 0 20px rgba(255,214,0,0.7)' } : {}}>
-            {isWin ? 'ПОБЕДА!' : position <= 3 ? 'ПРИЗЁР!' : `МЕСТО #${position}`}
+            {isWin ? t('victory') : position <= 3 ? t('prize') : `#${position}`}
           </div>
           <div className="text-white/40 font-nunito text-sm mt-1">
-            {isWin ? 'Ты лучший парковщик города!' : position <= 5 ? 'Неплохо, тренируйся!' : 'Паркуйся быстрее!'}
+            {isWin ? t('win_desc') : position <= 5 ? 'Неплохо, тренируйся!' : 'Паркуйся быстрее!'}
           </div>
         </div>
         <div className="w-full space-y-2">
@@ -356,8 +369,8 @@ export function GameOverScreen({ gameResult, onRestart, onMenu }: GameOverScreen
           </div>
         </div>
         <div className="flex gap-3 w-full">
-          <button className="btn-yellow flex-1" onClick={onRestart}>🔄 Ещё раз</button>
-          <button className="btn-blue flex-1" onClick={onMenu}>🏠 Меню</button>
+          <button className="btn-yellow flex-1" onClick={onRestart}>{t('play_again')}</button>
+          <button className="btn-blue flex-1" onClick={onMenu}>{t('menu')}</button>
         </div>
       </div>
     </div>

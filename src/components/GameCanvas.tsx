@@ -47,13 +47,14 @@ export default function GameCanvas({
   });
 
   return (
-    <div className="relative w-full" style={{ aspectRatio: `${CANVAS_W}/${CANVAS_H}` }}>
+    <div className="relative w-full h-full" style={{ aspectRatio: `${CANVAS_W}/${CANVAS_H}`, maxHeight: '100%' }}>
       <canvas
         ref={canvasRef}
         width={CANVAS_W}
         height={CANVAS_H}
         className="rounded-2xl border-2 border-white/20 w-full h-full"
         style={{ display: 'block' }}
+        onContextMenu={e => e.preventDefault()}
       />
       {/* Кнопка-тоггл для списка ЖИВЫЕ */}
       <button
