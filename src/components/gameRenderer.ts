@@ -7,6 +7,27 @@ import {
   EXCL_RX, EXCL_RY,
 } from './gameTypes';
 
+// Полифилл roundRect для Safari < 15.4 и старых Android WebView
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function(
+    x: number, y: number, w: number, h: number, r: number | number[] = 0
+  ) {
+    const radius = typeof r === 'number' ? r : (r[0] ?? 0);
+    const rx = Math.min(radius, w / 2);
+    const ry = Math.min(radius, h / 2);
+    this.moveTo(x + rx, y);
+    this.lineTo(x + w - rx, y);
+    this.quadraticCurveTo(x + w, y, x + w, y + ry);
+    this.lineTo(x + w, y + h - ry);
+    this.quadraticCurveTo(x + w, y + h, x + w - rx, y + h);
+    this.lineTo(x + rx, y + h);
+    this.quadraticCurveTo(x, y + h, x, y + h - ry);
+    this.lineTo(x, y + ry);
+    this.quadraticCurveTo(x, y, x + rx, y);
+    this.closePath();
+  };
+}
+
 export function drawCar(ctx: CanvasRenderingContext2D, car: Car, time: number) {
   if (car.eliminated) return;
   ctx.save();
