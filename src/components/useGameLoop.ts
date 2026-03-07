@@ -2,6 +2,7 @@ import { useEffect, useRef, MutableRefObject } from 'react';
 import { Car, GameState, Upgrades, CANVAS_W, CANVAS_H, CENTER_X, CENTER_Y } from './gameTypes';
 import { makeSpotsGrid, spawnParticles, blockParkingZone, resolveAllCollisions } from './gameLogic';
 import { drawAsphalt, drawParkingArea, drawCar, drawParticles, drawSignal, drawRoundEnd, drawWinner, drawHUD, drawGpsOverlay } from './gameRenderer';
+import { startEngineSound, updateEngineSound, stopEngineSound, playCollisionSound, playSignalSound, playParkSound, playEliminatedSound, playWinSound } from './gameAudio';
 
 function randomRoundTimer(round: number, isFinal: boolean): number {
   if (round === 0) return 4 + Math.random() * 2;
@@ -56,6 +57,13 @@ export function useGameLoop({
     state.playerTurbo = upgrades.turbo;
     state.playerShield = upgrades.shield;
 
+    // Звуковые флаги — чтобы не воспроизводить одно и то же несколько раз
+    const signalSoundPlayed = false;
+    const winSoundPlayed = false;
+    const playerParkedSoundPlayed = false;
+
+    startEngineSound();
+
     const loop = (timestamp: number) => {
       const dt = Math.min((timestamp - timeRef.current) / 1000, 0.05);
       timeRef.current = timestamp;
@@ -107,9 +115,17 @@ export function useGameLoop({
           state.signal = true;
           state.phase = 'signal';
           state.signalTimer = 8;
+          signalSoundPlayed = false;
+          playerParkedSoundPlayed = false;
         }
       } else if (state.phase === 'signal') {
         state.signalTimer -= dt;
+
+        // Звук сигнала один раз при входе в фазу
+        if (!signalSoundPlayed) {
+          signalSoundPlayed = true;
+          playSignalSound();
+        }
 
         state.cars.forEach(car => botAI(car, state, dt));
 
@@ -135,6 +151,7 @@ export function useGameLoop({
           player.y -= Math.cos(player.angle) * player.speed * dtNorm;
           player.x = Math.max(20, Math.min(CANVAS_W - 20, player.x));
           player.y = Math.max(20, Math.min(CANVAS_H - 20, player.y));
+          updateEngineSound(player.speed, player.maxSpeed);
 
           if (!player.parked) {
             const freeSpots = state.spots
@@ -151,6 +168,7 @@ export function useGameLoop({
                   player.parked = true; player.parkSpot = i; player.speed = 0;
                   s.occupied = true; s.carId = player.id;
                   spawnParticles(state, player.x, player.y, '#FFD600', 15);
+                  if (!playerParkedSoundPlayed) { playerParkedSoundPlayed = true; playParkSound(); }
                   break;
                 }
               }
@@ -195,6 +213,7 @@ export function useGameLoop({
             state.eliminatedThisRound = eliminated;
             spawnParticles(state, eliminated.x, eliminated.y, '#FF2D55', 20);
             state.shakeTimer = 0.5;
+            if (eliminated.isPlayer) playEliminatedSound();
 
             const playerCar = state.cars.find(c => c.isPlayer);
             onRoundEndRef.current(state.round, eliminated.isPlayer, playerCar?.hp ?? 100, playerCar?.maxHp ?? 100);
@@ -217,6 +236,7 @@ export function useGameLoop({
             state.phase = 'winner';
             state.winnerTimer = 5;
             state.eliminatedThisRound = null;
+            if (!winSoundPlayed) { winSoundPlayed = true; playWinSound(); }
             for (let i = 0; i < 8; i++) {
               setTimeout(() => {
                 const p = state.cars.find(c => c.isPlayer);
@@ -249,6 +269,7 @@ export function useGameLoop({
           if (activeCars.length <= 1 || state.round >= state.maxRounds) {
             state.phase = 'winner';
             state.winnerTimer = 5;
+            if (!winSoundPlayed) { winSoundPlayed = true; playWinSound(); }
             for (let i = 0; i < 8; i++) {
               setTimeout(() => {
                 const player = state.cars.find(c => c.isPlayer);
@@ -383,6 +404,7 @@ export function useGameLoop({
     return () => {
       cancelAnimationFrame(animRef.current);
       document.removeEventListener('visibilitychange', handleVisibility);
+      stopEngineSound();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playerName, botAI]);

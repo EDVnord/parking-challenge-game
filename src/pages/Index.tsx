@@ -11,10 +11,9 @@ import AchievementToast from '@/components/AchievementToast';
 import { usePlayerAuth } from '@/hooks/usePlayerAuth';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
 import { useGameHandlers } from '@/hooks/useGameHandlers';
-import SplashScreen from '@/components/SplashScreen';
+
 
 export default function Index() {
-  const [showSplash, setShowSplash] = useState(true);
   const [screen, setScreen] = useState<Screen>('menu');
   const [keys, setKeys] = useState<Set<string>>(new Set());
   const keysRef = useRef<Set<string>>(new Set());
@@ -129,8 +128,17 @@ export default function Index() {
     });
   }, [notify, setPlayer]);
 
-  if (showSplash || isLoading) {
-    return <SplashScreen onDone={() => setShowSplash(false)} />;
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-950">
+        <div className="text-center">
+          <div className="text-6xl mb-4">👑</div>
+          <div className="text-white font-russo text-xl mb-2">Король парковки</div>
+          <div className="text-gray-400 text-sm">Загрузка...</div>
+          <div className="mt-4 w-8 h-8 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto" />
+        </div>
+      </div>
+    );
   }
 
   return (

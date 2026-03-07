@@ -6,6 +6,7 @@ import {
   EXCL_RX, EXCL_RY,
   CAR_COLORS, CAR_EMOJIS, CAR_NAMES,
 } from './gameTypes';
+import { playCollisionSound } from './gameAudio';
 
 export function isInsideParkingZone(x: number, y: number): boolean {
   return x > PARK_LEFT && x < PARK_RIGHT && y > PARK_TOP && y < PARK_BOTTOM;
@@ -88,8 +89,11 @@ export function resolveAllCollisions(cars: Car[], state: GameState, noDamage = f
         if (impactSpeed > 2.0) {
           spawnParticles(state, (a.x + b.x) / 2, (a.y + b.y) / 2, '#FF6B35', 8);
           state.shakeTimer = Math.max(state.shakeTimer, 0.2);
+          // Звук удара — только если задет игрок
+          if (a.isPlayer || b.isPlayer) playCollisionSound(impactSpeed / 4);
         } else if (impactSpeed > 1.2) {
           spawnParticles(state, (a.x + b.x) / 2, (a.y + b.y) / 2, '#FF9F0A', 4);
+          if (a.isPlayer || b.isPlayer) playCollisionSound(impactSpeed / 6);
         }
       }
     }
