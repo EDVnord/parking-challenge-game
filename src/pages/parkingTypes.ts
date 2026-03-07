@@ -78,9 +78,15 @@ interface YaProduct {
   priceCurrencyCode: string;
 }
 
+interface YaAdv {
+  showFullscreenAdv: (opts: { callbacks: { onClose?: (wasShown: boolean) => void; onError?: (err: unknown) => void } }) => void;
+  showRewardedVideo: (opts: { callbacks: { onRewarded?: () => void; onClose?: (wasShown: boolean) => void; onError?: (err: unknown) => void } }) => void;
+}
+
 interface YaSDK {
   getPlayer: (opts?: { scopes?: boolean }) => Promise<{ getUniqueID: () => string; getName: () => string; getPhoto: (size: string) => string }>;
   getPayments: (opts?: { signed?: boolean }) => Promise<YaPayments>;
+  adv: YaAdv;
   features: {
     LoadingAPI?: { ready: () => void };
   };
@@ -123,6 +129,37 @@ export function getYaLang(): string {
     const sdk = _ysdk ?? window._yaSDK;
     return sdk?.environment?.i18n?.lang ?? 'ru';
   } catch { return 'ru'; }
+}
+
+export function showInterstitialAd(): Promise<boolean> {
+  return new Promise(resolve => {
+    try {
+      const sdk = _ysdk ?? window._yaSDK;
+      if (!sdk?.adv) { resolve(false); return; }
+      sdk.adv.showFullscreenAdv({
+        callbacks: {
+          onClose: () => resolve(true),
+          onError: () => resolve(false),
+        },
+      });
+    } catch { resolve(false); }
+  });
+}
+
+export function showRewardedAd(): Promise<boolean> {
+  return new Promise(resolve => {
+    try {
+      const sdk = _ysdk ?? window._yaSDK;
+      if (!sdk?.adv) { resolve(false); return; }
+      sdk.adv.showRewardedVideo({
+        callbacks: {
+          onRewarded: () => resolve(true),
+          onClose: (wasShown) => { if (!wasShown) resolve(false); },
+          onError: () => resolve(false),
+        },
+      });
+    } catch { resolve(false); }
+  });
 }
 
 export function isYandexGamesEnv(): boolean {

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { PLAYER_EMOJIS } from './parkingTypes';
+import { t } from '@/i18n';
 
 // ──────────────── PROFILE CARD ────────────────
 const MAX_NICKNAME_CHANGES = 2;
@@ -23,9 +24,9 @@ export function ProfileCard({ player, xpInLevel, xpNeeded, onEmojiChange, onName
 
   const saveName = () => {
     const trimmed = nameInput.trim();
-    if (!trimmed) { setNameError('Имя не может быть пустым'); return; }
-    if (trimmed.length < 2) { setNameError('Минимум 2 символа'); return; }
-    if (trimmed.length > 16) { setNameError('Максимум 16 символов'); return; }
+    if (!trimmed) { setNameError(t('nick_empty')); return; }
+    if (trimmed.length < 2) { setNameError(t('nick_short')); return; }
+    if (trimmed.length > 16) { setNameError(t('nick_long')); return; }
     onNameChange(trimmed);
     setEditingName(false);
     setShowWarning(false);
@@ -116,6 +117,44 @@ export function ProfileCard({ player, xpInLevel, xpNeeded, onEmojiChange, onName
             </button>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────── PRIVACY POLICY MODAL ────────────────
+interface PrivacyPolicyModalProps {
+  onClose: () => void;
+}
+
+export function PrivacyPolicyModal({ onClose }: PrivacyPolicyModalProps) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4" onClick={onClose}>
+      <div className="card-game-solid w-full max-w-lg flex flex-col gap-4 p-5 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="font-russo text-white text-lg">{t('privacy_policy')}</h2>
+          <button onClick={onClose} className="text-white/40 hover:text-white text-xl">✕</button>
+        </div>
+        <div className="font-nunito text-white/60 text-sm flex flex-col gap-3">
+          <p>Приложение «Король парковки» («Игра») разработано и поддерживается командой poehali.dev.</p>
+          <p><strong className="text-white/80">Какие данные мы собираем:</strong><br/>
+            Никнейм, выбранный аватар и игровые показатели (монеты, уровень, результаты игр). Данные сохраняются в защищённой базе данных для синхронизации профиля между устройствами.
+          </p>
+          <p><strong className="text-white/80">Идентификация:</strong><br/>
+            При входе через Яндекс Игры используется анонимный идентификатор Яндекс-аккаунта. При анонимной игре генерируется случайный ID и сохраняется в браузере.
+          </p>
+          <p><strong className="text-white/80">Покупки:</strong><br/>
+            Внутриигровые покупки обрабатываются платёжной системой Яндекса. Мы не храним платёжные данные.
+          </p>
+          <p><strong className="text-white/80">Реклама:</strong><br/>
+            В игре могут показываться рекламные объявления через рекламную сеть Яндекса.
+          </p>
+          <p><strong className="text-white/80">Удаление данных:</strong><br/>
+            Чтобы удалить свои данные, напишите нам в Telegram: <a href="https://t.me/+QgiLIa1gFRY4Y2Iy" target="_blank" className="text-yellow-400 underline">сообщество</a>.
+          </p>
+          <p className="text-white/30 text-xs">Последнее обновление: март 2025</p>
+        </div>
+        <button className="btn-game bg-white/10 text-white border-b-white/20 py-2" onClick={onClose}>Закрыть</button>
       </div>
     </div>
   );

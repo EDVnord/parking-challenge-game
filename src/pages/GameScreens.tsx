@@ -3,6 +3,7 @@ import GameCanvas from '@/components/GameCanvas';
 import Icon from '@/components/ui/icon';
 import { PlayerData, Screen, DailyQuest, WeeklyQuest, RoomState, todayDateStr, weeklyDateStr, xpForLevel } from './parkingTypes';
 import { t } from '@/i18n';
+import { PrivacyPolicyModal } from './LoginScreen';
 
 const MUTE_KEY = 'king_parking_muted';
 function useMute() {
@@ -28,6 +29,7 @@ export function MenuScreen({ player, setScreen, onPlay, onQuestClaim, onWeeklyQu
   const today = todayDateStr();
   const thisWeek = weeklyDateStr();
   const [questTab, setQuestTab] = useState<'daily' | 'weekly'>('daily');
+  const [showPrivacy, setShowPrivacy] = useState(false);
 
   const quests: DailyQuest[] = player.dailyQuestsDate === today ? (player.dailyQuests ?? []) : [];
   const weeklyQuests: WeeklyQuest[] = player.weeklyQuestsDate === thisWeek ? (player.weeklyQuests ?? []) : [];
@@ -189,8 +191,14 @@ export function MenuScreen({ player, setScreen, onPlay, onQuestClaim, onWeeklyQu
 
         </div>
 
-        <p className="text-white/20 text-xs font-nunito">v0.2.0</p>
+        <button
+          className="text-white/20 text-xs font-nunito hover:text-white/40 transition-colors"
+          onClick={() => setShowPrivacy(true)}
+        >
+          {t('privacy_policy')} · v0.2.0
+        </button>
       </div>
+      {showPrivacy && <PrivacyPolicyModal onClose={() => setShowPrivacy(false)} />}
     </div>
   );
 }
@@ -357,16 +365,16 @@ export function GameOverScreen({ gameResult, onRestart, onMenu }: GameOverScreen
             {isWin ? t('victory') : position <= 3 ? t('prize') : `#${position}`}
           </div>
           <div className="text-white/40 font-nunito text-sm mt-1">
-            {isWin ? t('win_desc') : position <= 5 ? 'Неплохо, тренируйся!' : 'Паркуйся быстрее!'}
+            {isWin ? t('win_desc') : position <= 5 ? t('not_bad') : t('park_faster')}
           </div>
         </div>
         <div className="w-full space-y-2">
           <div className="flex justify-between items-center bg-white/5 rounded-2xl p-3">
-            <span className="text-white/50 font-nunito text-sm">Место</span>
+            <span className="text-white/50 font-nunito text-sm">{t('place')}</span>
             <span className="font-russo text-white">#{position}</span>
           </div>
           <div className="flex justify-between items-center bg-yellow-500/10 rounded-2xl p-3">
-            <span className="text-white/50 font-nunito text-sm">Монеты</span>
+            <span className="text-white/50 font-nunito text-sm">{t('coins')}</span>
             <span className="font-russo text-yellow-400">+{coinsEarned} 🪙</span>
           </div>
         </div>

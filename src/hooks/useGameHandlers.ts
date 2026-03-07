@@ -1,6 +1,16 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { PlayerData, RoomState, makeDailyQuests, makeWeeklyQuests, todayDateStr, weeklyDateStr, levelFromXp, LEVEL_REWARDS } from '@/pages/parkingTypes';
+import { PlayerData, RoomState, makeDailyQuests, makeWeeklyQuests, todayDateStr, weeklyDateStr, levelFromXp, LEVEL_REWARDS, showInterstitialAd, isYandexGamesEnv } from '@/pages/parkingTypes';
 import { getFriends, hasFriendInRoom, FRIEND_BONUS } from '@/components/FriendsPanel';
+
+// Показывать рекламу каждые N игр
+const AD_EVERY_N_GAMES = 3;
+const AD_COUNTER_KEY = 'parking_ad_counter';
+function shouldShowAd(): boolean {
+  if (!isYandexGamesEnv()) return false;
+  const count = parseInt(localStorage.getItem(AD_COUNTER_KEY) ?? '0', 10) + 1;
+  localStorage.setItem(AD_COUNTER_KEY, String(count));
+  return count % AD_EVERY_N_GAMES === 0;
+}
 
 interface UseGameHandlersOptions {
   player: PlayerData;
@@ -29,7 +39,7 @@ export function useGameHandlers({ player, setPlayer, roomState, setScreen, notif
     setTimeout(() => setInGamePhase('playing'), 3000);
   }, [notify, setPlayer]);
 
-  const handleGameEnd = useCallback((position: number, roundsPlayed?: number, finalHp?: number) => {
+  const handleGameEnd = useCallback(async (position: number, roundsPlayed?: number, finalHp?: number) => {
     const friends = getFriends();
     const roomPlayerIds = roomStateRef.current?.players.map(p => p.player_id) ?? [];
     const friendBonus = friends.length > 0 && hasFriendInRoom(roomPlayerIds, friends);
@@ -130,6 +140,9 @@ export function useGameHandlers({ player, setPlayer, roomState, setScreen, notif
         weeklyQuestsDate: thisWeek,
       };
     });
+    if (shouldShowAd()) {
+      await showInterstitialAd();
+    }
     setScreen('gameOver');
   }, [notify, roomState, setPlayer, setScreen]);
 

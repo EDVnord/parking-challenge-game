@@ -25,6 +25,18 @@ const translations: Record<string, Record<Lang, string>> = {
   'weekly_quests': { ru: '🏆 Недельные', en: '🏆 Weekly', tr: '🏆 Haftalık', be: '🏆 Тыднёвыя', kk: '🏆 Апталық', uk: '🏆 Тижневі' },
   'title': { ru: 'КОРОЛЬ ПАРКОВКИ', en: 'PARKING KING', tr: 'PARK KRALI', be: 'КАРОЛЬ ПАРКОЎКІ', kk: 'ПАРКИНГ ПАТШАСЫ', uk: 'КОРОЛЬ ПАРКУВАННЯ' },
   'subtitle': { ru: '', en: '', tr: '', be: '', kk: '', uk: '' },
+  'rarity_common':    { ru: 'Обычный',   en: 'Common',    tr: 'Normal',  be: 'Звычайны', kk: 'Жай',     uk: 'Звичайний' },
+  'rarity_rare':      { ru: 'Редкий',    en: 'Rare',      tr: 'Nadir',   be: 'Рэдкі',    kk: 'Сирек',   uk: 'Рідкісний' },
+  'rarity_epic':      { ru: 'Эпик',      en: 'Epic',      tr: 'Destansı',be: 'Эпічны',   kk: 'Эпикалы', uk: 'Епічний'   },
+  'rarity_legendary': { ru: 'Легенда',   en: 'Legendary', tr: 'Efsane',  be: 'Легенда',  kk: 'Аңыз',    uk: 'Легенда'   },
+  'nick_empty':       { ru: 'Имя не может быть пустым', en: 'Name cannot be empty', tr: 'İsim boş olamaz', be: 'Імя не можа быць пустым', kk: 'Аты бос болмасын', uk: "Ім'я не може бути порожнім" },
+  'nick_short':       { ru: 'Минимум 2 символа', en: 'At least 2 characters', tr: 'En az 2 karakter', be: 'Мінімум 2 сімвалы', kk: 'Кемінде 2 таңба', uk: 'Мінімум 2 символи' },
+  'nick_long':        { ru: 'Максимум 16 символов', en: 'Maximum 16 characters', tr: 'En fazla 16 karakter', be: 'Максімум 16 сімвалаў', kk: 'Ең көбі 16 таңба', uk: 'Максимум 16 символів' },
+  'place':            { ru: 'Место',    en: 'Place',   tr: 'Sıra',   be: 'Месца',  kk: 'Орын',    uk: 'Місце'   },
+  'coins':            { ru: 'Монеты',   en: 'Coins',   tr: 'Paralar',be: 'Манеты', kk: 'Монеталар',uk: 'Монети' },
+  'not_bad':          { ru: 'Неплохо, тренируйся!', en: 'Not bad, keep training!', tr: 'Fena değil, antrenman yap!', be: 'Нядрэнна, трэніруйся!', kk: 'Жаман емес, жаттыққа!', uk: 'Непогано, тренуйся!' },
+  'park_faster':      { ru: 'Паркуйся быстрее!', en: 'Park faster!', tr: 'Daha hızlı park et!', be: 'Паркуйся хутчэй!', kk: 'Тезірек паркта!', uk: 'Паркуйся швидше!' },
+  'privacy_policy':   { ru: 'Политика конфиденциальности', en: 'Privacy Policy', tr: 'Gizlilik Politikası', be: 'Палітыка прыватнасці', kk: 'Құпиялылық саясаты', uk: 'Політика конфіденційності' },
 };
 
 let _lang: Lang = 'ru';
