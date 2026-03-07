@@ -254,8 +254,9 @@ export function GameScreen({
         </div>
       </div>
 
-      {/* Canvas — занимает всё доступное пространство */}
-      <div className="flex-1 min-h-0 w-full px-1">
+      {/* Canvas — 4:3, занимает максимум доступного пространства */}
+      <div className="flex-1 min-h-0 w-full px-1 flex items-center justify-center">
+        <div className="w-full h-full" style={{ aspectRatio: '4/3', maxHeight: '100%', maxWidth: '100%' }}>
         <GameCanvas
           key={gameKey}
           playerName={player.name}
@@ -274,6 +275,7 @@ export function GameScreen({
           roomState={roomState}
           onPlayerMove={onPlayerMove}
         />
+        </div>
       </div>
 
       {/* Ремонт (межраундовая пауза) */}

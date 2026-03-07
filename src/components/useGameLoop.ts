@@ -352,7 +352,7 @@ export function useGameLoop({
         drawWinner(ctx, state.cars.find(c => c.isPlayer) ?? null, time);
       }
 
-      drawHUD(ctx, state, time, aliveCollapsedRef ? aliveCollapsedRef.current : true);
+      drawHUD(ctx, state, time, aliveCollapsedRef ? aliveCollapsedRef.current : true, upgradesRef.current);
 
       ctx.restore();
 

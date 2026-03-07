@@ -1,5 +1,5 @@
 import {
-  Car, GameState, ParkingSpot,
+  Car, GameState, ParkingSpot, Upgrades,
   CANVAS_W, CANVAS_H, CENTER_X, CENTER_Y,
   SPOT_W, SPOT_H,
   PARK_LEFT, PARK_RIGHT, PARK_TOP, PARK_BOTTOM,
@@ -512,7 +512,7 @@ export function drawWinner(ctx: CanvasRenderingContext2D, player: Car | null, ti
   ctx.restore();
 }
 
-export function drawHUD(ctx: CanvasRenderingContext2D, state: GameState, time: number, aliveCollapsed = true) {
+export function drawHUD(ctx: CanvasRenderingContext2D, state: GameState, time: number, aliveCollapsed = true, upgrades?: Upgrades) {
   const player = state.cars.find(c => c.isPlayer);
   if (!player) return;
 
@@ -615,14 +615,19 @@ export function drawHUD(ctx: CanvasRenderingContext2D, state: GameState, time: n
     ctx.font = 'bold 11px Russo One, sans-serif';
     ctx.fillText('✅ ПРИПАРКОВАН!', 20, CANVAS_H - 22);
   } else {
+    const u = upgrades ?? {
+      nitro: state.playerNitro, gps: state.playerGps,
+      bumper: state.playerBumper, autoRepair: state.playerAutoRepair,
+      magnet: state.playerMagnet, turbo: state.playerTurbo, shield: state.playerShield,
+    };
     const activeUpgrades: string[] = [];
-    if (state.playerNitro) activeUpgrades.push('⚡');
-    if (state.playerGps) activeUpgrades.push('📡');
-    if (state.playerBumper) activeUpgrades.push('🛡️');
-    if (state.playerAutoRepair) activeUpgrades.push('🔧');
-    if (state.playerMagnet) activeUpgrades.push('🧲');
-    if (state.playerTurbo) activeUpgrades.push('🚀');
-    if (state.playerShield) activeUpgrades.push('🔵');
+    if (u.nitro === true) activeUpgrades.push('⚡');
+    if (u.gps === true) activeUpgrades.push('📡');
+    if (u.bumper === true) activeUpgrades.push('🛡️');
+    if (u.autoRepair === true) activeUpgrades.push('🔧');
+    if (u.magnet === true) activeUpgrades.push('🧲');
+    if (u.turbo === true) activeUpgrades.push('🚀');
+    if (u.shield === true) activeUpgrades.push('🔵');
     if (activeUpgrades.length > 0) {
       ctx.font = '12px sans-serif';
       activeUpgrades.forEach((icon, i) => {
