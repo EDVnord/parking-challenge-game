@@ -2,7 +2,7 @@ import { useEffect, useRef, MutableRefObject } from 'react';
 import { Car, GameState, Upgrades, CANVAS_W, CANVAS_H, CENTER_X, CENTER_Y } from './gameTypes';
 import { makeSpotsGrid, spawnParticles, blockParkingZone, resolveAllCollisions } from './gameLogic';
 import { drawAsphalt, drawParkingArea, drawCar, drawParticles, drawSignal, drawRoundEnd, drawWinner, drawHUD, drawGpsOverlay } from './gameRenderer';
-import { startEngineSound, updateEngineSound, stopEngineSound, playCollisionSound, playSignalSound, playParkSound, playEliminatedSound, playWinSound } from './gameAudio';
+import { playCollisionSound, playSignalSound, playParkSound, playEliminatedSound, playWinSound } from './gameAudio';
 
 function randomRoundTimer(round: number, isFinal: boolean): number {
   if (round === 0) return 4 + Math.random() * 2;
@@ -58,11 +58,9 @@ export function useGameLoop({
     state.playerShield = upgrades.shield;
 
     // Звуковые флаги — чтобы не воспроизводить одно и то же несколько раз
-    const signalSoundPlayed = false;
-    const winSoundPlayed = false;
-    const playerParkedSoundPlayed = false;
-
-    startEngineSound();
+    let signalSoundPlayed = false;
+    let winSoundPlayed = false;
+    let playerParkedSoundPlayed = false;
 
     const loop = (timestamp: number) => {
       const dt = Math.min((timestamp - timeRef.current) / 1000, 0.05);
@@ -151,7 +149,6 @@ export function useGameLoop({
           player.y -= Math.cos(player.angle) * player.speed * dtNorm;
           player.x = Math.max(20, Math.min(CANVAS_W - 20, player.x));
           player.y = Math.max(20, Math.min(CANVAS_H - 20, player.y));
-          updateEngineSound(player.speed, player.maxSpeed);
 
           if (!player.parked) {
             const freeSpots = state.spots
@@ -404,7 +401,6 @@ export function useGameLoop({
     return () => {
       cancelAnimationFrame(animRef.current);
       document.removeEventListener('visibilitychange', handleVisibility);
-      stopEngineSound();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playerName, botAI]);

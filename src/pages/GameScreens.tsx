@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import GameCanvas from '@/components/GameCanvas';
+import { setAudioMuted } from '@/components/gameAudio';
 import Icon from '@/components/ui/icon';
 import { PlayerData, Screen, DailyQuest, WeeklyQuest, RoomState, todayDateStr, weeklyDateStr, xpForLevel } from './parkingTypes';
 import { t } from '@/i18n';
@@ -11,6 +12,7 @@ function useMute() {
   const toggle = () => setMuted(prev => {
     const next = !prev;
     localStorage.setItem(MUTE_KEY, next ? '1' : '0');
+    setAudioMuted(next);
     return next;
   });
   return { muted, toggle };
