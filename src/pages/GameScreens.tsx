@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import GameCanvas from '@/components/GameCanvas';
 import { setAudioMuted } from '@/components/gameAudio';
+import VirtualJoystick from '@/components/VirtualJoystick';
 import Icon from '@/components/ui/icon';
 import { PlayerData, Screen, DailyQuest, WeeklyQuest, RoomState, todayDateStr, weeklyDateStr, xpForLevel } from './parkingTypes';
 import { t } from '@/i18n';
@@ -309,34 +310,9 @@ export function GameScreen({
         </div>
       )}
 
-      {/* Джойстик — компактный, только мобиль */}
-      <div className="md:hidden shrink-0 grid grid-cols-3 gap-1.5 px-2 pb-2 pt-1 w-full max-w-[280px] mx-auto select-none">
-        <div />
-        <button
-          className="bg-white/20 active:bg-white/40 text-white rounded-2xl h-14 text-2xl font-bold touch-none"
-          onTouchStart={e => { e.preventDefault(); keysRef.current.add('ArrowUp'); }}
-          onTouchEnd={e => { e.preventDefault(); keysRef.current.delete('ArrowUp'); }}
-          onTouchCancel={() => keysRef.current.delete('ArrowUp')}
-        >↑</button>
-        <div />
-        <button
-          className="bg-white/20 active:bg-white/40 text-white rounded-2xl h-14 text-2xl font-bold touch-none"
-          onTouchStart={e => { e.preventDefault(); keysRef.current.add('ArrowLeft'); }}
-          onTouchEnd={e => { e.preventDefault(); keysRef.current.delete('ArrowLeft'); }}
-          onTouchCancel={() => keysRef.current.delete('ArrowLeft')}
-        >←</button>
-        <button
-          className="bg-white/20 active:bg-white/40 text-white rounded-2xl h-14 text-2xl font-bold touch-none"
-          onTouchStart={e => { e.preventDefault(); keysRef.current.add('ArrowDown'); }}
-          onTouchEnd={e => { e.preventDefault(); keysRef.current.delete('ArrowDown'); }}
-          onTouchCancel={() => keysRef.current.delete('ArrowDown')}
-        >↓</button>
-        <button
-          className="bg-white/20 active:bg-white/40 text-white rounded-2xl h-14 text-2xl font-bold touch-none"
-          onTouchStart={e => { e.preventDefault(); keysRef.current.add('ArrowRight'); }}
-          onTouchEnd={e => { e.preventDefault(); keysRef.current.delete('ArrowRight'); }}
-          onTouchCancel={() => keysRef.current.delete('ArrowRight')}
-        >→</button>
+      {/* Джойстик — только мобиль */}
+      <div className="relative">
+        <VirtualJoystick keysRef={keysRef} />
       </div>
 
       <p className="text-white/30 text-xs text-center font-nunito hidden md:block pb-1">
