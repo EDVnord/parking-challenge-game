@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PlayerData, Screen, buyGems, isYandexGamesEnv } from './parkingTypes';
+import { PlayerData, Screen, buyGems, isYandexGamesEnv, restoreGemPurchases } from './parkingTypes';
 
 interface ShopScreenProps {
   player: PlayerData;
@@ -51,7 +51,25 @@ export function ShopScreen({ player, setScreen, setPlayer, notify }: ShopScreenP
   }, [now, player.upgradeExpiry, player.upgrades, setPlayer]);
 
   const [buyingId, setBuyingId] = useState<string | null>(null);
+  const [restoring, setRestoring] = useState(false);
   const inYa = isYandexGamesEnv();
+
+  const handleRestore = async () => {
+    if (!inYa) { notify('♻️ Восстановление доступно только в Яндекс Играх'); return; }
+    if (restoring) return;
+    setRestoring(true);
+    try {
+      const result = await restoreGemPurchases();
+      if (result.restored > 0) {
+        setPlayer(prev => ({ ...prev, gems: prev.gems + result.restored }));
+        notify(`✅ Восстановлено ${result.restored} 💎!`);
+      } else {
+        notify('ℹ️ Незавершённых покупок не найдено');
+      }
+    } finally {
+      setRestoring(false);
+    }
+  };
 
   // productId должен совпадать с ID продукта в кабинете разработчика Яндекс Игр
   const gemPacks: { id: string; gems: number; price: string; bonus?: string; popular?: boolean }[] = [
@@ -247,6 +265,21 @@ export function ShopScreen({ player, setScreen, setPlayer, notify }: ShopScreenP
               );
             })}
           </div>
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-white/10" />
+            <span className="text-white/20 text-xs font-nunito">или</span>
+            <div className="flex-1 h-px bg-white/10" />
+          </div>
+          <button
+            onClick={handleRestore}
+            disabled={restoring || !!buyingId}
+            className="w-full card-game py-3 flex items-center justify-center gap-2 border border-white/10 hover:border-yellow-400/30 transition-all disabled:opacity-40"
+          >
+            <span className="text-lg">{restoring ? '⏳' : '♻️'}</span>
+            <span className="font-russo text-white/60 text-sm">
+              {restoring ? 'Проверяю...' : 'Восстановить покупки'}
+            </span>
+          </button>
           <p className="text-white/20 text-xs text-center font-nunito">Оплата через Яндекс · Безопасно</p>
         </div>
       )}

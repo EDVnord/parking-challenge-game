@@ -146,6 +146,34 @@ export async function buyGems(productId: string): Promise<{ ok: boolean; error?:
   }
 }
 
+// ID товара → количество кристаллов
+const GEM_PACK_MAP: Record<string, number> = {
+  gems_100: 100,
+  gems_300: 350,
+  gems_700: 850,
+  gems_1500: 2000,
+};
+
+export async function restoreGemPurchases(): Promise<{ restored: number; count: number }> {
+  try {
+    const sdk = _ysdk ?? window._yaSDK;
+    if (!sdk) return { restored: 0, count: 0 };
+    const payments = await sdk.getPayments({ signed: true });
+    const purchases = await payments.getPurchases();
+    let totalGems = 0;
+    for (const p of purchases) {
+      const gems = GEM_PACK_MAP[p.productID];
+      if (gems) {
+        totalGems += gems;
+        try { await payments.consumePurchase(p.purchaseToken); } catch { /* already consumed */ }
+      }
+    }
+    return { restored: totalGems, count: purchases.length };
+  } catch {
+    return { restored: 0, count: 0 };
+  }
+}
+
 export async function getYaPlayer(): Promise<{ id: string; name: string } | null> {
   try {
     const sdk = _ysdk ?? window._yaSDK;
