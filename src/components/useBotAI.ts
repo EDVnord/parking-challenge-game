@@ -2,8 +2,8 @@ import { useCallback } from 'react';
 import { Car, GameState, CENTER_X, CENTER_Y } from './gameTypes';
 import { spawnParticles } from './gameLogic';
 
-// Круговая орбита снаружи exclusion zone (берём max из полуосей + запас)
-const ORBIT_R = 290;
+// Круговая орбита снаружи exclusion zone
+const ORBIT_R = 230;
 
 // Оригинальная скорость орбиты — каждый кадр при 60fps добавлялось ~0.016–0.024 рад
 // orbitSpeed хранится в рад/кадр при 60fps, умножаем на 60 чтобы получить рад/сек
@@ -20,7 +20,7 @@ export function useBotAI() {
       car.orbitAngle += angularSpeed * dt;
       car.x = CENTER_X + Math.cos(car.orbitAngle) * ORBIT_R;
       car.y = CENTER_Y + Math.sin(car.orbitAngle) * ORBIT_R;
-      car.angle = car.orbitAngle + Math.PI / 2;
+      car.angle = car.orbitAngle + Math.PI;
       return;
     }
 
@@ -85,7 +85,7 @@ export function useBotAI() {
 
     car.x = CENTER_X + Math.cos(car.orbitAngle) * ORBIT_R;
     car.y = CENTER_Y + Math.sin(car.orbitAngle) * ORBIT_R;
-    car.angle = car.orbitAngle + Math.PI / 2;
+    car.angle = car.orbitAngle + Math.PI;
 
     if (Math.random() < 0.02) {
       state.driftMarks.push({

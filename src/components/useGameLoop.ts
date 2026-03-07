@@ -293,7 +293,7 @@ export function useGameLoop({
             }
           }
 
-          const ORBIT_R = 290;
+          const ORBIT_R = 230;
           const activeAtReset = state.cars.filter(c => !c.eliminated);
           activeAtReset.forEach((car, idx) => {
             car.parked = false;
@@ -304,7 +304,7 @@ export function useGameLoop({
             car.orbitAngle = orbitAngle;
             car.x = CENTER_X + Math.cos(orbitAngle) * ORBIT_R;
             car.y = CENTER_Y + Math.sin(orbitAngle) * ORBIT_R;
-            car.angle = orbitAngle + Math.PI / 2;
+            car.angle = orbitAngle + Math.PI;
           });
 
           state.spots.forEach(s => {

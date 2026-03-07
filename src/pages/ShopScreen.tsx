@@ -97,20 +97,20 @@ export function ShopScreen({ player, setScreen, setPlayer, notify }: ShopScreenP
   };
 
   const coinPacks = [
-    { coins: 1000, gems: 10 },
-    { coins: 3000, gems: 25 },
-    { coins: 7000, gems: 50 },
-    { coins: 20000, gems: 120 },
+    { coins: 500,  gems: 5  },
+    { coins: 1500, gems: 12 },
+    { coins: 4000, gems: 30 },
+    { coins: 12000, gems: 80 },
   ];
 
   const upgrades: { name: string; desc: string; price: number; icon: string; key: keyof typeof player.upgrades; tag?: string }[] = [
-    { name: 'Нитро-ускорение', desc: 'Зажми Space — рывок +40% скорости', price: 300, icon: '⚡', key: 'nitro' },
-    { name: 'GPS-радар', desc: 'Стрелка к ближайшему свободному месту', price: 400, icon: '📡', key: 'gps' },
-    { name: 'Усиленный бампер', desc: '-30% урона при столкновениях', price: 500, icon: '🛡️', key: 'bumper' },
-    { name: 'Авто-ремонт', desc: '+15 HP после каждого раунда', price: 600, icon: '🔧', key: 'autoRepair' },
-    { name: 'Магнит парковки', desc: 'Притягивает к месту в радиусе 50px', price: 700, icon: '🧲', key: 'magnet', tag: 'НОВИНКА' },
-    { name: 'Турбо-старт', desc: 'После сигнала мгновенный разгон x2 на 2 сек', price: 650, icon: '🚀', key: 'turbo', tag: 'НОВИНКА' },
-    { name: 'Силовое поле', desc: 'Первый удар за раунд — без урона', price: 900, icon: '🔵', key: 'shield', tag: 'ХИТ' },
+    { name: 'Нитро-ускорение', desc: 'Зажми Space — рывок +40% скорости', price: 200, icon: '⚡', key: 'nitro' },
+    { name: 'GPS-радар', desc: 'Стрелка к ближайшему свободному месту', price: 250, icon: '📡', key: 'gps' },
+    { name: 'Усиленный бампер', desc: '-30% урона при столкновениях', price: 350, icon: '🛡️', key: 'bumper' },
+    { name: 'Авто-ремонт', desc: '+15 HP после каждого раунда', price: 400, icon: '🔧', key: 'autoRepair' },
+    { name: 'Магнит парковки', desc: 'Притягивает к месту в радиусе 50px', price: 450, icon: '🧲', key: 'magnet', tag: 'НОВИНКА' },
+    { name: 'Турбо-старт', desc: 'После сигнала мгновенный разгон x2 на 2 сек', price: 450, icon: '🚀', key: 'turbo', tag: 'НОВИНКА' },
+    { name: 'Силовое поле', desc: 'Первый удар за раунд — без урона', price: 600, icon: '🔵', key: 'shield', tag: 'ХИТ' },
   ];
 
   const handleBuyUpgrade = (upg: typeof upgrades[0]) => {

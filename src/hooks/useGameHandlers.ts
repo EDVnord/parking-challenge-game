@@ -44,9 +44,9 @@ export function useGameHandlers({ player, setPlayer, roomState, setScreen, notif
     const roomPlayerIds = roomStateRef.current?.players.map(p => p.player_id) ?? [];
     const friendBonus = friends.length > 0 && hasFriendInRoom(roomPlayerIds, friends);
 
-    // Экономика: топ-1 ~200-250 монет, топ-10 ~20 монет
-    const baseCoins = Math.max(10, (11 - position) * 20 + Math.floor(Math.random() * 50));
-    const baseXp = Math.max(10, (11 - position) * 20 + (position === 1 ? 50 : 0));
+    // Экономика: топ-1 ~400-450 монет, топ-10 ~50 монет
+    const baseCoins = Math.max(50, (11 - position) * 40 + Math.floor(Math.random() * 60));
+    const baseXp = Math.max(15, (11 - position) * 25 + (position === 1 ? 75 : 0));
     const coinsEarned = friendBonus ? Math.round(baseCoins * (1 + FRIEND_BONUS.coins)) : baseCoins;
     const xpEarned = friendBonus ? Math.round(baseXp * (1 + FRIEND_BONUS.xp)) : baseXp;
 

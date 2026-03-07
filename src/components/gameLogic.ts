@@ -161,7 +161,7 @@ export function createInitialState(playerName: string, playerHp?: number, player
 
   const spots = makeSpotsGrid(totalSpots);
 
-  const ORBIT_R = 290;
+  const ORBIT_R = 230;
 
   const cars: Car[] = [];
   for (let i = 0; i < totalCars; i++) {
@@ -169,7 +169,7 @@ export function createInitialState(playerName: string, playerHp?: number, player
     const color = CAR_COLORS[i];
     const sx = CENTER_X + Math.cos(orbitAngle) * ORBIT_R;
     const sy = CENTER_Y + Math.sin(orbitAngle) * ORBIT_R;
-    const startAngle = orbitAngle + Math.PI / 2;
+    const startAngle = orbitAngle + Math.PI;
     cars.push({
       id: i,
       playerId: i === 0 ? 'local_player' : `bot_${i}`,
