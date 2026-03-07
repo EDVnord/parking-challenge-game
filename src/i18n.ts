@@ -24,7 +24,7 @@ const translations: Record<string, Record<Lang, string>> = {
   'daily_quests': { ru: '📋 Дневные', en: '📋 Daily', tr: '📋 Günlük', be: '📋 Дзённыя', kk: '📋 Күнделікті', uk: '📋 Денні' },
   'weekly_quests': { ru: '🏆 Недельные', en: '🏆 Weekly', tr: '🏆 Haftalık', be: '🏆 Тыднёвыя', kk: '🏆 Апталық', uk: '🏆 Тижневі' },
   'title': { ru: 'КОРОЛЬ ПАРКОВКИ', en: 'PARKING KING', tr: 'PARK KRALI', be: 'КАРОЛЬ ПАРКОЎКІ', kk: 'ПАРКИНГ ПАТШАСЫ', uk: 'КОРОЛЬ ПАРКУВАННЯ' },
-  'subtitle': { ru: 'Захвати место — стань королём!', en: 'Take the spot — become the king!', tr: 'Yeri kap — kral ol!', be: 'Займі месца — стань каралём!', kk: 'Орынды ал — патша бол!', uk: 'Займи місце — стань королём!' },
+  'subtitle': { ru: '', en: '', tr: '', be: '', kk: '', uk: '' },
 };
 
 let _lang: Lang = 'ru';

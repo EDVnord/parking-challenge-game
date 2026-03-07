@@ -61,8 +61,26 @@ declare global {
   }
 }
 
+interface YaPayments {
+  catalog: () => Promise<YaProduct[]>;
+  purchase: (opts: { id: string }) => Promise<{ purchaseData: string; signature: string }>;
+  getPurchases: () => Promise<{ productID: string; purchaseToken: string }[]>;
+  consumePurchase: (token: string) => Promise<void>;
+}
+
+interface YaProduct {
+  id: string;
+  title: string;
+  description: string;
+  imageURI: string;
+  price: string;
+  priceValue: string;
+  priceCurrencyCode: string;
+}
+
 interface YaSDK {
   getPlayer: (opts?: { scopes?: boolean }) => Promise<{ getUniqueID: () => string; getName: () => string; getPhoto: (size: string) => string }>;
+  getPayments: (opts?: { signed?: boolean }) => Promise<YaPayments>;
   features: {
     LoadingAPI?: { ready: () => void };
   };
@@ -105,6 +123,27 @@ export function getYaLang(): string {
     const sdk = _ysdk ?? window._yaSDK;
     return sdk?.environment?.i18n?.lang ?? 'ru';
   } catch { return 'ru'; }
+}
+
+export function isYandexGamesEnv(): boolean {
+  return !!(_ysdk ?? window._yaSDK);
+}
+
+export async function buyGems(productId: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const sdk = _ysdk ?? window._yaSDK;
+    if (!sdk) return { ok: false, error: 'no_sdk' };
+    const payments = await sdk.getPayments({ signed: true });
+    const purchase = await payments.purchase({ id: productId });
+    if (purchase?.purchaseToken) {
+      await payments.consumePurchase(purchase.purchaseToken);
+    }
+    return { ok: true };
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg.includes('cancel') || msg.includes('close')) return { ok: false, error: 'cancelled' };
+    return { ok: false, error: msg };
+  }
 }
 
 export async function getYaPlayer(): Promise<{ id: string; name: string } | null> {

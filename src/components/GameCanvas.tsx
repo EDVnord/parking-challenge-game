@@ -47,7 +47,7 @@ export default function GameCanvas({
   });
 
   return (
-    <div className="relative w-full h-full" style={{ aspectRatio: `${CANVAS_W}/${CANVAS_H}`, maxHeight: '100%' }}>
+    <div className="relative w-full h-full">
       <canvas
         ref={canvasRef}
         width={CANVAS_W}

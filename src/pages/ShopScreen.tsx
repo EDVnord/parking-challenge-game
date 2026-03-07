@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PlayerData, Screen } from './parkingTypes';
+import { PlayerData, Screen, buyGems, isYandexGamesEnv } from './parkingTypes';
 
 interface ShopScreenProps {
   player: PlayerData;
@@ -50,12 +50,33 @@ export function ShopScreen({ player, setScreen, setPlayer, notify }: ShopScreenP
     }
   }, [now, player.upgradeExpiry, player.upgrades, setPlayer]);
 
-  const gemPacks = [
-    { gems: 100, price: '79₽', popular: false },
-    { gems: 300, price: '199₽', bonus: '+50 бонус', popular: true },
-    { gems: 700, price: '399₽', bonus: '+150 бонус', popular: false },
-    { gems: 1500, price: '799₽', bonus: '+500 бонус', popular: false },
+  const [buyingId, setBuyingId] = useState<string | null>(null);
+  const inYa = isYandexGamesEnv();
+
+  // productId должен совпадать с ID продукта в кабинете разработчика Яндекс Игр
+  const gemPacks: { id: string; gems: number; price: string; bonus?: string; popular?: boolean }[] = [
+    { id: 'gems_100', gems: 100, price: '79₽' },
+    { id: 'gems_300', gems: 300, price: '199₽', bonus: '+50 бонус', popular: true },
+    { id: 'gems_700', gems: 700, price: '399₽', bonus: '+150 бонус' },
+    { id: 'gems_1500', gems: 1500, price: '799₽', bonus: '+500 бонус' },
   ];
+
+  const handleBuyGems = async (pack: typeof gemPacks[0]) => {
+    if (!inYa) { notify('💎 Покупка доступна только в Яндекс Играх'); return; }
+    if (buyingId) return;
+    setBuyingId(pack.id);
+    try {
+      const result = await buyGems(pack.id);
+      if (result.ok) {
+        setPlayer(prev => ({ ...prev, gems: prev.gems + pack.gems }));
+        notify(`✅ Получено ${pack.gems} 💎!`);
+      } else if (result.error !== 'cancelled') {
+        notify('❌ Ошибка оплаты. Попробуй позже');
+      }
+    } finally {
+      setBuyingId(null);
+    }
+  };
 
   const coinPacks = [
     { coins: 1000, gems: 10 },
@@ -188,24 +209,45 @@ export function ShopScreen({ player, setScreen, setPlayer, notify }: ShopScreenP
       )}
 
       {tab === 'gems' && (
-        <div className="grid grid-cols-2 gap-3">
-          {gemPacks.map((pack, i) => (
-            <button
-              key={i}
-              onClick={() => notify('💳 Оплата скоро будет доступна!')}
-              className={`card-game-solid p-4 flex flex-col items-center gap-2 border-2 hover:scale-105 transition-all ${pack.popular ? 'border-yellow-500/60' : 'border-white/10'}`}
-            >
-              {pack.popular && (
-                <div className="bg-yellow-400 text-gray-900 font-russo text-xs px-2 py-0.5 rounded-full -mt-7 mb-1">ХИТ</div>
-              )}
-              <div className="text-3xl">💎</div>
-              <div className="font-russo text-white text-lg">{pack.gems}</div>
-              {'bonus' in pack && pack.bonus && (
-                <div className="text-green-400 text-xs font-bold">{pack.bonus}</div>
-              )}
-              <div className="btn-yellow text-sm py-1.5 px-4 w-full text-center rounded-xl">{pack.price}</div>
-            </button>
-          ))}
+        <div className="flex flex-col gap-3">
+          {!inYa && (
+            <div className="card-game p-3 text-center text-white/40 text-xs font-nunito border border-yellow-400/10">
+              💡 Покупка кристаллов доступна в Яндекс Играх
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-3">
+            {gemPacks.map((pack) => {
+              const isLoading = buyingId === pack.id;
+              return (
+                <button
+                  key={pack.id}
+                  onClick={() => handleBuyGems(pack)}
+                  disabled={!!buyingId}
+                  className={`card-game-solid p-4 flex flex-col items-center gap-2 border-2 transition-all relative overflow-hidden
+                    ${pack.popular ? 'border-yellow-500/60' : 'border-white/10'}
+                    ${buyingId && !isLoading ? 'opacity-50' : 'hover:scale-105 active:scale-95'}
+                  `}
+                >
+                  {pack.popular && (
+                    <div className="absolute top-0 left-0 right-0 bg-yellow-400 text-gray-900 font-russo text-[10px] py-0.5 text-center">ХИТ</div>
+                  )}
+                  <div className={`text-3xl ${pack.popular ? 'mt-3' : ''}`}>
+                    {isLoading ? '⏳' : '💎'}
+                  </div>
+                  <div className="font-russo text-white text-xl">{pack.gems}</div>
+                  {pack.bonus && (
+                    <div className="text-green-400 text-xs font-bold font-nunito">{pack.bonus}</div>
+                  )}
+                  <div className={`font-russo text-sm py-1.5 px-4 w-full text-center rounded-xl
+                    ${isLoading ? 'bg-white/20 text-white/60' : 'bg-yellow-400 text-gray-900'}
+                  `}>
+                    {isLoading ? 'Оплата...' : pack.price}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-white/20 text-xs text-center font-nunito">Оплата через Яндекс · Безопасно</p>
         </div>
       )}
     </div>

@@ -59,7 +59,7 @@ export function MenuScreen({ player, setScreen, onPlay, onQuestClaim, onWeeklyQu
         <div className="text-center animate-fade-in">
           <div className="text-7xl mb-2 animate-bounce-in">👑</div>
           <h1 className="font-russo text-4xl text-yellow-400 leading-none" style={{ textShadow: '0 0 30px rgba(255,214,0,0.6)' }}>{t('title')}</h1>
-          <p className="font-nunito text-white/40 text-xs mt-2 font-bold tracking-widest uppercase">{t('subtitle')}</p>
+
         </div>
 
         <button className="card-game p-3 flex items-center gap-3 w-full animate-fade-in hover:border-yellow-400/30 transition-all" onClick={() => setScreen('profile')}>
@@ -254,27 +254,27 @@ export function GameScreen({
         </div>
       </div>
 
-      {/* Canvas — 4:3, занимает максимум доступного пространства */}
-      <div className="flex-1 min-h-0 w-full px-1 flex items-center justify-center">
-        <div className="w-full h-full" style={{ aspectRatio: '4/3', maxHeight: '100%', maxWidth: '100%' }}>
-        <GameCanvas
-          key={gameKey}
-          playerName={player.name}
-          playerId={localPlayerId}
-          playerHp={car?.hp}
-          playerMaxHp={car?.maxHp}
-          playerColor={car?.color}
-          playerBodyColor={car?.bodyColor}
-          playerEmoji={car?.emoji}
-          playerMaxSpeed={car?.maxSpeed}
-          upgrades={player.upgrades ?? { nitro: false, gps: false, bumper: false, autoRepair: false, magnet: false, turbo: false, shield: false }}
-          onRoundEnd={handleRoundEnd}
-          onGameEnd={handleGameEnd}
-          keys={keys}
-          keysRef={keysRef}
-          roomState={roomState}
-          onPlayerMove={onPlayerMove}
-        />
+      {/* Canvas — строго 4:3, вписывается в доступное пространство */}
+      <div className="flex-1 min-h-0 flex items-center justify-center overflow-hidden px-1">
+        <div style={{ aspectRatio: '4/3', maxWidth: '100%', maxHeight: '100%', width: '100%' }}>
+          <GameCanvas
+            key={gameKey}
+            playerName={player.name}
+            playerId={localPlayerId}
+            playerHp={car?.hp}
+            playerMaxHp={car?.maxHp}
+            playerColor={car?.color}
+            playerBodyColor={car?.bodyColor}
+            playerEmoji={car?.emoji}
+            playerMaxSpeed={car?.maxSpeed}
+            upgrades={player.upgrades ?? { nitro: false, gps: false, bumper: false, autoRepair: false, magnet: false, turbo: false, shield: false }}
+            onRoundEnd={handleRoundEnd}
+            onGameEnd={handleGameEnd}
+            keys={keys}
+            keysRef={keysRef}
+            roomState={roomState}
+            onPlayerMove={onPlayerMove}
+          />
         </div>
       </div>
 
