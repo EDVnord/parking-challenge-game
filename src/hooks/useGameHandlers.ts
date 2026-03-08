@@ -101,13 +101,13 @@ export function useGameHandlers({ player, setPlayer, roomState, setScreen, notif
     const baseCoins = Math.max(50, (11 - position) * 40 + Math.floor(Math.random() * 60)) + roundBonus;
     const baseXp = Math.max(15, (11 - position) * 25 + (position === 1 ? 75 : 0));
 
-    // Буст монет x2
-    const coinBoostActive = (player.coinBoostSessions ?? 0) > 0;
+    // Читаем буст-сессии из свежего состояния через snapshot (не из замыкания)
+    const playerSnapshot = player;
+    const coinBoostActive = (playerSnapshot.coinBoostSessions ?? 0) > 0;
     const coinsBeforeFriend = coinBoostActive ? baseCoins * 2 : baseCoins;
     const coinsEarned = friendBonus ? Math.round(coinsBeforeFriend * (1 + FRIEND_BONUS.coins)) : coinsBeforeFriend;
 
-    // Буст XP x2
-    const xpBoostActive = (player.xpBoostGames ?? 0) > 0;
+    const xpBoostActive = (playerSnapshot.xpBoostGames ?? 0) > 0;
     const xpBeforeFriend = xpBoostActive ? baseXp * 2 : baseXp;
     const xpEarned = friendBonus ? Math.round(xpBeforeFriend * (1 + FRIEND_BONUS.xp)) : xpBeforeFriend;
 
@@ -210,7 +210,7 @@ export function useGameHandlers({ player, setPlayer, roomState, setScreen, notif
       await showInterstitialAd();
     }
     setScreen('gameOver');
-  }, [notify, roomState, setPlayer, setScreen]);
+  }, [notify, roomState, setPlayer, setScreen, player]);
 
   return {
     gameRound, setGameRound,

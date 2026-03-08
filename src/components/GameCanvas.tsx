@@ -9,6 +9,7 @@ export default function GameCanvas({
   playerName, playerId, playerHp, playerMaxHp,
   playerColor, playerBodyColor, playerEmoji, playerMaxSpeed,
   upgrades, onRoundEnd, onGameEnd, keys, keysRef, roomState, onPlayerMove,
+  extraLifeOffer, onReviveReady,
 }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stateRef = useRef<GameState>(createInitialState(playerName, playerHp, playerMaxHp, playerColor, playerBodyColor, playerEmoji, playerMaxSpeed));
@@ -16,6 +17,7 @@ export default function GameCanvas({
   const timeRef = useRef<number>(0);
   const moveThrottleRef = useRef<number>(0);
   const localId = playerId || 'local_player';
+  const extraLifeOfferRef = useRef(false);
 
   const [aliveCollapsed, setAliveCollapsed] = useState(true);
   const aliveCollapsedRef = useRef(true);
@@ -36,6 +38,25 @@ export default function GameCanvas({
     return () => clearInterval(id);
   }, []);
 
+  // Синхронизируем extraLifeOfferRef с пропом (для игрового цикла)
+  useEffect(() => {
+    extraLifeOfferRef.current = extraLifeOffer ?? false;
+  }, [extraLifeOffer]);
+
+  // Регистрируем функцию оживления игрока в стейте игры
+  useEffect(() => {
+    if (!onReviveReady) return;
+    onReviveReady(() => {
+      const playerCar = stateRef.current.cars.find(c => c.isPlayer);
+      if (playerCar) {
+        playerCar.eliminated = false;
+        stateRef.current.eliminatedThisRound = null;
+        // Сбрасываем таймер roundEnd чтобы не срабатывал onGameEnd после оживления
+        stateRef.current.roundEndTimer = 99;
+      }
+    });
+  }, [onReviveReady]);
+
   const botAI = useBotAI();
 
   useGameSync({ stateRef, upgrades, playerHp, localId, roomState });
@@ -43,7 +64,7 @@ export default function GameCanvas({
   useGameLoop({
     canvasRef, stateRef, animRef, timeRef, moveThrottleRef,
     playerName, upgrades, keys, keysRef, onRoundEnd, onGameEnd, onPlayerMove, botAI,
-    aliveCollapsedRef,
+    aliveCollapsedRef, extraLifeOfferRef,
   });
 
   return (

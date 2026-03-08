@@ -233,6 +233,15 @@ export function GameScreen({
   extraLifeOffer, onUseExtraLife, onDeclineExtraLife,
 }: GameScreenProps) {
   const { muted, toggle: toggleMute } = useMute();
+  // Ref на функцию оживления игрока в game state (заполняется из GameCanvas)
+  const revivePlayerRef = useRef<(() => void) | null>(null);
+  const handleReviveReady = useRef((fn: () => void) => { revivePlayerRef.current = fn; }).current;
+
+  const handleUseExtraLife = () => {
+    // Сначала оживляем игрока в игровом state, потом уменьшаем extraLives и продолжаем
+    revivePlayerRef.current?.();
+    onUseExtraLife?.();
+  };
 
   // Автогаз на мобиле — держим ArrowUp когда идёт игра
   const isMobileRef = useRef(typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches);
@@ -298,6 +307,8 @@ export function GameScreen({
             keysRef={keysRef}
             roomState={roomState}
             onPlayerMove={onPlayerMove}
+            extraLifeOffer={extraLifeOffer}
+            onReviveReady={handleReviveReady}
           />
         </div>
       </div>
@@ -332,7 +343,7 @@ export function GameScreen({
           <div className="flex gap-3">
             <button
               className="btn-yellow px-5 py-2 text-sm font-russo shadow-2xl animate-pulse"
-              onClick={onUseExtraLife}
+              onClick={handleUseExtraLife}
             >❤️ Продолжить!</button>
             <button
               className="px-4 py-2 text-sm font-russo rounded-xl bg-white/10 text-white/50 hover:bg-white/20 transition-all"

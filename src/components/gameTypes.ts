@@ -88,6 +88,8 @@ export interface GameCanvasProps {
   keys: Set<string>;
   keysRef: import('react').MutableRefObject<Set<string>>;
   aliveCollapsedRef?: import('react').MutableRefObject<boolean>;
+  extraLifeOffer?: boolean;
+  onReviveReady?: (reviveFn: () => void) => void;
 }
 
 export type { RoomPlayer, RoomState };

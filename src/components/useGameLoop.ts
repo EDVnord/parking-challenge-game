@@ -25,11 +25,13 @@ interface UseGameLoopParams {
   onPlayerMove?: (state: { x: number; y: number; angle: number; speed: number; hp: number; orbitAngle: number; parked: boolean; parkSpot: number; eliminated: boolean }) => void;
   botAI: (car: Car, state: GameState, dt: number) => void;
   aliveCollapsedRef?: MutableRefObject<boolean>;
+  extraLifeOfferRef?: MutableRefObject<boolean>;
 }
 
 export function useGameLoop({
   canvasRef, stateRef, animRef, timeRef, moveThrottleRef,
   playerName, upgrades, keys, keysRef, onRoundEnd, onGameEnd, onPlayerMove, botAI, aliveCollapsedRef,
+  extraLifeOfferRef,
 }: UseGameLoopParams) {
   // Ref-обёртки для стабильных замыканий в RAF
   const onRoundEndRef = useRef(onRoundEnd);
@@ -248,7 +250,10 @@ export function useGameLoop({
           }
         }
       } else if (state.phase === 'roundEnd') {
-        state.roundEndTimer -= dt;
+        // Пауза таймера пока показан оффер второй жизни
+        if (!extraLifeOfferRef?.current) {
+          state.roundEndTimer -= dt;
+        }
 
         if (state.roundEndTimer <= 0) {
           const activeCars = state.cars.filter(c => !c.eliminated);
