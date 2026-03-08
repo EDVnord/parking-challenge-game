@@ -27,17 +27,58 @@ export function useGameHandlers({ player, setPlayer, roomState, setScreen, notif
   const [gameKey, setGameKey] = useState(0);
   const [gameResult, setGameResult] = useState<{ position: number; coinsEarned: number } | null>(null);
   const [inGamePhase, setInGamePhase] = useState<'playing' | 'roundEnd'>('playing');
+  const [extraLifeOffer, setExtraLifeOffer] = useState(false);
+  const resumeGameRef = useRef<(() => void) | null>(null);
 
   const handleRoundEnd = useCallback((round: number, isPlayerEliminated: boolean, playerHp: number, playerMaxHp: number) => {
     setGameRound(round);
     setInGamePhase('roundEnd');
-    if (isPlayerEliminated) notify('❌ Тебя вышибли! Паркуйся быстрее!');
     setPlayer(prev => ({
       ...prev,
       cars: prev.cars.map((c, i) => i === prev.selectedCar ? { ...c, hp: Math.round(playerHp), maxHp: playerMaxHp } : c),
     }));
-    setTimeout(() => setInGamePhase('playing'), 3000);
-  }, [notify, setPlayer]);
+
+    if (isPlayerEliminated) {
+      // Если есть жизни — предложить использовать
+      if ((player.extraLives ?? 0) > 0) {
+        setExtraLifeOffer(true);
+        // Авто-отказ через 8 сек — продолжаем без жизни
+        const timeout = setTimeout(() => {
+          setExtraLifeOffer(false);
+          resumeGameRef.current = null;
+          setTimeout(() => setInGamePhase('playing'), 500);
+        }, 8000);
+        resumeGameRef.current = () => {
+          clearTimeout(timeout);
+          setExtraLifeOffer(false);
+          resumeGameRef.current = null;
+          setPlayer(prev2 => ({
+            ...prev2,
+            extraLives: Math.max(0, (prev2.extraLives ?? 0) - 1),
+            cars: prev2.cars.map((c, i) => i === prev2.selectedCar ? { ...c, hp: Math.round(c.maxHp * 0.5) } : c),
+          }));
+          notify('❤️ Вторая жизнь! +50% HP — продолжай!');
+          setTimeout(() => setInGamePhase('playing'), 300);
+        };
+      } else {
+        notify('❌ Тебя вышибли! Паркуйся быстрее!');
+        setTimeout(() => setInGamePhase('playing'), 3000);
+      }
+    } else {
+      setTimeout(() => setInGamePhase('playing'), 3000);
+    }
+  }, [notify, setPlayer, player.extraLives]);
+
+  const useExtraLife = useCallback(() => {
+    resumeGameRef.current?.();
+  }, []);
+
+  const declineExtraLife = useCallback(() => {
+    setExtraLifeOffer(false);
+    resumeGameRef.current = null;
+    notify('❌ Тебя вышибли! Паркуйся быстрее!');
+    setTimeout(() => setInGamePhase('playing'), 500);
+  }, [notify]);
 
   const handleGameEnd = useCallback(async (position: number, roundsPlayed?: number, finalHp?: number) => {
     const friends = getFriends();
@@ -50,12 +91,21 @@ export function useGameHandlers({ player, setPlayer, roomState, setScreen, notif
     const roundBonus = Math.max(0, rounds - 1) * 10;
     const baseCoins = Math.max(50, (11 - position) * 40 + Math.floor(Math.random() * 60)) + roundBonus;
     const baseXp = Math.max(15, (11 - position) * 25 + (position === 1 ? 75 : 0));
-    const coinsEarned = friendBonus ? Math.round(baseCoins * (1 + FRIEND_BONUS.coins)) : baseCoins;
-    const xpEarned = friendBonus ? Math.round(baseXp * (1 + FRIEND_BONUS.xp)) : baseXp;
+
+    // Буст монет x2
+    const coinBoostActive = (player.coinBoostSessions ?? 0) > 0;
+    const coinsBeforeFriend = coinBoostActive ? baseCoins * 2 : baseCoins;
+    const coinsEarned = friendBonus ? Math.round(coinsBeforeFriend * (1 + FRIEND_BONUS.coins)) : coinsBeforeFriend;
+
+    // Буст XP x2
+    const xpBoostActive = (player.xpBoostGames ?? 0) > 0;
+    const xpBeforeFriend = xpBoostActive ? baseXp * 2 : baseXp;
+    const xpEarned = friendBonus ? Math.round(xpBeforeFriend * (1 + FRIEND_BONUS.xp)) : xpBeforeFriend;
 
     if (roundBonus > 0) notify(`⏱ Бонус за ${rounds} раундов: +${roundBonus} 🪙`);
-
-    if (friendBonus) notify(`👥 Бонус друга! +${Math.round(baseCoins * FRIEND_BONUS.coins)} 🪙 +${Math.round(baseXp * FRIEND_BONUS.xp)} XP`);
+    if (coinBoostActive) notify(`💰 Буст x2! Монет: +${coinsEarned} 🪙`);
+    if (xpBoostActive) notify(`⭐ Буст XP x2!`);
+    if (friendBonus) notify(`👥 Бонус друга! +${Math.round(coinsBeforeFriend * FRIEND_BONUS.coins)} 🪙 +${Math.round(xpBeforeFriend * FRIEND_BONUS.xp)} XP`);
 
     setGameResult({ position, coinsEarned });
     // Сохраняем финальный hp машины — он не восстанавливается автоматически между играми
@@ -143,6 +193,8 @@ export function useGameHandlers({ player, setPlayer, roomState, setScreen, notif
         dailyQuestsDate: today,
         weeklyQuests: newWeekly,
         weeklyQuestsDate: thisWeek,
+        coinBoostSessions: Math.max(0, (prev.coinBoostSessions ?? 0) - 1),
+        xpBoostGames: Math.max(0, (prev.xpBoostGames ?? 0) - 1),
       };
     });
     if (shouldShowAd()) {
@@ -156,6 +208,9 @@ export function useGameHandlers({ player, setPlayer, roomState, setScreen, notif
     gameKey, setGameKey,
     gameResult, setGameResult,
     inGamePhase, setInGamePhase,
+    extraLifeOffer,
+    useExtraLife,
+    declineExtraLife,
     handleRoundEnd,
     handleGameEnd,
   };

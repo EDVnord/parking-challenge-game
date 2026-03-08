@@ -38,6 +38,9 @@ export default function Index() {
     gameKey, setGameKey,
     gameResult, setGameResult,
     inGamePhase, setInGamePhase,
+    extraLifeOffer,
+    useExtraLife,
+    declineExtraLife,
     handleRoundEnd,
     handleGameEnd,
   } = useGameHandlers({
@@ -198,11 +201,14 @@ export default function Index() {
           roomState={roomState}
           localPlayerId={localPlayerId}
           onPlayerMove={handlePlayerMove}
+          extraLifeOffer={extraLifeOffer}
+          onUseExtraLife={useExtraLife}
+          onDeclineExtraLife={declineExtraLife}
         />
       )}
 
       {screen === 'gameOver' && (
-        <GameOverScreen gameResult={gameResult} onRestart={handlePlay} onMenu={() => setScreen('menu')} />
+        <GameOverScreen gameResult={gameResult} player={player} onRestart={handlePlay} onMenu={() => setScreen('menu')} />
       )}
 
       {screen === 'garage' && (

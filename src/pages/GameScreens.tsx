@@ -221,12 +221,16 @@ interface GameScreenProps {
   roomState?: RoomState | null;
   localPlayerId?: string;
   onPlayerMove?: (state: { x: number; y: number; angle: number; speed: number; hp: number; orbitAngle: number; parked: boolean; parkSpot: number; eliminated: boolean }) => void;
+  extraLifeOffer?: boolean;
+  onUseExtraLife?: () => void;
+  onDeclineExtraLife?: () => void;
 }
 
 export function GameScreen({
   player, gameKey, gameRound, gameResult, inGamePhase,
   keys, keysRef, setScreen, setPlayer, handleRoundEnd, handleGameEnd, notify,
   roomState, localPlayerId, onPlayerMove,
+  extraLifeOffer, onUseExtraLife, onDeclineExtraLife,
 }: GameScreenProps) {
   const { muted, toggle: toggleMute } = useMute();
 
@@ -234,12 +238,12 @@ export function GameScreen({
   const isMobileRef = useRef(typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches);
   useEffect(() => {
     if (!isMobileRef.current) return;
-    if (inGamePhase === 'playing' && !gameResult) {
+    if (inGamePhase === 'playing' && !gameResult && !extraLifeOffer) {
       keysRef.current.add('ArrowUp');
     } else {
       keysRef.current.delete('ArrowUp');
     }
-  }, [inGamePhase, gameResult, keysRef]);
+  }, [inGamePhase, gameResult, keysRef, extraLifeOffer]);
   const car = player.cars[player.selectedCar];
   const repairInfo = (() => {
     if (inGamePhase !== 'roundEnd' || gameResult || !car || car.hp >= car.maxHp) return null;
@@ -320,6 +324,24 @@ export function GameScreen({
         </div>
       )}
 
+      {/* Оффер второй жизни */}
+      {extraLifeOffer && (
+        <div className="shrink-0 flex flex-col items-center gap-2 px-4 py-2 animate-bounce-in">
+          <div className="font-russo text-red-400 text-sm text-center">💀 Тебя вышибли!</div>
+          <div className="font-nunito text-white/60 text-xs text-center">Использовать вторую жизнь? ({player.extraLives ?? 0} шт.)</div>
+          <div className="flex gap-3">
+            <button
+              className="btn-yellow px-5 py-2 text-sm font-russo shadow-2xl animate-pulse"
+              onClick={onUseExtraLife}
+            >❤️ Продолжить!</button>
+            <button
+              className="px-4 py-2 text-sm font-russo rounded-xl bg-white/10 text-white/50 hover:bg-white/20 transition-all"
+              onClick={onDeclineExtraLife}
+            >Отказаться</button>
+          </div>
+        </div>
+      )}
+
       {/* Управление — только мобиль (автогаз, повороты + тормоз) */}
       <div className="md:hidden shrink-0 flex items-center justify-center gap-3 px-3 pb-2 pt-1 select-none">
         {/* Поворот влево */}
@@ -377,14 +399,18 @@ export function GameScreen({
 // ──────────────── GAME OVER ────────────────
 interface GameOverScreenProps {
   gameResult: { position: number; coinsEarned: number } | null;
+  player: PlayerData;
   onRestart: () => void;
   onMenu: () => void;
 }
 
-export function GameOverScreen({ gameResult, onRestart, onMenu }: GameOverScreenProps) {
+export function GameOverScreen({ gameResult, player, onRestart, onMenu }: GameOverScreenProps) {
   if (!gameResult) return null;
   const { position, coinsEarned } = gameResult;
   const isWin = position === 1;
+  const coinBoost = (player.coinBoostSessions ?? 0) > 0;
+  const xpBoost = (player.xpBoostGames ?? 0) > 0;
+  const extraLives = player.extraLives ?? 0;
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="card-game-solid p-8 flex flex-col items-center gap-5 w-full max-w-sm animate-bounce-in">
@@ -407,6 +433,30 @@ export function GameOverScreen({ gameResult, onRestart, onMenu }: GameOverScreen
             <span className="font-russo text-yellow-400">+{coinsEarned} 🪙</span>
           </div>
         </div>
+        {/* Активные расходники */}
+        {(coinBoost || xpBoost || extraLives > 0) && (
+          <div className="w-full bg-white/5 rounded-2xl p-3 flex flex-col gap-1.5">
+            <div className="text-white/40 font-nunito text-xs text-center mb-0.5">Активные расходники</div>
+            {coinBoost && (
+              <div className="flex items-center justify-between">
+                <span className="font-nunito text-xs text-yellow-300">💰 Буст монет x2</span>
+                <span className="font-russo text-xs text-yellow-400">{player.coinBoostSessions} игр</span>
+              </div>
+            )}
+            {xpBoost && (
+              <div className="flex items-center justify-between">
+                <span className="font-nunito text-xs text-purple-300">⭐ Буст XP x2</span>
+                <span className="font-russo text-xs text-purple-400">{player.xpBoostGames} игр</span>
+              </div>
+            )}
+            {extraLives > 0 && (
+              <div className="flex items-center justify-between">
+                <span className="font-nunito text-xs text-red-300">❤️ Вторые жизни</span>
+                <span className="font-russo text-xs text-red-400">{extraLives} шт.</span>
+              </div>
+            )}
+          </div>
+        )}
         <div className="flex gap-3 w-full">
           <button className="btn-yellow flex-1" onClick={onRestart}>{t('play_again')}</button>
           <button className="btn-blue flex-1" onClick={onMenu}>{t('menu')}</button>
