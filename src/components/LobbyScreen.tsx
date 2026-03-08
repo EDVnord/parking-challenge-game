@@ -2,6 +2,23 @@ import { useEffect, useState, useRef } from 'react';
 import type { RoomState } from '@/pages/parkingTypes';
 import { getMyFriendCode, getFriends } from '@/components/FriendsPanel';
 
+const TIPS = [
+  { icon: '🏅', text: 'Заходи в Достижения — там могут быть незабранные награды!' },
+  { icon: '⚡', text: 'Нитро: зажми Space на клавиатуре или кнопку ⚡ на экране во время езды.' },
+  { icon: '🛒', text: 'Расходники в Магазине — буст монет x2 и XP x2 ускоряют прокачку.' },
+  { icon: '❤️', text: 'Вторая жизнь из Расходников спасёт, если тебя выбьют из раунда.' },
+  { icon: '🧲', text: 'Магнит притягивает машину к месту парковки — удобно в финальных раундах.' },
+  { icon: '🛡️', text: 'Силовое поле поглощает первый удар за раунд — покупай против таранщиков.' },
+  { icon: '🔧', text: 'Ремонтируй машину в Гараже: с низким HP скорость заметно падает.' },
+  { icon: '👥', text: 'Добавляй друзей — при совместной игре оба получают +20% монет и XP.' },
+  { icon: '📡', text: 'GPS-радар показывает стрелку к ближайшему свободному месту.' },
+  { icon: '🚀', text: 'Турбо-старт даёт двойную скорость на 2 секунды после сигнала — врывайся первым!' },
+  { icon: '🎯', text: 'Выполняй ежедневные задания — они обновляются каждый день.' },
+  { icon: '🪙', text: 'Прокачивай машины в Гараже: HP, броня и скорость открывают разные стили.' },
+  { icon: '💎', text: 'Кристаллы выгоднее тратить на апгрейды в Магазине, чем менять на монеты.' },
+  { icon: '🏆', text: 'Победа в турнире — самый быстрый способ заработать монеты и XP.' },
+];
+
 interface LobbyScreenProps {
   room: RoomState;
   localPlayerId: string;
@@ -18,6 +35,20 @@ export default function LobbyScreen({ room, localPlayerId, onCancel }: LobbyScre
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const prevPlayerIdsRef = useRef<Set<string>>(new Set(room.players.map(p => p.player_id)));
   const myFriendCode = getMyFriendCode();
+
+  const [tipIdx, setTipIdx] = useState(() => Math.floor(Math.random() * TIPS.length));
+  const [tipVisible, setTipVisible] = useState(true);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTipVisible(false);
+      setTimeout(() => {
+        setTipIdx(i => (i + 1) % TIPS.length);
+        setTipVisible(true);
+      }, 400);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   const realPlayers = room.players.filter(p => !p.is_bot);
   const totalSlots = 10;
@@ -170,6 +201,18 @@ export default function LobbyScreen({ room, localPlayerId, onCancel }: LobbyScre
           >
             {copied ? '✓ Скопировано' : 'Копировать'}
           </button>
+        </div>
+
+        {/* Совет дня */}
+        <div
+          className="card-game px-4 py-3 flex gap-3 items-start transition-all duration-400"
+          style={{ opacity: tipVisible ? 1 : 0, transform: tipVisible ? 'translateY(0)' : 'translateY(6px)' }}
+        >
+          <span className="text-xl shrink-0 mt-0.5">{TIPS[tipIdx].icon}</span>
+          <div>
+            <div className="text-white/30 text-[10px] font-russo uppercase tracking-widest mb-0.5">Совет</div>
+            <div className="text-white/70 font-nunito text-xs leading-relaxed">{TIPS[tipIdx].text}</div>
+          </div>
         </div>
 
         <button className="btn-red py-3 font-russo" onClick={onCancel}>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Screen, LeaderboardResult, RoomState, fetchLeaderboard, todayDateStr, weeklyDateStr } from './parkingTypes';
 import { MenuScreen, GameScreen, GameOverScreen } from './GameScreens';
 import { GarageScreen, ShopScreen, ProfileScreen, LeaderboardScreen, FriendsScreen } from './PlayerScreens';
@@ -13,45 +13,13 @@ import { useMultiplayer } from '@/hooks/useMultiplayer';
 import { useGameHandlers } from '@/hooks/useGameHandlers';
 
 
-const LOADING_TIPS = [
-  { icon: '🏅', text: 'Заходи в Достижения — там могут быть незабранные награды!' },
-  { icon: '⚡', text: 'Нитро: зажми Space на клавиатуре или кнопку ⚡ на экране во время езды.' },
-  { icon: '🛒', text: 'В Магазине есть Расходники — буст монет и XP сделают прокачку быстрее.' },
-  { icon: '❤️', text: 'Купи Вторую жизнь в Расходниках — она спасёт при вылете из раунда.' },
-  { icon: '🧲', text: 'Апгрейд Магнит притягивает машину к месту — очень удобно в финале!' },
-  { icon: '🛡️', text: 'Силовое поле поглощает первый удар за раунд — бесценно против таранщиков.' },
-  { icon: '🔧', text: 'Не забывай ремонтировать машину в Гараже — с низким HP скорость падает.' },
-  { icon: '👥', text: 'Приглашай друзей — играя вместе вы оба получаете +20% монет и XP.' },
-  { icon: '📡', text: 'GPS-радар показывает стрелку к ближайшему свободному месту — экономит секунды.' },
-  { icon: '🚀', text: 'Турбо-старт даёт двойную скорость на первые 2 секунды после сигнала — врывайся первым!' },
-  { icon: '🎯', text: 'Ежедневные задания обновляются каждый день — выполняй их для быстрой прокачки.' },
-  { icon: '🏆', text: 'Победа в турнире — самый быстрый способ заработать монеты и XP.' },
-  { icon: '🪙', text: 'Прокачивай машины в Гараже: HP, броня и скорость — три разных стиля игры.' },
-  { icon: '💎', text: 'Кристаллы выгоднее тратить на апгрейды в Магазине, а не обменивать на монеты.' },
-];
-
 function LoadingScreen() {
-  const tip = useMemo(() => LOADING_TIPS[Math.floor(Math.random() * LOADING_TIPS.length)], []);
-  const [visible, setVisible] = useState(false);
-  useEffect(() => { const t = setTimeout(() => setVisible(true), 300); return () => clearTimeout(t); }, []);
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-950 px-6 gap-8">
       <div className="text-center">
         <div className="text-6xl mb-4">👑</div>
         <div className="text-white font-russo text-xl mb-1">Король парковки</div>
         <div className="mt-4 w-8 h-8 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto" />
-      </div>
-      <div
-        className="max-w-xs w-full transition-all duration-700"
-        style={{ opacity: visible ? 1 : 0, transform: visible ? 'translateY(0)' : 'translateY(12px)' }}
-      >
-        <div className="bg-white/5 border border-white/10 rounded-2xl px-5 py-4 flex gap-3 items-start">
-          <span className="text-2xl shrink-0 mt-0.5">{tip.icon}</span>
-          <div>
-            <div className="text-white/30 text-[10px] font-russo uppercase tracking-widest mb-1">Совет</div>
-            <div className="text-white/70 font-nunito text-sm leading-relaxed">{tip.text}</div>
-          </div>
-        </div>
       </div>
     </div>
   );
