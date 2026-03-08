@@ -33,41 +33,50 @@ export function useGameHandlers({ player, setPlayer, roomState, setScreen, notif
   const handleRoundEnd = useCallback((round: number, isPlayerEliminated: boolean, playerHp: number, playerMaxHp: number) => {
     setGameRound(round);
     setInGamePhase('roundEnd');
-    setPlayer(prev => ({
-      ...prev,
-      cars: prev.cars.map((c, i) => i === prev.selectedCar ? { ...c, hp: Math.round(playerHp), maxHp: playerMaxHp } : c),
-    }));
 
     if (isPlayerEliminated) {
-      // Если есть жизни — предложить использовать
-      if ((player.extraLives ?? 0) > 0) {
-        setExtraLifeOffer(true);
-        // Авто-отказ через 8 сек — продолжаем без жизни
-        const timeout = setTimeout(() => {
-          setExtraLifeOffer(false);
-          resumeGameRef.current = null;
-          setTimeout(() => setInGamePhase('playing'), 500);
-        }, 8000);
-        resumeGameRef.current = () => {
-          clearTimeout(timeout);
-          setExtraLifeOffer(false);
-          resumeGameRef.current = null;
-          setPlayer(prev2 => ({
-            ...prev2,
-            extraLives: Math.max(0, (prev2.extraLives ?? 0) - 1),
-            cars: prev2.cars.map((c, i) => i === prev2.selectedCar ? { ...c, hp: Math.round(c.maxHp * 0.5) } : c),
-          }));
-          notify('❤️ Вторая жизнь! +50% HP — продолжай!');
-          setTimeout(() => setInGamePhase('playing'), 300);
-        };
-      } else {
-        notify('❌ Тебя вышибли! Паркуйся быстрее!');
-        setTimeout(() => setInGamePhase('playing'), 3000);
-      }
+      // Читаем extraLives через functional update, чтобы избежать stale closure (особенно на iOS Safari)
+      setPlayer(prev => {
+        const lives = prev.extraLives ?? 0;
+        const updatedCars = prev.cars.map((c, i) => i === prev.selectedCar ? { ...c, hp: Math.round(playerHp), maxHp: playerMaxHp } : c);
+
+        if (lives > 0) {
+          // Откладываем показ оффера чуть позже — после завершения этого render-цикла
+          setTimeout(() => {
+            setExtraLifeOffer(true);
+            const timeout = setTimeout(() => {
+              setExtraLifeOffer(false);
+              resumeGameRef.current = null;
+              setTimeout(() => setInGamePhase('playing'), 500);
+            }, 8000);
+            resumeGameRef.current = () => {
+              clearTimeout(timeout);
+              setExtraLifeOffer(false);
+              resumeGameRef.current = null;
+              setPlayer(prev2 => ({
+                ...prev2,
+                extraLives: Math.max(0, (prev2.extraLives ?? 0) - 1),
+                cars: prev2.cars.map((c, i) => i === prev2.selectedCar ? { ...c, hp: Math.round(c.maxHp * 0.5) } : c),
+              }));
+              notify('❤️ Вторая жизнь! +50% HP — продолжай!');
+              setTimeout(() => setInGamePhase('playing'), 300);
+            };
+          }, 0);
+        } else {
+          notify('❌ Тебя вышибли! Паркуйся быстрее!');
+          setTimeout(() => setInGamePhase('playing'), 3000);
+        }
+
+        return { ...prev, cars: updatedCars };
+      });
     } else {
+      setPlayer(prev => ({
+        ...prev,
+        cars: prev.cars.map((c, i) => i === prev.selectedCar ? { ...c, hp: Math.round(playerHp), maxHp: playerMaxHp } : c),
+      }));
       setTimeout(() => setInGamePhase('playing'), 3000);
     }
-  }, [notify, setPlayer, player.extraLives]);
+  }, [notify, setPlayer]);
 
   const useExtraLife = useCallback(() => {
     resumeGameRef.current?.();
