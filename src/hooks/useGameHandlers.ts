@@ -94,12 +94,14 @@ export function useGameHandlers({ player, setPlayer, roomState, setScreen, notif
     const roomPlayerIds = roomStateRef.current?.players.map(p => p.player_id) ?? [];
     const friendBonus = friends.length > 0 && hasFriendInRoom(roomPlayerIds, friends);
 
-    // Экономика: топ-1 ~400-450 монет, топ-10 ~50 монет
-    // Бонус за раунды: +10 монет за каждый раунд выживания (с раунда 2)
+    // Экономика: топ-1 ~400 монет, топ-5 ~100, топ-10 ~0-15
+    // Бонус за раунды: +8 монет за каждый раунд выживания (с раунда 2)
     const rounds = roundsPlayed ?? 0;
-    const roundBonus = Math.max(0, rounds - 1) * 10;
-    const baseCoins = Math.max(50, (11 - position) * 40 + Math.floor(Math.random() * 60)) + roundBonus;
-    const baseXp = Math.max(15, (11 - position) * 25 + (position === 1 ? 75 : 0));
+    const roundBonus = Math.max(0, rounds - 1) * 8;
+    // Места 1-6 получают монеты, 7-10 — почти ничего
+    const positionCoins = position <= 6 ? (7 - position) * 55 + Math.floor(Math.random() * 40) : Math.floor(Math.random() * 15);
+    const baseCoins = positionCoins + roundBonus;
+    const baseXp = position <= 6 ? Math.max(10, (7 - position) * 30 + (position === 1 ? 80 : 0)) : Math.max(5, (11 - position) * 5);
 
     // Читаем буст-сессии из свежего состояния через snapshot (не из замыкания)
     const playerSnapshot = player;

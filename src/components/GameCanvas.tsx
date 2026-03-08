@@ -51,8 +51,10 @@ export default function GameCanvas({
       if (playerCar) {
         playerCar.eliminated = false;
         stateRef.current.eliminatedThisRound = null;
-        // Сбрасываем таймер roundEnd чтобы не срабатывал onGameEnd после оживления
-        stateRef.current.roundEndTimer = 99;
+        // Флаг для game loop — сразу переходить к следующему раунду, не вызывать onGameEnd
+        stateRef.current.reviveAndContinue = true;
+        // roundEndTimer = 0 — loop сразу обработает переход
+        stateRef.current.roundEndTimer = 0;
       }
     });
   }, [onReviveReady]);

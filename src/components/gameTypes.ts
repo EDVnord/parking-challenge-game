@@ -56,6 +56,7 @@ export interface GameState {
   playerTurbo: boolean;
   playerShield: boolean;
   shieldUsed: boolean;
+  reviveAndContinue?: boolean;
 }
 
 export interface Upgrades {

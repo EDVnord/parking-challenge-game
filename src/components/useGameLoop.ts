@@ -258,8 +258,10 @@ export function useGameLoop({
         if (state.roundEndTimer <= 0) {
           const activeCars = state.cars.filter(c => !c.eliminated);
           const playerStillAlive = activeCars.some(c => c.isPlayer);
+          const wasRevived = state.reviveAndContinue;
+          state.reviveAndContinue = false;
 
-          if (!playerStillAlive) {
+          if (!playerStillAlive && !wasRevived) {
             const totalCars = state.cars.length;
             const eliminatedBefore = state.cars.filter(c => c.eliminated && !c.isPlayer).length;
             const position = totalCars - eliminatedBefore;
