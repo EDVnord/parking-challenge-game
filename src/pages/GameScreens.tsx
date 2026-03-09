@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import GameCanvas from '@/components/GameCanvas';
 import { setAudioMuted } from '@/components/gameAudio';
 import Icon from '@/components/ui/icon';
-import { PlayerData, Screen, DailyQuest, WeeklyQuest, RoomState, todayDateStr, weeklyDateStr, xpForLevel, showInterstitialAd } from './parkingTypes';
+import { PlayerData, Screen, DailyQuest, WeeklyQuest, RoomState, todayDateStr, weeklyDateStr, xpForLevel, showInterstitialAd, showRewardedAd, isYandexGamesEnv } from './parkingTypes';
 import { t } from '@/i18n';
 import { PrivacyPolicyModal } from './LoginScreen';
 import { CoinIcon, GemIcon } from '@/components/ui/CoinIcon';
@@ -414,14 +414,18 @@ interface GameOverScreenProps {
   player: PlayerData;
   onRestart: () => void;
   onMenu: () => void;
+  onRewardCoins?: (amount: number) => void;
 }
 
-export function GameOverScreen({ gameResult, player, onRestart, onMenu }: GameOverScreenProps) {
+export function GameOverScreen({ gameResult, player, onRestart, onMenu, onRewardCoins }: GameOverScreenProps) {
   const position = gameResult?.position ?? 0;
   const coinsEarned = gameResult?.coinsEarned ?? 0;
   const isWin = position === 1;
+  const inYa = isYandexGamesEnv();
+  const [rewardLoading, setRewardLoading] = useState(false);
+  const [rewardUsed, setRewardUsed] = useState(false);
 
-  // Показываем межстраничную рекламу Яндекс при завершении игры (не при победе)
+  // Межстраничная реклама при завершении (не при победе)
   useEffect(() => {
     if (gameResult && !isWin) {
       showInterstitialAd();
@@ -429,9 +433,22 @@ export function GameOverScreen({ gameResult, player, onRestart, onMenu }: GameOv
   }, [gameResult, isWin]);
 
   if (!gameResult) return null;
+
   const coinBoost = (player.coinBoostSessions ?? 0) > 0;
   const xpBoost = (player.xpBoostGames ?? 0) > 0;
   const extraLives = player.extraLives ?? 0;
+
+  const handleRewardedAd = async () => {
+    if (rewardLoading || rewardUsed) return;
+    setRewardLoading(true);
+    const rewarded = await showRewardedAd();
+    setRewardLoading(false);
+    if (rewarded) {
+      setRewardUsed(true);
+      onRewardCoins?.(100);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="card-game-solid p-8 flex flex-col items-center gap-5 w-full max-w-sm animate-bounce-in">
@@ -454,6 +471,25 @@ export function GameOverScreen({ gameResult, player, onRestart, onMenu }: GameOv
             <span className="font-russo text-yellow-400">+{coinsEarned} <CoinIcon size={14} /></span>
           </div>
         </div>
+
+        {/* Реклама за вознаграждение */}
+        {inYa && !isWin && !rewardUsed && (
+          <button
+            className="w-full bg-green-500/15 border border-green-500/40 hover:bg-green-500/25 rounded-2xl px-4 py-3 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+            onClick={handleRewardedAd}
+            disabled={rewardLoading}
+          >
+            <span className="font-russo text-green-400 text-sm">
+              {rewardLoading ? t('rewarded_loading') : t('rewarded_btn')}
+            </span>
+          </button>
+        )}
+        {rewardUsed && (
+          <div className="w-full bg-green-500/10 border border-green-500/20 rounded-2xl px-4 py-2 text-center">
+            <span className="font-russo text-green-400 text-sm">{t('rewarded_ok')}</span>
+          </div>
+        )}
+
         {/* Активные расходники */}
         {(coinBoost || xpBoost || extraLives > 0) && (
           <div className="w-full bg-white/5 rounded-2xl p-3 flex flex-col gap-1.5">

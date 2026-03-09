@@ -211,7 +211,13 @@ export default function Index() {
       )}
 
       {screen === 'gameOver' && (
-        <GameOverScreen gameResult={gameResult} player={player} onRestart={handlePlay} onMenu={() => setScreen('menu')} />
+        <GameOverScreen
+          gameResult={gameResult}
+          player={player}
+          onRestart={handlePlay}
+          onMenu={() => setScreen('menu')}
+          onRewardCoins={amount => setPlayer(prev => ({ ...prev, coins: prev.coins + amount }))}
+        />
       )}
 
       {screen === 'garage' && (

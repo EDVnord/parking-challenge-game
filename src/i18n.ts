@@ -262,6 +262,12 @@ const translations: Record<string, Record<Lang, string>> = {
   'notify_hp_upgraded':    { ru: '+{val} HP к прочности!', en: '+{val} HP to durability!' },
   'notify_armor_upgraded': { ru: '+{val} к броне!', en: '+{val} to armor!' },
   'notify_speed_upgraded': { ru: '+{val} к скорости!', en: '+{val} to speed!' },
+
+  // Rewarded ad
+  'rewarded_btn':    { ru: '📺 Реклама +100 монет', en: '📺 Watch ad +100 coins' },
+  'rewarded_ok':     { ru: '✅ +100 монет за рекламу!', en: '✅ +100 coins for watching!' },
+  'rewarded_skip':   { ru: 'Реклама недоступна', en: 'Ad not available' },
+  'rewarded_loading': { ru: '⏳ Загрузка...', en: '⏳ Loading...' },
 };
 
 let _lang: Lang = 'ru';
