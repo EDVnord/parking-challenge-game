@@ -223,7 +223,7 @@ export default function Index() {
       )}
 
       {screen === 'profile' && (
-        <ProfileScreen player={player} setScreen={setScreen} setPlayer={setPlayer} notify={notify} />
+        <ProfileScreen player={player} setScreen={setScreen} setPlayer={setPlayer} notify={notify} localPlayerId={localPlayerId} />
       )}
 
       {screen === 'leaderboard' && (

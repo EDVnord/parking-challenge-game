@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import GameCanvas from '@/components/GameCanvas';
 import { setAudioMuted } from '@/components/gameAudio';
 import Icon from '@/components/ui/icon';
-import { PlayerData, Screen, DailyQuest, WeeklyQuest, RoomState, todayDateStr, weeklyDateStr, xpForLevel } from './parkingTypes';
+import { PlayerData, Screen, DailyQuest, WeeklyQuest, RoomState, todayDateStr, weeklyDateStr, xpForLevel, showInterstitialAd } from './parkingTypes';
 import { t } from '@/i18n';
 import { PrivacyPolicyModal } from './LoginScreen';
 import { CoinIcon, GemIcon } from '@/components/ui/CoinIcon';
@@ -417,9 +417,18 @@ interface GameOverScreenProps {
 }
 
 export function GameOverScreen({ gameResult, player, onRestart, onMenu }: GameOverScreenProps) {
-  if (!gameResult) return null;
-  const { position, coinsEarned } = gameResult;
+  const position = gameResult?.position ?? 0;
+  const coinsEarned = gameResult?.coinsEarned ?? 0;
   const isWin = position === 1;
+
+  // Показываем межстраничную рекламу Яндекс при завершении игры (не при победе)
+  useEffect(() => {
+    if (gameResult && !isWin) {
+      showInterstitialAd();
+    }
+  }, [gameResult, isWin]);
+
+  if (!gameResult) return null;
   const coinBoost = (player.coinBoostSessions ?? 0) > 0;
   const xpBoost = (player.xpBoostGames ?? 0) > 0;
   const extraLives = player.extraLives ?? 0;

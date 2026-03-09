@@ -85,10 +85,10 @@ export function ShopScreen({ player, setScreen, setPlayer, notify }: ShopScreenP
 
   // productId должен совпадать с ID продукта в кабинете разработчика Яндекс Игр
   const gemPacks: { id: string; gems: number; price: string; currencyImg?: string; bonus?: string; popular?: boolean }[] = [
-    { id: 'gems_100',  gems: 100,  price: sdkCatalog['gems_100']?.price  ?? '79 ₽',  currencyImg: sdkCatalog['gems_100']?.currencyImageUrl },
-    { id: 'gems_300',  gems: 300,  price: sdkCatalog['gems_300']?.price  ?? '199 ₽', currencyImg: sdkCatalog['gems_300']?.currencyImageUrl, bonus: `+50 ${t('bonus_label')}`,  popular: true },
-    { id: 'gems_700',  gems: 700,  price: sdkCatalog['gems_700']?.price  ?? '399 ₽', currencyImg: sdkCatalog['gems_700']?.currencyImageUrl, bonus: `+150 ${t('bonus_label')}` },
-    { id: 'gems_1500', gems: 1500, price: sdkCatalog['gems_1500']?.price ?? '799 ₽', currencyImg: sdkCatalog['gems_1500']?.currencyImageUrl, bonus: `+500 ${t('bonus_label')}` },
+    { id: 'gems_100',  gems: 100,  price: sdkCatalog['gems_100']?.price  ?? '—', currencyImg: sdkCatalog['gems_100']?.currencyImageUrl },
+    { id: 'gems_300',  gems: 300,  price: sdkCatalog['gems_300']?.price  ?? '—', currencyImg: sdkCatalog['gems_300']?.currencyImageUrl, bonus: `+50 ${t('bonus_label')}`,  popular: true },
+    { id: 'gems_700',  gems: 700,  price: sdkCatalog['gems_700']?.price  ?? '—', currencyImg: sdkCatalog['gems_700']?.currencyImageUrl, bonus: `+150 ${t('bonus_label')}` },
+    { id: 'gems_1500', gems: 1500, price: sdkCatalog['gems_1500']?.price ?? '—', currencyImg: sdkCatalog['gems_1500']?.currencyImageUrl, bonus: `+500 ${t('bonus_label')}` },
   ];
 
   const handleBuyGems = async (pack: typeof gemPacks[0]) => {

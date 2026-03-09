@@ -19,12 +19,8 @@ async function prefetchFriendCode(localPlayerId: string) {
       body: JSON.stringify({ action: 'list', ...ids }),
     });
     const data = await res.json();
-    if (data.myCode) {
-      localStorage.setItem('parking_my_friend_code', data.myCode);
-    }
-    if (data.friends) {
-      localStorage.setItem('parking_friends_cache_v2', JSON.stringify(data.friends));
-    }
+    if (data.myCode) localStorage.setItem('parking_my_friend_code', data.myCode);
+    if (data.friends) localStorage.setItem('parking_friends_cache_v2', JSON.stringify(data.friends));
   } catch { /* ignore */ }
 }
 
@@ -35,7 +31,8 @@ export function usePlayerAuth(notify: (msg: string) => void) {
   const [needNickname, setNeedNickname] = useState(false);
   const [dailyBonus, setDailyBonus] = useState<{ streak: number; coins: number; gems: number } | null>(null);
   const autoLoginDone = useRef(false);
-  const initialLoadDone = useRef(false);
+  // Используем state вместо ref чтобы эффект автосохранения корректно срабатывал
+  const [serverLoadDone, setServerLoadDone] = useState(false);
 
   const checkDailyBonus = useCallback((p: PlayerData): PlayerData => {
     const today = todayDateStr();
@@ -61,7 +58,7 @@ export function usePlayerAuth(notify: (msg: string) => void) {
   useEffect(() => {
     if (autoLoginDone.current) return;
     autoLoginDone.current = true;
-    const fallback = setTimeout(() => setIsLoading(false), 5000);
+    const fallback = setTimeout(() => { setIsLoading(false); setServerLoadDone(true); }, 5000);
 
     (async () => {
       try {
@@ -72,7 +69,7 @@ export function usePlayerAuth(notify: (msg: string) => void) {
         let base: PlayerData;
 
         if (ya) {
-          // Пытаемся загрузить профиль из БД по ya_id
+          // Загружаем профиль из БД по ya_id — сервер авторитетен
           let serverProfile: PlayerData | null = null;
           try {
             const resp = await apiAuth('load_ya', { yaId: ya.id });
@@ -82,9 +79,16 @@ export function usePlayerAuth(notify: (msg: string) => void) {
           } catch { /* ignore */ }
 
           if (serverProfile) {
-            // Server is authoritative — take server data, only fall back to local cars if server has none
-            base = { ...serverProfile, cars: serverProfile.cars?.length ? serverProfile.cars : (saved?.cars ?? serverProfile.cars) };
+            // Сервер авторитетен. Берём данные сервера полностью.
+            // Машины берём с сервера если есть, иначе локальные как fallback
+            base = {
+              ...serverProfile,
+              cars: (serverProfile.cars && serverProfile.cars.length > 0)
+                ? serverProfile.cars
+                : (saved?.cars ?? serverProfile.cars),
+            };
           } else {
+            // Нет профиля на сервере — используем локальный или создаём новый
             base = (saved && saved.name) ? saved : {
               ...DEFAULT_PLAYER,
               name: (ya.name && ya.name.length >= 2 && ya.name.length <= 16) ? ya.name : 'Игрок',
@@ -93,19 +97,16 @@ export function usePlayerAuth(notify: (msg: string) => void) {
           setLocalPlayerId(ya.id);
           prefetchFriendCode(ya.id);
         } else if (saved && saved.name) {
-          // Пробуем подгрузить актуальные данные с сервера по anon_id
+          // Анонимный пользователь — загружаем с сервера по anon_id
           try {
             const anonId = getOrCreateAnonId();
             const resp = await apiAuth('load_anon', { playerId: anonId });
             if (resp.profile) {
-              // Take server data if it is more progressed (higher combined xp + coins)
               const serverScore = (resp.profile.xp ?? 0) + (resp.profile.coins ?? 0);
               const localScore = (saved.xp ?? 0) + (saved.coins ?? 0);
-              if (serverScore >= localScore) {
-                base = { ...DEFAULT_PLAYER, ...saved, ...resp.profile, password: '' } as PlayerData;
-              } else {
-                base = saved;
-              }
+              base = serverScore >= localScore
+                ? ({ ...DEFAULT_PLAYER, ...saved, ...resp.profile, password: '' } as PlayerData)
+                : saved;
             } else {
               base = saved;
             }
@@ -118,7 +119,7 @@ export function usePlayerAuth(notify: (msg: string) => void) {
           setNeedNickname(true);
         }
 
-        // Проверяем незавершённые покупки при старте (требование Яндекса)
+        // Проверяем незавершённые покупки (требование Яндекса)
         const restored = await restoreGemPurchases();
         if (restored.restored > 0) {
           base = { ...base, gems: base.gems + restored.restored };
@@ -128,7 +129,6 @@ export function usePlayerAuth(notify: (msg: string) => void) {
         const withBonus = checkDailyBonus(base);
         setPlayer(withBonus);
         saveProfile(withBonus);
-        setTimeout(() => { initialLoadDone.current = true; }, 100);
       } catch {
         const saved = loadProfile();
         if (saved && saved.name) {
@@ -136,18 +136,18 @@ export function usePlayerAuth(notify: (msg: string) => void) {
           setPlayer(withBonus);
           saveProfile(withBonus);
         }
-        setTimeout(() => { initialLoadDone.current = true; }, 100);
       } finally {
         clearTimeout(fallback);
         setIsLoading(false);
+        setServerLoadDone(true);
         notifyGameReady();
       }
     })();
   }, [checkDailyBonus]);
 
-  // Автосохранение
+  // Автосохранение — только после завершения первоначальной загрузки с сервера
   useEffect(() => {
-    if (!initialLoadDone.current) return;  // Skip saves until initial load is complete
+    if (!serverLoadDone) return;
     if (!player.name) return;
     saveProfile(player);
     if (player.password) {
@@ -157,9 +157,8 @@ export function usePlayerAuth(notify: (msg: string) => void) {
     } else if (player.name && player.name !== 'Игрок') {
       apiAuth('save_anon', { playerId: getOrCreateAnonId(), profile: profileToSavePayload(player) }).catch(() => {});
     }
-  }, [player, localPlayerId]);
+  }, [player, localPlayerId, serverLoadDone]);
 
-  // Проверка ника перед игрой — возвращает pid и displayName или null если нужен ник
   const resolvePlayer = useCallback(async (): Promise<{ pid: string; displayName: string } | null> => {
     let pid = localPlayerId;
     let displayName = player.name;

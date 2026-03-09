@@ -10,6 +10,7 @@ interface ProfileScreenProps {
   setScreen: (s: Screen) => void;
   setPlayer: React.Dispatch<React.SetStateAction<PlayerData>>;
   notify: (msg: string) => void;
+  localPlayerId?: string;
 }
 
 const CLAIMABLE_ACH_KEY = 'parking_ach_claimed_v2';
@@ -27,36 +28,87 @@ export interface AchDef {
   check: (p: PlayerData) => boolean;
 }
 
-export const ALL_ACHIEVEMENTS: AchDef[] = [
-  { id: 'play_1',    emoji: '🎮', title: 'Первый старт',      desc: 'Сыграй 1 игру',         category: 'Игры',    reward: { coins: 100 },          check: p => p.gamesPlayed >= 1 },
-  { id: 'play_10',   emoji: '🕹️', title: 'Втянулся',          desc: 'Сыграй 10 игр',         category: 'Игры',    reward: { coins: 300 },          check: p => p.gamesPlayed >= 10 },
-  { id: 'play_50',   emoji: '🏁', title: 'Ветеран парковки',  desc: 'Сыграй 50 игр',         category: 'Игры',    reward: { coins: 800, gems: 3 }, check: p => p.gamesPlayed >= 50 },
-  { id: 'play_100',  emoji: '💯', title: 'Сотня!',            desc: 'Сыграй 100 игр',        category: 'Игры',    reward: { coins: 1500, gems: 5 },check: p => p.gamesPlayed >= 100 },
-  { id: 'play_250',  emoji: '🌟', title: 'Легенда дороги',   desc: 'Сыграй 250 игр',        category: 'Игры',    reward: { coins: 3000, gems: 10},check: p => p.gamesPlayed >= 250 },
-  { id: 'win_1',     emoji: '🥇', title: 'Первая победа',     desc: 'Выиграй 1 раз',         category: 'Победы',  reward: { coins: 200 },          check: p => p.wins >= 1 },
-  { id: 'win_5',     emoji: '🏆', title: 'Чемпион',           desc: 'Выиграй 5 раз',         category: 'Победы',  reward: { coins: 500, gems: 2 }, check: p => p.wins >= 5 },
-  { id: 'win_20',    emoji: '👑', title: 'Король парковки',   desc: 'Выиграй 20 раз',        category: 'Победы',  reward: { coins: 1200, gems: 5 },check: p => p.wins >= 20 },
-  { id: 'win_50',    emoji: '🌠', title: 'Непобедимый',       desc: 'Выиграй 50 раз',        category: 'Победы',  reward: { coins: 3000, gems: 15},check: p => p.wins >= 50 },
-  { id: 'top3',      emoji: '🥉', title: 'Призёр',            desc: 'Финишируй в топ-3',     category: 'Скиллы',  reward: { coins: 150 },          check: p => p.bestPosition !== 99 && p.bestPosition <= 3 },
-  { id: 'best_pos2', emoji: '🥈', title: 'Почти чемпион',     desc: 'Финишируй вторым',      category: 'Скиллы',  reward: { coins: 250 },          check: p => p.bestPosition !== 99 && p.bestPosition <= 2 },
-  { id: 'coins_1k',  emoji: '💵', title: 'Первая тысяча',     desc: 'Накопи 1 000 монет',    category: 'Богатство',reward: { coins: 100 },          check: p => p.coins >= 1000 },
-  { id: 'coins_5k',  emoji: '💰', title: 'Богач',             desc: 'Накопи 5 000 монет',    category: 'Богатство',reward: { coins: 300, gems: 1 }, check: p => p.coins >= 5000 },
-  { id: 'coins_20k', emoji: '🤑', title: 'Миллионщик',        desc: 'Накопи 20 000 монет',   category: 'Богатство',reward: { coins: 500, gems: 3 }, check: p => p.coins >= 20000 },
-  { id: 'gems_10',   emoji: '💎', title: 'Самоцветы',         desc: 'Накопи 10 кристаллов',  category: 'Богатство',reward: { coins: 200 },          check: p => p.gems >= 10 },
-  { id: 'gems_50',   emoji: '💠', title: 'Алмазный игрок',   desc: 'Накопи 50 кристаллов',  category: 'Богатство',reward: { coins: 500, gems: 5 }, check: p => p.gems >= 50 },
-  { id: 'cars_2',    emoji: '🚙', title: 'Второй ключ',       desc: 'Купи 2 машины',         category: 'Гараж',   reward: { coins: 200 },          check: p => p.cars.filter(c => c.owned).length >= 2 },
-  { id: 'cars_3',    emoji: '🚗', title: 'Коллекционер',      desc: 'Купи 3 машины',         category: 'Гараж',   reward: { coins: 400, gems: 1 }, check: p => p.cars.filter(c => c.owned).length >= 3 },
-  { id: 'cars_5',    emoji: '🏎️', title: 'Автопарк',         desc: 'Купи 5 машин',          category: 'Гараж',   reward: { coins: 800, gems: 3 }, check: p => p.cars.filter(c => c.owned).length >= 5 },
-  { id: 'cars_all',  emoji: '🚀', title: 'Всё своё!',         desc: 'Купи все машины',       category: 'Гараж',   reward: { coins: 2000, gems: 10},check: p => p.cars.every(c => c.owned) },
-  { id: 'legendary', emoji: '⭐', title: 'Легендарная сила',  desc: 'Купи легендарную машину',category: 'Гараж',  reward: { coins: 500, gems: 2 }, check: p => p.cars.some(c => c.owned && c.rarity === 'legendary') },
-  { id: 'lvl_5',     emoji: '📈', title: 'Набираю обороты',   desc: 'Достигни 5 уровня',     category: 'Уровни',  reward: { coins: 300 },          check: p => p.level >= 5 },
-  { id: 'lvl_10',    emoji: '🔟', title: 'Десятка',           desc: 'Достигни 10 уровня',    category: 'Уровни',  reward: { coins: 600, gems: 2 }, check: p => p.level >= 10 },
-  { id: 'lvl_20',    emoji: '🚀', title: 'Элита',             desc: 'Достигни 20 уровня',    category: 'Уровни',  reward: { coins: 1500, gems: 5 },check: p => p.level >= 20 },
-  { id: 'streak_3',  emoji: '🔥', title: 'Три огня',          desc: 'Зайди 3 дня подряд',    category: 'Серия',   reward: { coins: 150 },          check: p => (p.loginStreak ?? 0) >= 3 },
-  { id: 'streak_7',  emoji: '📅', title: 'Неделя',            desc: 'Зайди 7 дней подряд',   category: 'Серия',   reward: { coins: 400, gems: 2 }, check: p => (p.loginStreak ?? 0) >= 7 },
-  { id: 'streak_14', emoji: '🗓️', title: 'Две недели',        desc: 'Зайди 14 дней подряд', category: 'Серия',   reward: { coins: 800, gems: 5 }, check: p => (p.loginStreak ?? 0) >= 14 },
-  { id: 'streak_30', emoji: '👑', title: 'Целый месяц!',      desc: 'Зайди 30 дней подряд',  category: 'Серия',   reward: { coins: 1500, gems: 20},check: p => (p.loginStreak ?? 0) >= 30 },
+const ACH_STATIC: Omit<AchDef, 'title' | 'desc' | 'category'>[] = [
+  { id: 'play_1',    emoji: '🎮', reward: { coins: 100 },           check: p => p.gamesPlayed >= 1 },
+  { id: 'play_10',   emoji: '🕹️', reward: { coins: 300 },           check: p => p.gamesPlayed >= 10 },
+  { id: 'play_50',   emoji: '🏁', reward: { coins: 800, gems: 3 },  check: p => p.gamesPlayed >= 50 },
+  { id: 'play_100',  emoji: '💯', reward: { coins: 1500, gems: 5 }, check: p => p.gamesPlayed >= 100 },
+  { id: 'play_250',  emoji: '🌟', reward: { coins: 3000, gems: 10}, check: p => p.gamesPlayed >= 250 },
+  { id: 'win_1',     emoji: '🥇', reward: { coins: 200 },           check: p => p.wins >= 1 },
+  { id: 'win_5',     emoji: '🏆', reward: { coins: 500, gems: 2 },  check: p => p.wins >= 5 },
+  { id: 'win_20',    emoji: '👑', reward: { coins: 1200, gems: 5 }, check: p => p.wins >= 20 },
+  { id: 'win_50',    emoji: '🌠', reward: { coins: 3000, gems: 15}, check: p => p.wins >= 50 },
+  { id: 'top3',      emoji: '🥉', reward: { coins: 150 },           check: p => p.bestPosition !== 99 && p.bestPosition <= 3 },
+  { id: 'best_pos2', emoji: '🥈', reward: { coins: 250 },           check: p => p.bestPosition !== 99 && p.bestPosition <= 2 },
+  { id: 'coins_1k',  emoji: '💵', reward: { coins: 100 },           check: p => p.coins >= 1000 },
+  { id: 'coins_5k',  emoji: '💰', reward: { coins: 300, gems: 1 },  check: p => p.coins >= 5000 },
+  { id: 'coins_20k', emoji: '🤑', reward: { coins: 500, gems: 3 },  check: p => p.coins >= 20000 },
+  { id: 'gems_10',   emoji: '💎', reward: { coins: 200 },           check: p => p.gems >= 10 },
+  { id: 'gems_50',   emoji: '💠', reward: { coins: 500, gems: 5 },  check: p => p.gems >= 50 },
+  { id: 'cars_2',    emoji: '🚙', reward: { coins: 200 },           check: p => p.cars.filter(c => c.owned).length >= 2 },
+  { id: 'cars_3',    emoji: '🚗', reward: { coins: 400, gems: 1 },  check: p => p.cars.filter(c => c.owned).length >= 3 },
+  { id: 'cars_5',    emoji: '🏎️', reward: { coins: 800, gems: 3 },  check: p => p.cars.filter(c => c.owned).length >= 5 },
+  { id: 'cars_all',  emoji: '🚀', reward: { coins: 2000, gems: 10}, check: p => p.cars.every(c => c.owned) },
+  { id: 'legendary', emoji: '⭐', reward: { coins: 500, gems: 2 },  check: p => p.cars.some(c => c.owned && c.rarity === 'legendary') },
+  { id: 'lvl_5',     emoji: '📈', reward: { coins: 300 },           check: p => p.level >= 5 },
+  { id: 'lvl_10',    emoji: '🔟', reward: { coins: 600, gems: 2 },  check: p => p.level >= 10 },
+  { id: 'lvl_20',    emoji: '🚀', reward: { coins: 1500, gems: 5 }, check: p => p.level >= 20 },
+  { id: 'streak_3',  emoji: '🔥', reward: { coins: 150 },           check: p => (p.loginStreak ?? 0) >= 3 },
+  { id: 'streak_7',  emoji: '📅', reward: { coins: 400, gems: 2 },  check: p => (p.loginStreak ?? 0) >= 7 },
+  { id: 'streak_14', emoji: '🗓️', reward: { coins: 800, gems: 5 },  check: p => (p.loginStreak ?? 0) >= 14 },
+  { id: 'streak_30', emoji: '👑', reward: { coins: 1500, gems: 20}, check: p => (p.loginStreak ?? 0) >= 30 },
 ];
+
+// Маппинг id → ключи переводов и категории
+const ACH_KEYS: Record<string, { titleKey: string; descKey: string; catKey: string }> = {
+  play_1:    { titleKey: 'ach_play_1_title',    descKey: 'ach_play_1_desc',    catKey: 'cat_games' },
+  play_10:   { titleKey: 'ach_play_10_title',   descKey: 'ach_play_10_desc',   catKey: 'cat_games' },
+  play_50:   { titleKey: 'ach_play_50_title',   descKey: 'ach_play_50_desc',   catKey: 'cat_games' },
+  play_100:  { titleKey: 'ach_play_100_title',  descKey: 'ach_play_100_desc',  catKey: 'cat_games' },
+  play_250:  { titleKey: 'ach_play_500_title',  descKey: 'ach_play_500_desc',  catKey: 'cat_games' },
+  win_1:     { titleKey: 'ach_win_1_title',     descKey: 'ach_win_1_desc',     catKey: 'cat_wins' },
+  win_5:     { titleKey: 'ach_win_10_title',    descKey: 'ach_win_10_desc',    catKey: 'cat_wins' },
+  win_20:    { titleKey: 'ach_win_10_title',    descKey: 'ach_win_10_desc',    catKey: 'cat_wins' },
+  win_50:    { titleKey: 'ach_win_50_title',    descKey: 'ach_win_50_desc',    catKey: 'cat_wins' },
+  top3:      { titleKey: 'ach_top3_title',      descKey: 'ach_top3_desc',      catKey: 'cat_skills' },
+  best_pos2: { titleKey: 'ach_top3_5_title',    descKey: 'ach_top3_5_desc',    catKey: 'cat_skills' },
+  coins_1k:  { titleKey: 'ach_coins_1k_title',  descKey: 'ach_coins_1k_desc',  catKey: 'cat_wealth' },
+  coins_5k:  { titleKey: 'ach_coins_10k_title', descKey: 'ach_coins_10k_desc', catKey: 'cat_wealth' },
+  coins_20k: { titleKey: 'ach_coins_10k_title', descKey: 'ach_coins_10k_desc', catKey: 'cat_wealth' },
+  gems_10:   { titleKey: 'ach_coins_1k_title',  descKey: 'ach_coins_1k_desc',  catKey: 'cat_wealth' },
+  gems_50:   { titleKey: 'ach_coins_10k_title', descKey: 'ach_coins_10k_desc', catKey: 'cat_wealth' },
+  cars_2:    { titleKey: 'ach_car2_title',      descKey: 'ach_car2_desc',      catKey: 'cat_garage' },
+  cars_3:    { titleKey: 'ach_car2_title',      descKey: 'ach_car2_desc',      catKey: 'cat_garage' },
+  cars_5:    { titleKey: 'ach_car5_title',      descKey: 'ach_car5_desc',      catKey: 'cat_garage' },
+  cars_all:  { titleKey: 'ach_car5_title',      descKey: 'ach_car5_desc',      catKey: 'cat_garage' },
+  legendary: { titleKey: 'ach_car5_title',      descKey: 'ach_car5_desc',      catKey: 'cat_garage' },
+  lvl_5:     { titleKey: 'ach_level5_title',    descKey: 'ach_level5_desc',    catKey: 'cat_levels' },
+  lvl_10:    { titleKey: 'ach_level10_title',   descKey: 'ach_level10_desc',   catKey: 'cat_levels' },
+  lvl_20:    { titleKey: 'ach_level20_title',   descKey: 'ach_level20_desc',   catKey: 'cat_levels' },
+  streak_3:  { titleKey: 'ach_streak3_title',   descKey: 'ach_streak3_desc',   catKey: 'cat_streak' },
+  streak_7:  { titleKey: 'ach_streak7_title',   descKey: 'ach_streak7_desc',   catKey: 'cat_streak' },
+  streak_14: { titleKey: 'ach_streak7_title',   descKey: 'ach_streak7_desc',   catKey: 'cat_streak' },
+  streak_30: { titleKey: 'ach_streak7_title',   descKey: 'ach_streak7_desc',   catKey: 'cat_streak' },
+};
+
+export function getAchievements(): AchDef[] {
+  return ACH_STATIC.map(a => {
+    const keys = ACH_KEYS[a.id];
+    return {
+      ...a,
+      title: keys ? t(keys.titleKey) : a.id,
+      desc: keys ? t(keys.descKey) : '',
+      category: keys ? t(keys.catKey) : '',
+    };
+  });
+}
+
+export const ALL_ACHIEVEMENTS: AchDef[] = ACH_STATIC.map(a => ({
+  ...a,
+  get title() { return ACH_KEYS[a.id] ? t(ACH_KEYS[a.id].titleKey) : a.id; },
+  get desc()  { return ACH_KEYS[a.id] ? t(ACH_KEYS[a.id].descKey)  : ''; },
+  get category() { return ACH_KEYS[a.id] ? t(ACH_KEYS[a.id].catKey) : ''; },
+}));
 
 const GEM_PACK_LABELS: Record<string, string> = {
   gems_100: '100',
@@ -72,7 +124,7 @@ function formatDate(iso: string): string {
   } catch { return iso; }
 }
 
-export function ProfileScreen({ player, setScreen, setPlayer, notify }: ProfileScreenProps) {
+export function ProfileScreen({ player, setScreen, setPlayer, notify, localPlayerId = '' }: ProfileScreenProps) {
   const xpInLevel = player.xp % xpForLevel(player.level);
   const xpNeeded = xpForLevel(player.level);
   const claimedAchs = getClaimedAchs();
@@ -124,9 +176,9 @@ export function ProfileScreen({ player, setScreen, setPlayer, notify }: ProfileS
         <div className="text-3xl">🏅</div>
         <div className="flex-1 text-left">
           <div className="font-russo text-white text-sm">{t('achievements_btn')}</div>
-          <div className="font-nunito text-white/30 text-xs">{totalDone} из {ALL_ACHIEVEMENTS.length} выполнено</div>
+          <div className="font-nunito text-white/30 text-xs">{totalDone} {t('profile_ach_progress')} {ALL_ACHIEVEMENTS.length} {t('profile_ach_done')}</div>
         </div>
-        {hasClaimable && <span className="text-xs font-nunito text-yellow-300 animate-pulse mr-1">● Награды!</span>}
+        {hasClaimable && <span className="text-xs font-nunito text-yellow-300 animate-pulse mr-1">{t('profile_rewards')}</span>}
         <div className="text-white/30 text-sm">→</div>
       </button>
 
@@ -151,7 +203,7 @@ export function ProfileScreen({ player, setScreen, setPlayer, notify }: ProfileS
       )}
 
       <h3 className="font-russo text-white/40 text-xs uppercase tracking-wider">{t('friends_section')}</h3>
-      <FriendsPanel playerName={player.name} playerEmoji={player.emoji} notify={notify} />
+      <FriendsPanel playerName={player.name} playerEmoji={player.emoji} localPlayerId={localPlayerId} notify={notify} />
     </div>
   );
 }
