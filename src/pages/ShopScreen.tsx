@@ -352,9 +352,12 @@ export function ShopScreen({ player, setScreen, setPlayer, notify }: ShopScreenP
 
       {tab === 'gems' && (
         <div className="flex flex-col gap-3">
-          <div className="text-white/30 text-[10px] font-mono text-center">
+          <div className="text-white/30 text-[10px] font-mono text-center break-all">
             sdk:{inYa?'✓':'✗'} catalog:{Object.keys(sdkCatalog).length} loading:{catalogLoading?'…':'done'}
             {getCatalogError() ? <span className="text-red-400 ml-1">err:{getCatalogError()}</span> : null}
+            {Object.values(sdkCatalog)[0] && (
+              <span className="block">img:{Object.values(sdkCatalog)[0].currencyImageUrl || 'EMPTY'} code:{Object.values(sdkCatalog)[0].priceCurrencyCode}</span>
+            )}
           </div>
           {!inYa && (
             <div className="card-game p-3 text-center text-white/40 text-xs font-nunito border border-yellow-400/10">
