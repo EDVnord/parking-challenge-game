@@ -160,12 +160,10 @@ export function usePlayerAuth(notify: (msg: string) => void) {
                 : (saved?.cars ?? serverProfile.cars),
             };
           } else {
-            // ya-профиля нет на сервере — пробуем объединить с существующим профилем
+            // ya-профиля нет на сервере — пробуем слить только с anon_id (не по имени — иначе разные аккаунты смешаются)
             const anonId = localStorage.getItem('king_parking_anon_id');
-            const localName = saved?.name || '';
             let merged = false;
 
-            // 1. Пробуем слить anon-профиль → ya
             if (anonId) {
               try {
                 console.log('[Auth] No ya profile, trying to merge anon:', anonId, '→', ya.id);
@@ -178,25 +176,6 @@ export function usePlayerAuth(notify: (msg: string) => void) {
                 }
               } catch (e) {
                 console.log('[Auth] merge anon error:', e);
-              }
-            }
-
-            // 2. Если не слили — пробуем найти по имени из Яндекса или локального профиля
-            if (!merged && (ya.name || localName)) {
-              try {
-                const nameToSearch = ya.isAuthorized && ya.name ? ya.name : localName;
-                if (nameToSearch && nameToSearch.length >= 2) {
-                  console.log('[Auth] Trying merge by name:', nameToSearch, '→', ya.id);
-                  const mergeResp = await apiAuth('merge_ya_with_anon', { yaId: ya.id, anonId: anonId || '', searchName: nameToSearch });
-                  if (mergeResp.merged && mergeResp.profile) {
-                    console.log('[Auth] Merge by name success! Profile:', mergeResp.profile.name);
-                    serverProfile = { ...DEFAULT_PLAYER, ...mergeResp.profile, password: '' } as PlayerData;
-                    base = serverProfile;
-                    merged = true;
-                  }
-                }
-              } catch (e) {
-                console.log('[Auth] merge by name error:', e);
               }
             }
 

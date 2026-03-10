@@ -177,19 +177,6 @@ def auth_handler(body: dict):
                 'nicknameChanges': profile.get('nicknameChanges', 0),
             })
 
-            # Если ya-профиля нет — ищем по имени и привязываем ya_id автоматически
-            cur.execute(f'SELECT id FROM {SCHEMA}.players WHERE ya_id = %s LIMIT 1', (ya_id,))
-            if not cur.fetchone():
-                cur.execute(
-                    f"SELECT id FROM {SCHEMA}.players WHERE LOWER(name) = LOWER(%s) AND ya_id IS NULL LIMIT 1",
-                    (name,)
-                )
-                row = cur.fetchone()
-                if row:
-                    cur.execute(f'UPDATE {SCHEMA}.players SET ya_id = %s, anon_id = NULL, updated_at = NOW() WHERE id = %s', (ya_id, row[0]))
-                    conn.commit()
-                    return {'success': True}
-
             cur.execute(
                 f'''INSERT INTO {SCHEMA}.players
                     (ya_id, name, emoji, coins, gems, xp, wins, games_played,
@@ -324,14 +311,6 @@ def auth_handler(body: dict):
                 cur.execute(
                     f'SELECT id, coins, gems, xp, wins, games_played, best_position FROM {SCHEMA}.players WHERE anon_id = %s LIMIT 1',
                     (anon_id,)
-                )
-                anon_row = cur.fetchone()
-
-            # Если не нашли по anon_id — ищем по имени (без ya_id и без пароля)
-            if not anon_row and search_name:
-                cur.execute(
-                    f"SELECT id, coins, gems, xp, wins, games_played, best_position FROM {SCHEMA}.players WHERE LOWER(name) = LOWER(%s) AND ya_id IS NULL AND (password_hash = '' OR password_hash IS NULL) LIMIT 1",
-                    (search_name,)
                 )
                 anon_row = cur.fetchone()
 
