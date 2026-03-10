@@ -57,7 +57,7 @@ interface FriendsPanelProps {
 
 export default function FriendsPanel({ playerName, playerEmoji, localPlayerId, notify }: FriendsPanelProps) {
   const [friends, setFriends] = useState<Friend[]>([]);
-  const [myCode, setMyCode] = useState<string>('...');
+  const [myCode, setMyCode] = useState<string>(() => localStorage.getItem('parking_my_friend_code') ?? '...');
   const [inputCode, setInputCode] = useState('');
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
