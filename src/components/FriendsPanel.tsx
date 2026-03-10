@@ -169,7 +169,7 @@ export default function FriendsPanel({ playerName, playerEmoji, localPlayerId, n
             onClick={handleAdd}
             disabled={loading}
           >
-            {loading ? '...' : `➕ ${t('friends_add')}`}
+            {loading ? '...' : t('friends_add')}
           </button>
         </div>
         <p className="text-white/20 text-xs font-nunito">
