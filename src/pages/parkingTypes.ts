@@ -15,7 +15,7 @@ export function getOrCreateAnonId(): string {
   } catch { return `anon_${Date.now()}`; }
 }
 
-const _BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+const _BASE = (import.meta.env['VITE_API_URL'] || '').replace(/\/$/, '');
 export const AUTH_URL = _BASE ? `${_BASE}/auth` : 'https://functions.poehali.dev/3b4361d7-46d0-476d-be12-f345c31447fc';
 export const LEADERBOARD_URL = _BASE ? `${_BASE}/leaderboard` : 'https://functions.poehali.dev/507d718a-32e2-4623-a6d8-1cf02d2af300';
 export const ROOM_URL = _BASE ? `${_BASE}/room-manager` : 'https://functions.poehali.dev/85e13db6-7b27-41b4-95fe-bf60d5d7bed7';
