@@ -114,7 +114,9 @@ export function usePlayerAuth(notify: (msg: string) => void) {
         await initYandexGames();
         initI18n();
         const ya = await getYaPlayer();
+        console.log('[Auth] getYaPlayer result:', ya);
         const saved = loadProfile() ? relabelQuests(loadProfile()!) : null;
+        console.log('[Auth] saved local profile name:', saved?.name);
         let base: PlayerData;
         let pid = '';
 
@@ -124,10 +126,13 @@ export function usePlayerAuth(notify: (msg: string) => void) {
           let serverProfile: PlayerData | null = null;
           try {
             const resp = await apiAuth('load_ya', { yaId: ya.id });
+            console.log('[Auth] load_ya response:', resp?.profile ? `profile found: ${resp.profile.name}` : 'no profile');
             if (resp.profile) {
               serverProfile = { ...DEFAULT_PLAYER, ...resp.profile, password: '' } as PlayerData;
             }
-          } catch { /* ignore */ }
+          } catch (e) {
+            console.log('[Auth] load_ya fetch error:', e);
+          }
 
           if (serverProfile) {
             base = {
@@ -144,6 +149,7 @@ export function usePlayerAuth(notify: (msg: string) => void) {
           }
           prefetchFriendCode(ya.id);
         } else if (saved && saved.name) {
+          console.log('[Auth] no ya player, using anon path');
           pid = getOrCreateAnonId();
           try {
             const resp = await apiAuth('load_anon', { playerId: pid });
@@ -176,6 +182,7 @@ export function usePlayerAuth(notify: (msg: string) => void) {
         const withLabels = relabelQuests(withBonus);
 
         // Сначала сохраняем pid и флаг — потом setState
+        console.log('[Auth] final pid:', pid, 'profile name:', withLabels.name, 'gems:', withLabels.gems);
         pidRef.current = pid;
         serverLoadDone.current = true;
 

@@ -130,10 +130,17 @@ async function waitForYaGames(ms: number): Promise<void> {
 export async function initYandexGames() {
   try {
     await waitForYaGames(3000);
-    if (!window.YaGames) return;
+    if (!window.YaGames) {
+      console.log('[YaGames] window.YaGames not found after 3s wait');
+      return;
+    }
+    console.log('[YaGames] calling YaGames.init()...');
     _ysdk = await withTimeout(window.YaGames.init(), 3000);
     window._yaSDK = _ysdk;
-  } catch { /* not in YG env or timeout */ }
+    console.log('[YaGames] SDK initialized OK, env:', _ysdk?.environment?.app?.id);
+  } catch (e) {
+    console.log('[YaGames] init error:', e);
+  }
 }
 
 export function notifyGameReady() {
@@ -278,17 +285,25 @@ export async function restoreGemPurchases(): Promise<{ restored: number; count: 
 export async function getYaPlayer(): Promise<{ id: string; name: string } | null> {
   try {
     const sdk = _ysdk ?? window._yaSDK;
-    if (!sdk) return null;
+    if (!sdk) {
+      console.log('[YaGames] getYaPlayer: no SDK');
+      return null;
+    }
     let p;
     try {
       p = await sdk.getPlayer({ scopes: false });
-    } catch {
+    } catch (e) {
+      console.log('[YaGames] getPlayer() error:', e);
       return null;
     }
     const uid = p.getUniqueID();
-    if (!uid) return null;  // Guest user — no persistent ID available
-    return { id: `ya_${uid}`, name: p.getName() || '' };
-  } catch {
+    const name = p.getName() || '';
+    const mode = p.getMode ? p.getMode() : 'unknown';
+    console.log('[YaGames] getPlayer result: uid=', uid, 'name=', name, 'mode=', mode);
+    if (!uid) return null;
+    return { id: `ya_${uid}`, name };
+  } catch (e) {
+    console.log('[YaGames] getYaPlayer error:', e);
     return null;
   }
 }
