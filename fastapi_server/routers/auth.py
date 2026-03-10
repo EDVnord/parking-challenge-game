@@ -177,6 +177,19 @@ def auth_handler(body: dict):
                 'nicknameChanges': profile.get('nicknameChanges', 0),
             })
 
+            # Если ya-профиля нет — ищем по имени и привязываем ya_id автоматически
+            cur.execute(f'SELECT id FROM {SCHEMA}.players WHERE ya_id = %s LIMIT 1', (ya_id,))
+            if not cur.fetchone():
+                cur.execute(
+                    f"SELECT id FROM {SCHEMA}.players WHERE LOWER(name) = LOWER(%s) AND ya_id IS NULL LIMIT 1",
+                    (name,)
+                )
+                row = cur.fetchone()
+                if row:
+                    cur.execute(f'UPDATE {SCHEMA}.players SET ya_id = %s, anon_id = NULL, updated_at = NOW() WHERE id = %s', (ya_id, row[0]))
+                    conn.commit()
+                    return {'success': True}
+
             cur.execute(
                 f'''INSERT INTO {SCHEMA}.players
                     (ya_id, name, emoji, coins, gems, xp, wins, games_played,

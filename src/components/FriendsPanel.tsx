@@ -116,7 +116,7 @@ export default function FriendsPanel({ playerName, playerEmoji, localPlayerId, n
   };
 
   const copyCode = () => {
-    const text = `${myCode} — мой код в Короле парковки! Добавь меня и получим бонус +10% монет!`;
+    const text = myCode;
     navigator.clipboard.writeText(text).catch(() => {
       const el = document.createElement('textarea');
       el.value = text;
