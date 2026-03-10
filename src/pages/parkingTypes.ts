@@ -192,7 +192,11 @@ export function showRewardedAd(): Promise<boolean> {
 }
 
 export function isYandexGamesEnv(): boolean {
-  return !!(_ysdk ?? window._yaSDK);
+  if (_ysdk ?? window._yaSDK) return true;
+  try {
+    const h = window.location.hostname;
+    return h.includes('yandex.net') || h.includes('games.s3.yandex') || h.includes('yandex.ru') || window.YaGames !== undefined;
+  } catch { return false; }
 }
 
 export async function getYaCatalog(): Promise<GemPackInfo[]> {

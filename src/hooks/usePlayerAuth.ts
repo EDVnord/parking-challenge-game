@@ -141,7 +141,10 @@ export function usePlayerAuth(notify: (msg: string) => void) {
               break;
             } catch (e) {
               console.log(`[Auth] load_ya fetch error (attempt ${attempt + 1}):`, e);
-              if (attempt === 1) setServerOnline(false);
+              if (attempt === 1) {
+                // В YA-окружении сервер может быть недоступен — это нормально, прогресс в Яндекс Storage
+                if (!window.YaGames) setServerOnline(false);
+              }
             }
           }
 
