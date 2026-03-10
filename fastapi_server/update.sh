@@ -79,7 +79,7 @@ fi
 #  БЭКЕНД
 # =====================================================
 info "Копирую обновлённые файлы бэкенда..."
-rsync -a --exclude='.env' --exclude='venv/' --exclude='install.sh' \
+rsync -a --exclude='.env' --exclude='venv/' --exclude='install.sh' --exclude='update.sh' \
   "$SCRIPT_DIR/" "$INSTALL_DIR/"
 
 info "Обновляю Python зависимости..."
