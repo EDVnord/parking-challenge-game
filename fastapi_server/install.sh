@@ -302,6 +302,62 @@ if [ "$SETUP_SSL" = "y" ] || [ "$SETUP_SSL" = "Y" ]; then
 fi
 
 # =====================================================
+#  PGWEB — веб-интерфейс для базы данных
+# =====================================================
+echo ""
+ask "Установить pgweb (веб-интерфейс для просмотра БД)? (y/n):"
+read -r SETUP_PGWEB
+
+if [ "$SETUP_PGWEB" = "y" ] || [ "$SETUP_PGWEB" = "Y" ]; then
+  ask "Придумай пароль для входа в pgweb (логин будет: admin):"
+  read -r PGWEB_PASS
+
+  info "Скачиваю pgweb..."
+  apt-get install -y -qq unzip
+  PGWEB_VER="0.15.0"
+  wget -q "https://github.com/sosedoff/pgweb/releases/download/v${PGWEB_VER}/pgweb_linux_amd64.zip" -O /tmp/pgweb.zip
+  unzip -q /tmp/pgweb.zip -d /tmp/pgweb_extracted
+  # Ищем бинарник внутри архива
+  PGWEB_BIN=$(find /tmp/pgweb_extracted -name 'pgweb*' -type f | head -1)
+  mv "$PGWEB_BIN" /usr/local/bin/pgweb
+  chmod +x /usr/local/bin/pgweb
+  rm -rf /tmp/pgweb.zip /tmp/pgweb_extracted
+
+  info "Создаю systemd сервис pgweb..."
+  cat > /etc/systemd/system/pgweb.service <<EOF
+[Unit]
+Description=pgweb — веб-интерфейс PostgreSQL
+After=postgresql.service
+
+[Service]
+ExecStart=/usr/local/bin/pgweb --bind=127.0.0.1 --listen=5435 --url=${DATABASE_URL}
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  systemctl daemon-reload
+  systemctl enable pgweb
+  systemctl start pgweb
+
+  info "Настраиваю защиту паролем..."
+  apt-get install -y -qq apache2-utils
+  htpasswd -cb /etc/nginx/.pgweb_pass admin "${PGWEB_PASS}"
+
+  info "Добавляю pgweb в Nginx на /db/..."
+  # Добавляем location /db/ в существующий конфиг
+  sed -i "s|    location / {|    location /db/ {\n        auth_basic \"DB Access\";\n        auth_basic_user_file /etc/nginx/.pgweb_pass;\n        proxy_pass http://127.0.0.1:5435/;\n        proxy_http_version 1.1;\n        proxy_set_header Upgrade \$http_upgrade;\n        proxy_set_header Connection \"upgrade\";\n    }\n\n    location / {|" /etc/nginx/sites-available/parking
+
+  nginx -t && systemctl reload nginx
+  info "pgweb установлен!"
+  echo ""
+  echo "  База данных (веб):  https://${DOMAIN}/db/"
+  echo "  Логин: admin  Пароль: ${PGWEB_PASS}"
+fi
+
+# =====================================================
 #  ИТОГ
 # =====================================================
 echo ""
@@ -322,4 +378,5 @@ echo "  • Статус:      systemctl status parking"
 echo "  • Логи API:    journalctl -u parking -f"
 echo "  • Перезапуск:  systemctl restart parking"
 echo "  • Логи Nginx:  tail -f /var/log/nginx/error.log"
+echo "  • Статус pgweb: systemctl status pgweb"
 echo "================================================="
