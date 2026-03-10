@@ -307,21 +307,33 @@ def auth_handler(body: dict):
         elif action == 'merge_ya_with_anon':
             ya_id = (body.get('yaId') or '').strip()
             anon_id = (body.get('anonId') or '').strip()
-            if not ya_id or not anon_id:
-                raise HTTPException(400, 'Нужны yaId и anonId')
+            search_name = (body.get('searchName') or '').strip()
+            if not ya_id:
+                raise HTTPException(400, 'Нужен yaId')
 
-            # Ищем ya-профиль и anon-профиль
+            # Ищем ya-профиль
             cur.execute(
                 f'SELECT id, coins, gems, xp, wins, games_played, best_position FROM {SCHEMA}.players WHERE ya_id = %s LIMIT 1',
                 (ya_id,)
             )
             ya_row = cur.fetchone()
 
-            cur.execute(
-                f'SELECT id, coins, gems, xp, wins, games_played, best_position FROM {SCHEMA}.players WHERE anon_id = %s LIMIT 1',
-                (anon_id,)
-            )
-            anon_row = cur.fetchone()
+            # Ищем anon-профиль — по anon_id или по имени
+            anon_row = None
+            if anon_id:
+                cur.execute(
+                    f'SELECT id, coins, gems, xp, wins, games_played, best_position FROM {SCHEMA}.players WHERE anon_id = %s LIMIT 1',
+                    (anon_id,)
+                )
+                anon_row = cur.fetchone()
+
+            # Если не нашли по anon_id — ищем по имени (без ya_id и без пароля)
+            if not anon_row and search_name:
+                cur.execute(
+                    f"SELECT id, coins, gems, xp, wins, games_played, best_position FROM {SCHEMA}.players WHERE LOWER(name) = LOWER(%s) AND ya_id IS NULL AND (password_hash = '' OR password_hash IS NULL) LIMIT 1",
+                    (search_name,)
+                )
+                anon_row = cur.fetchone()
 
             if not anon_row:
                 return {'merged': False, 'reason': 'anon_not_found'}

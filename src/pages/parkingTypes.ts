@@ -328,6 +328,7 @@ export async function getYaPlayer(): Promise<{ id: string; name: string; isAutho
     }
     let p;
     try {
+      // scopes:false — сначала получаем без запроса прав
       p = await sdk.getPlayer({ scopes: false });
     } catch (e) {
       console.log('[YaGames] getPlayer() error:', e);
@@ -338,6 +339,26 @@ export async function getYaPlayer(): Promise<{ id: string; name: string; isAutho
     const mode = p.getMode ? p.getMode() : 'unknown';
     const isAuthorized = !!uid && mode !== 'lite';
     console.log('[YaGames] getPlayer result: uid=', uid, 'name=', name, 'mode=', mode, 'isAuthorized=', isAuthorized);
+
+    // Если не авторизован — показываем диалог и ждём результата
+    if (!isAuthorized && sdk.auth) {
+      try {
+        console.log('[YaGames] Requesting auth dialog...');
+        await sdk.auth.openAuthDialog();
+        // После авторизации получаем актуальный профиль
+        p = await sdk.getPlayer({ scopes: false });
+        const newUid = p.getUniqueID();
+        const newName = p.getName() || '';
+        const newMode = p.getMode ? p.getMode() : 'unknown';
+        const newIsAuthorized = !!newUid && newMode !== 'lite';
+        console.log('[YaGames] After auth: uid=', newUid, 'mode=', newMode, 'isAuthorized=', newIsAuthorized);
+        if (newUid) return { id: `ya_${newUid}`, name: newName, isAuthorized: newIsAuthorized };
+      } catch (e) {
+        console.log('[YaGames] Auth dialog cancelled or error:', e);
+        // Пользователь отказался — используем что есть
+      }
+    }
+
     if (!uid) return null;
     return { id: `ya_${uid}`, name, isAuthorized };
   } catch (e) {
