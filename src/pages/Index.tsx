@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Screen, LeaderboardResult, RoomState, fetchLeaderboard, todayDateStr, weeklyDateStr } from './parkingTypes';
+import { getFriends } from '@/components/FriendsPanel';
 import { MenuScreen, GameScreen, GameOverScreen } from './GameScreens';
 import { GarageScreen, ShopScreen, ProfileScreen, LeaderboardScreen, FriendsScreen } from './PlayerScreens';
 import AchievementsScreen from './AchievementsScreen';
@@ -112,6 +113,17 @@ export default function Index() {
     await joinLobby(resolved.pid, resolved.displayName);
   }, [resolvePlayer, joinLobby]);
 
+  const handlePlayWithFriends = useCallback(async () => {
+    const friends = getFriends();
+    if (friends.length === 0) {
+      setScreen('friends');
+      return;
+    }
+    const resolved = await resolvePlayer();
+    if (!resolved) return;
+    await joinLobby(resolved.pid, resolved.displayName);
+  }, [resolvePlayer, joinLobby, setScreen]);
+
   const handleQuestClaim = useCallback((questId: string) => {
     setPlayer(prev => {
       const today = todayDateStr();
@@ -193,7 +205,7 @@ export default function Index() {
       )}
 
       {screen === 'menu' && (
-        <MenuScreen player={player} setScreen={setScreen} onPlay={handlePlay} onQuestClaim={handleQuestClaim} onWeeklyQuestClaim={handleWeeklyQuestClaim} />
+        <MenuScreen player={player} setScreen={setScreen} onPlay={handlePlay} onPlayWithFriends={handlePlayWithFriends} onQuestClaim={handleQuestClaim} onWeeklyQuestClaim={handleWeeklyQuestClaim} />
       )}
 
       {screen === 'game' && !isLobby && (

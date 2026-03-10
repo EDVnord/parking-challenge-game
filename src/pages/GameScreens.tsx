@@ -24,11 +24,12 @@ interface MenuScreenProps {
   player: PlayerData;
   setScreen: (s: Screen) => void;
   onPlay: () => void;
+  onPlayWithFriends?: () => void;
   onQuestClaim?: (questId: string) => void;
   onWeeklyQuestClaim?: (questId: string) => void;
 }
 
-export function MenuScreen({ player, setScreen, onPlay, onQuestClaim, onWeeklyQuestClaim }: MenuScreenProps) {
+export function MenuScreen({ player, setScreen, onPlay, onPlayWithFriends, onQuestClaim, onWeeklyQuestClaim }: MenuScreenProps) {
   const today = todayDateStr();
   const thisWeek = weeklyDateStr();
   const [questTab, setQuestTab] = useState<'daily' | 'weekly'>('daily');
@@ -180,6 +181,12 @@ export function MenuScreen({ player, setScreen, onPlay, onQuestClaim, onWeeklyQu
           <button className="btn-yellow w-full text-xl py-5 animate-fade-in" onClick={onPlay}>
             {t('play')}
           </button>
+          {onPlayWithFriends && (
+            <button className="animate-fade-in card-game py-3 flex items-center justify-center gap-2 hover:border-green-400/40 transition-all border-green-500/20" onClick={onPlayWithFriends}>
+              <span className="text-lg">👥</span>
+              <span className="font-russo text-green-400 text-sm">Играть с друзьями</span>
+            </button>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <button className="btn-blue animate-fade-in" onClick={() => setScreen('garage')}>{t('garage')}</button>
             <button className="btn-purple animate-fade-in" onClick={() => setScreen('shop')}>{t('shop')}</button>
