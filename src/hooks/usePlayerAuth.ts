@@ -4,6 +4,7 @@ import {
   loadProfile, saveProfile, profileToSavePayload,
   apiAuth, getYaPlayer, initYandexGames, notifyGameReady, getOrCreateAnonId,
   DAILY_STREAK_REWARDS, makeDailyQuests, makeWeeklyQuests, todayDateStr, weeklyDateStr, restoreGemPurchases,
+  requestYaAuth, saveYaPlayerData, loadYaPlayerData,
 } from '@/pages/parkingTypes';
 import { initI18n, t } from '@/i18n';
 import { getSavedNick } from '@/components/NicknameSetup';
@@ -32,6 +33,8 @@ function persistToServer(pid: string, p: PlayerData) {
     apiAuth('save', { name: p.name, password: p.password, profile: profileToSavePayload(p) }).catch(() => {});
   } else if (pid.startsWith('ya_')) {
     apiAuth('save_ya', { yaId: pid, profile: profileToSavePayload(p) }).catch(() => {});
+    // Дублируем профиль в Яндекс-хранилище — резервный канал синхронизации
+    saveYaPlayerData({ profile: profileToSavePayload(p), savedAt: Date.now() }).catch(() => {});
   } else if (p.name && p.name !== 'Игрок') {
     apiAuth('save_anon', { playerId: getOrCreateAnonId(), profile: profileToSavePayload(p) }).catch(() => {});
   }
@@ -123,6 +126,13 @@ export function usePlayerAuth(notify: (msg: string) => void) {
 
         if (ya) {
           pid = ya.id;
+
+          // Если не авторизован — просим авторизоваться (не блокируем игру)
+          if (!ya.isAuthorized) {
+            console.log('[Auth] Ya player not authorized (lite mode), requesting auth...');
+            requestYaAuth().catch(() => {});
+          }
+
           // Загружаем профиль с сервера — он авторитетен
           let serverProfile: PlayerData | null = null;
           try {
@@ -145,10 +155,43 @@ export function usePlayerAuth(notify: (msg: string) => void) {
                 : (saved?.cars ?? serverProfile.cars),
             };
           } else {
-            base = (saved && saved.name) ? saved : {
-              ...DEFAULT_PLAYER,
-              name: (ya.name && ya.name.length >= 2 && ya.name.length <= 16) ? ya.name : 'Игрок',
-            };
+            // ya-профиля нет — проверяем, есть ли anon-профиль на сервере для слияния
+            const anonId = localStorage.getItem('king_parking_anon_id');
+            if (anonId) {
+              try {
+                console.log('[Auth] No ya profile, trying to merge anon:', anonId, '→', ya.id);
+                const mergeResp = await apiAuth('merge_ya_with_anon', { yaId: ya.id, anonId });
+                if (mergeResp.merged && mergeResp.profile) {
+                  console.log('[Auth] Merge success! Profile:', mergeResp.profile.name);
+                  serverProfile = { ...DEFAULT_PLAYER, ...mergeResp.profile, password: '' } as PlayerData;
+                  base = serverProfile;
+                } else {
+                  console.log('[Auth] Merge skipped:', mergeResp.reason);
+                  base = (saved && saved.name) ? saved : {
+                    ...DEFAULT_PLAYER,
+                    name: (ya.name && ya.name.length >= 2 && ya.name.length <= 16) ? ya.name : 'Игрок',
+                  };
+                }
+              } catch (e) {
+                console.log('[Auth] merge error:', e);
+                base = (saved && saved.name) ? saved : {
+                  ...DEFAULT_PLAYER,
+                  name: (ya.name && ya.name.length >= 2 && ya.name.length <= 16) ? ya.name : 'Игрок',
+                };
+              }
+            } else {
+              // Нет ни серверного ya-профиля, ни anon — пробуем загрузить из Яндекс-хранилища
+              const yaData = await loadYaPlayerData();
+              if (yaData?.profile) {
+                console.log('[Auth] Restored profile from Yandex storage');
+                base = { ...DEFAULT_PLAYER, ...(yaData.profile as Partial<PlayerData>), password: '' } as PlayerData;
+              } else {
+                base = (saved && saved.name) ? saved : {
+                  ...DEFAULT_PLAYER,
+                  name: (ya.name && ya.name.length >= 2 && ya.name.length <= 16) ? ya.name : 'Игрок',
+                };
+              }
+            }
           }
           prefetchFriendCode(ya.id);
         } else if (saved && saved.name) {

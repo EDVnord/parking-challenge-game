@@ -283,7 +283,43 @@ export async function restoreGemPurchases(): Promise<{ restored: number; count: 
   }
 }
 
-export async function getYaPlayer(): Promise<{ id: string; name: string } | null> {
+export async function requestYaAuth(): Promise<void> {
+  try {
+    const sdk = _ysdk ?? window._yaSDK;
+    if (!sdk?.auth) return;
+    await sdk.auth.openAuthDialog();
+  } catch (e) {
+    console.log('[YaGames] openAuthDialog error:', e);
+  }
+}
+
+export async function saveYaPlayerData(data: Record<string, unknown>): Promise<void> {
+  try {
+    const sdk = _ysdk ?? window._yaSDK;
+    if (!sdk) return;
+    const p = await sdk.getPlayer({ scopes: false });
+    if (!p?.setData) return;
+    await p.setData(data, true);
+  } catch (e) {
+    console.log('[YaGames] setData error:', e);
+  }
+}
+
+export async function loadYaPlayerData(): Promise<Record<string, unknown> | null> {
+  try {
+    const sdk = _ysdk ?? window._yaSDK;
+    if (!sdk) return null;
+    const p = await sdk.getPlayer({ scopes: false });
+    if (!p?.getData) return null;
+    const data = await p.getData();
+    return data ?? null;
+  } catch (e) {
+    console.log('[YaGames] getData error:', e);
+    return null;
+  }
+}
+
+export async function getYaPlayer(): Promise<{ id: string; name: string; isAuthorized: boolean } | null> {
   try {
     const sdk = _ysdk ?? window._yaSDK;
     if (!sdk) {
@@ -300,9 +336,10 @@ export async function getYaPlayer(): Promise<{ id: string; name: string } | null
     const uid = p.getUniqueID();
     const name = p.getName() || '';
     const mode = p.getMode ? p.getMode() : 'unknown';
-    console.log('[YaGames] getPlayer result: uid=', uid, 'name=', name, 'mode=', mode);
+    const isAuthorized = !!uid && mode !== 'lite';
+    console.log('[YaGames] getPlayer result: uid=', uid, 'name=', name, 'mode=', mode, 'isAuthorized=', isAuthorized);
     if (!uid) return null;
-    return { id: `ya_${uid}`, name };
+    return { id: `ya_${uid}`, name, isAuthorized };
   } catch (e) {
     console.log('[YaGames] getYaPlayer error:', e);
     return null;

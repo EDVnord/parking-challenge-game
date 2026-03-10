@@ -279,6 +279,75 @@ def auth_handler(body: dict):
                 return {'found': False}
             return {'found': True, 'profile': row_to_profile(row)}
 
+        elif action == 'merge_ya_with_anon':
+            ya_id = (body.get('yaId') or '').strip()
+            anon_id = (body.get('anonId') or '').strip()
+            if not ya_id or not anon_id:
+                raise HTTPException(400, 'Нужны yaId и anonId')
+
+            # Ищем ya-профиль и anon-профиль
+            cur.execute(
+                f'SELECT id, coins, gems, xp, wins, games_played, best_position FROM {SCHEMA}.players WHERE ya_id = %s LIMIT 1',
+                (ya_id,)
+            )
+            ya_row = cur.fetchone()
+
+            cur.execute(
+                f'SELECT id, coins, gems, xp, wins, games_played, best_position FROM {SCHEMA}.players WHERE anon_id = %s LIMIT 1',
+                (anon_id,)
+            )
+            anon_row = cur.fetchone()
+
+            if not anon_row:
+                return {'merged': False, 'reason': 'anon_not_found'}
+
+            if ya_row:
+                # ya-профиль уже есть — берём лучшие значения из обоих
+                ya_id_db = ya_row[0]
+                anon_id_db = anon_row[0]
+                if ya_id_db == anon_id_db:
+                    return {'merged': False, 'reason': 'same_profile'}
+                merged_coins = max(ya_row[1], anon_row[1])
+                merged_gems = max(ya_row[2], anon_row[2])
+                merged_xp = max(ya_row[3], anon_row[3])
+                merged_wins = max(ya_row[4], anon_row[4])
+                merged_games = max(ya_row[5], anon_row[5])
+                merged_best = min(ya_row[6], anon_row[6])
+                cur.execute(
+                    f'''UPDATE {SCHEMA}.players SET
+                        coins=%s, gems=%s, xp=%s, wins=%s, games_played=%s,
+                        best_position=%s, updated_at=NOW()
+                        WHERE ya_id=%s''',
+                    (merged_coins, merged_gems, merged_xp, merged_wins, merged_games, merged_best, ya_id)
+                )
+                # Удаляем anon-профиль
+                cur.execute(f'DELETE FROM {SCHEMA}.players WHERE anon_id=%s', (anon_id,))
+                conn.commit()
+                # Возвращаем обновлённый ya-профиль
+                cur.execute(
+                    f'''SELECT id, name, emoji, password_hash, coins, gems, xp, wins,
+                        games_played, best_position, selected_car, owned_cars, upgrades, cars, extra_data
+                        FROM {SCHEMA}.players WHERE ya_id = %s LIMIT 1''',
+                    (ya_id,)
+                )
+                row = cur.fetchone()
+                return {'merged': True, 'profile': row_to_profile(row)}
+            else:
+                # ya-профиля ещё нет — просто привязываем ya_id к anon-профилю
+                cur.execute(
+                    f'UPDATE {SCHEMA}.players SET ya_id=%s, anon_id=NULL, updated_at=NOW() WHERE anon_id=%s',
+                    (ya_id, anon_id)
+                )
+                conn.commit()
+                cur.execute(
+                    f'''SELECT id, name, emoji, password_hash, coins, gems, xp, wins,
+                        games_played, best_position, selected_car, owned_cars, upgrades, cars, extra_data
+                        FROM {SCHEMA}.players WHERE ya_id = %s LIMIT 1''',
+                    (ya_id,)
+                )
+                row = cur.fetchone()
+                return {'merged': True, 'profile': row_to_profile(row)}
+
         elif action == 'count':
             cur.execute(f'SELECT COUNT(*) FROM {SCHEMA}.players')
             row = cur.fetchone()
