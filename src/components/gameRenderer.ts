@@ -712,7 +712,7 @@ export function drawHUD(ctx: CanvasRenderingContext2D, state: GameState, time: n
     ctx.fillStyle = '#FFD600';
     ctx.font = 'bold 13px Russo One, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('⏳ Жди сигнала — машина едет сама, урон не наносится', CENTER_X, CANVAS_H - 12);
+    ctx.fillText(t('renderer_wait_signal'), CENTER_X, CANVAS_H - 12);
     ctx.restore();
   }
 }

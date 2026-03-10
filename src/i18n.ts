@@ -440,6 +440,7 @@ const translations: Record<string, Record<Lang, string>> = {
   'renderer_magnet_tip':    { ru: 'Магнит', en: 'Magnet' },
   'renderer_turbo_tip':     { ru: 'Турбо', en: 'Turbo' },
   'for_gems':               { ru: 'за', en: 'for' },
+  'renderer_wait_signal':   { ru: '⏳ Жди сигнала — машина едет сама, урон не наносится', en: '⏳ Wait for signal — car drives itself, no damage' },
 };
 
 let _lang: Lang = 'ru';
