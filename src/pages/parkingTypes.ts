@@ -200,24 +200,31 @@ export function isYandexGamesEnv(): boolean {
 }
 
 export async function getYaCatalog(): Promise<GemPackInfo[]> {
+  // Ждём SDK до 5 секунд (он может грузиться асинхронно)
+  let sdk = _ysdk ?? window._yaSDK;
+  if (!sdk) {
+    await new Promise<void>(resolve => {
+      const deadline = Date.now() + 5000;
+      const check = () => {
+        sdk = _ysdk ?? window._yaSDK;
+        if (sdk || Date.now() >= deadline) { resolve(); return; }
+        setTimeout(check, 200);
+      };
+      check();
+    });
+  }
+  if (!sdk) return [];
   try {
-    const sdk = _ysdk ?? window._yaSDK;
-    if (!sdk) return [];
     const payments = await sdk.getPayments({ signed: false });
     const products = await payments.catalog();
-    console.log('[YaGames] catalog products:', products?.length, products?.[0]);
     return products.map(p => {
       let currencyImageUrl = '';
       try {
         if (typeof p.getPriceCurrencyImage === 'function') {
-          const raw = p.getPriceCurrencyImage('small') || p.getPriceCurrencyImage('medium') || p.getPriceCurrencyImage('svg');
-          console.log('[YaGames] currencyImg raw:', p.id, p.priceCurrencyCode, raw);
-          if (raw) {
-            currencyImageUrl = raw.startsWith('//') ? `https:${raw}` : raw.startsWith('http') ? raw : raw;
-          }
+          const raw = p.getPriceCurrencyImage('small') || p.getPriceCurrencyImage('medium') || p.getPriceCurrencyImage('svg') || '';
+          currencyImageUrl = raw.startsWith('//') ? `https:${raw}` : raw;
         }
       } catch { /* ignore */ }
-      console.log('[YaGames] product:', p.id, p.price, p.priceCurrencyCode, currencyImageUrl);
       return {
         id: p.id,
         price: p.price,
