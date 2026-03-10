@@ -84,11 +84,12 @@ export function ShopScreen({ player, setScreen, setPlayer, notify }: ShopScreenP
   };
 
   // productId должен совпадать с ID продукта в кабинете разработчика Яндекс Игр
+  // gems = фактическое количество начисляемых кристаллов (из GEM_PACK_MAP)
   const gemPacks: { id: string; gems: number; price: string; currencyImg?: string; bonus?: string; popular?: boolean }[] = [
     { id: 'gems_100',  gems: 100,  price: sdkCatalog['gems_100']?.price  ?? '—', currencyImg: sdkCatalog['gems_100']?.currencyImageUrl },
-    { id: 'gems_300',  gems: 300,  price: sdkCatalog['gems_300']?.price  ?? '—', currencyImg: sdkCatalog['gems_300']?.currencyImageUrl, bonus: `+50 ${t('bonus_label')}`,  popular: true },
-    { id: 'gems_700',  gems: 700,  price: sdkCatalog['gems_700']?.price  ?? '—', currencyImg: sdkCatalog['gems_700']?.currencyImageUrl, bonus: `+150 ${t('bonus_label')}` },
-    { id: 'gems_1500', gems: 1500, price: sdkCatalog['gems_1500']?.price ?? '—', currencyImg: sdkCatalog['gems_1500']?.currencyImageUrl, bonus: `+500 ${t('bonus_label')}` },
+    { id: 'gems_300',  gems: 350,  price: sdkCatalog['gems_300']?.price  ?? '—', currencyImg: sdkCatalog['gems_300']?.currencyImageUrl, bonus: `+50 ${t('bonus_label')}`,  popular: true },
+    { id: 'gems_700',  gems: 850,  price: sdkCatalog['gems_700']?.price  ?? '—', currencyImg: sdkCatalog['gems_700']?.currencyImageUrl, bonus: `+150 ${t('bonus_label')}` },
+    { id: 'gems_1500', gems: 2000, price: sdkCatalog['gems_1500']?.price ?? '—', currencyImg: sdkCatalog['gems_1500']?.currencyImageUrl, bonus: `+500 ${t('bonus_label')}` },
   ];
 
   const handleBuyGems = async (pack: typeof gemPacks[0]) => {
@@ -370,7 +371,12 @@ export function ShopScreen({ player, setScreen, setPlayer, notify }: ShopScreenP
                   `}>
                     {isLoading ? t('paying') : (
                       <>
-                        {pack.currencyImg && <img src={pack.currencyImg} alt="" className="w-4 h-4 object-contain" />}
+                        {pack.currencyImg
+                          ? <img src={pack.currencyImg} alt={sdkCatalog[pack.id]?.priceCurrencyCode ?? ''} className="w-4 h-4 object-contain" />
+                          : sdkCatalog[pack.id]?.priceCurrencyCode
+                            ? <span className="text-xs font-bold">{sdkCatalog[pack.id]?.priceCurrencyCode}</span>
+                            : null
+                        }
                         {pack.price}
                       </>
                     )}
