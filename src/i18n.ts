@@ -302,17 +302,29 @@ const translations: Record<string, Record<Lang, string>> = {
   'friends_share_coins': { ru: '+10% монет', en: '+10% coins' },
   'friends_share_xp':    { ru: '+10% XP', en: '+10% XP' },
 
-  // Quest labels
-  'quest_play':         { ru: 'Сыграй {n} игр', en: 'Play {n} games' },
-  'quest_top':          { ru: 'Финишируй в топ-3', en: 'Finish in top 3' },
-  'quest_survive':      { ru: 'Дойди до 3-го раунда', en: 'Survive to round 3' },
-  'quest_win':          { ru: 'Одержи победу', en: 'Win a game' },
-  'quest_no_elim':      { ru: 'Не выбывай 2 раунда подряд', en: 'Don\'t get eliminated 2 rounds in a row' },
-  'quest_top2_twice':   { ru: 'Финишируй топ-2 дважды', en: 'Finish top 2 twice' },
-  'wquest_play15':      { ru: 'Сыграй 15 игр за неделю', en: 'Play 15 games this week' },
-  'wquest_top3_5':      { ru: 'Топ-3 в 5 играх', en: 'Top 3 in 5 games' },
-  'wquest_win3':        { ru: 'Победи в 3 играх', en: 'Win 3 games' },
-  'wquest_earn5k':      { ru: 'Заработай 5000 монет', en: 'Earn 5000 coins' },
+  // Quest labels — daily
+  'quest_play':          { ru: 'Сыграй', en: 'Play' },
+  'quest_games_1':       { ru: 'игру', en: 'game' },
+  'quest_games_2_4':     { ru: 'игры', en: 'games' },
+  'quest_games_5':       { ru: 'игр', en: 'games' },
+  'quest_top':           { ru: 'Финишируй в топ', en: 'Finish in top' },
+  'quest_survive':       { ru: 'Дойди до', en: 'Survive to round' },
+  'quest_survive2':      { ru: '-го раунда', en: '' },
+  'quest_win':           { ru: 'Победи', en: 'Win' },
+  'quest_win_once':      { ru: 'один раз', en: 'once' },
+  'quest_win_times':     { ru: 'раза', en: 'times' },
+  'quest_no_elim':       { ru: 'Не выбывай 2 раунда подряд', en: 'Don\'t get eliminated 2 rounds in a row' },
+  'quest_top2_twice':    { ru: 'Финишируй в топ-2 дважды', en: 'Finish top 2 twice' },
+
+  // Quest labels — weekly
+  'wquest_play15':       { ru: 'Сыграй 15 игр за неделю', en: 'Play 15 games this week' },
+  'wquest_play25':       { ru: 'Сыграй 25 игр за неделю', en: 'Play 25 games this week' },
+  'wquest_win5':         { ru: 'Победи в 5 играх за неделю', en: 'Win 5 games this week' },
+  'wquest_win10':        { ru: 'Победи в 10 играх за неделю', en: 'Win 10 games this week' },
+  'wquest_top3':         { ru: 'Финишируй в топ-3 в 10 играх', en: 'Finish top 3 in 10 games' },
+  'wquest_survive8':     { ru: 'Дойди до 8-го раунда 3 раза', en: 'Survive to round 8 three times' },
+  'wquest_daily7':       { ru: 'Выполни 3 дневных задания', en: 'Complete 3 daily quests' },
+  'wquest_streak7':      { ru: 'Заходи 7 дней подряд', en: 'Log in 7 days in a row' },
 
   // Achievement titles & descriptions
   'ach_play_1_title':   { ru: 'Первый заезд',      en: 'First race'        },
