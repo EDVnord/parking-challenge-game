@@ -225,7 +225,7 @@ def auth_handler(body: dict):
             return {'found': True, 'profile': row_to_profile(row)}
 
         elif action == 'save_anon':
-            anon_id = (body.get('anonId') or '').strip()
+            anon_id = (body.get('anonId') or body.get('playerId') or '').strip()
             profile = body.get('profile', {})
 
             if not anon_id:
