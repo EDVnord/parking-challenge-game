@@ -456,7 +456,7 @@ export async function apiAuth(action: string, payload: Record<string, unknown>) 
 }
 
 const LB_CACHE_KEY = 'parking_lb_cache';
-const LB_CACHE_TTL = 5 * 60 * 1000; // 5 минут
+const LB_CACHE_TTL = 60 * 1000; // 1 минута
 
 export interface LeaderboardResult {
   leaders: LeaderEntry[];
