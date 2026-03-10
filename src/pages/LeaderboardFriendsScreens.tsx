@@ -9,14 +9,20 @@ interface FriendsScreenProps {
   localPlayerId: string;
   setScreen: (s: Screen) => void;
   notify: (msg: string) => void;
+  onPlayWithFriends?: () => void;
 }
 
-export function FriendsScreen({ player, localPlayerId, setScreen, notify }: FriendsScreenProps) {
+export function FriendsScreen({ player, localPlayerId, setScreen, notify, onPlayWithFriends }: FriendsScreenProps) {
   return (
     <div className="min-h-screen flex flex-col px-4 py-6 gap-5 max-w-lg mx-auto">
       <div className="flex items-center gap-3">
         <button className="btn-game bg-white/10 text-white border-b-white/20 py-2 px-4" onClick={() => setScreen('menu')}>←</button>
         <h2 className="font-russo text-2xl text-yellow-400">{t('friends_title')}</h2>
+        {onPlayWithFriends && (
+          <button className="ml-auto btn-game bg-green-500/20 text-green-400 border-green-500/30 py-2 px-4 font-russo text-sm" onClick={onPlayWithFriends}>
+            👥 Играть
+          </button>
+        )}
       </div>
       <FriendsPanel playerName={player.name} playerEmoji={player.emoji} localPlayerId={localPlayerId} notify={notify} />
     </div>

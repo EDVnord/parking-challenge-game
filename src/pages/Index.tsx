@@ -258,7 +258,7 @@ export default function Index() {
       )}
 
       {screen === 'friends' && (
-        <FriendsScreen player={player} localPlayerId={localPlayerId} setScreen={setScreen} notify={notify} />
+        <FriendsScreen player={player} localPlayerId={localPlayerId} setScreen={setScreen} notify={notify} onPlayWithFriends={handlePlayWithFriends} />
       )}
 
       {screen === 'achievements' && (
