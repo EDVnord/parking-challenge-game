@@ -157,11 +157,28 @@ export default function LobbyScreen({ room, localPlayerId, onCancel }: LobbyScre
         {/* Список игроков */}
         <div className="card-game p-4 flex flex-col gap-2">
           <div className="font-russo text-white/40 text-xs uppercase tracking-wider mb-1">Игроки в комнате</div>
+          {(() => {
+            const myFriends = getFriends();
+            const friendsInRoom = realPlayers.filter(p => p.player_id !== localPlayerId && myFriends.some(f =>
+              p.player_id.toUpperCase().includes(f.code) || f.code.includes(p.player_id.toUpperCase().slice(0, 8))
+            ));
+            return friendsInRoom.length > 0 ? (
+              <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/30 rounded-xl px-3 py-2 mb-1">
+                <span className="text-base">👥</span>
+                <span className="font-russo text-green-400 text-xs">
+                  {friendsInRoom.length === 1
+                    ? `${friendsInRoom[0].name} уже в комнате!`
+                    : `${friendsInRoom.map(f => f.name).join(', ')} уже здесь!`}
+                </span>
+                <span className="text-green-400/60 text-xs ml-auto">+10% монет</span>
+              </div>
+            ) : null;
+          })()}
           <div className="flex flex-col gap-1.5 max-h-36 overflow-y-auto">
             {realPlayers.map(p => {
               const isMe = p.player_id === localPlayerId;
-              const friends = getFriends();
-              const isFriend = !isMe && friends.some(f =>
+              const myFriends = getFriends();
+              const isFriend = !isMe && myFriends.some(f =>
                 p.player_id.toUpperCase().includes(f.code) || f.code.includes(p.player_id.toUpperCase().slice(0, 8))
               );
               return (

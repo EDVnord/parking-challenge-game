@@ -32,13 +32,15 @@ interface LeaderboardScreenProps {
 
 export function LeaderboardScreen({ player, leaderboardData, setScreen }: LeaderboardScreenProps) {
   const { leaders: onlineLeaders, myRank } = leaderboardData;
-  const fullList: LeaderEntry[] = onlineLeaders.length > 0 ? onlineLeaders : [
+  const top10: LeaderEntry[] = onlineLeaders.length > 0 ? onlineLeaders.slice(0, 10) : [
     { rank: 1, name: player.name || 'Ты', emoji: player.emoji, wins: player.wins, xp: player.xp, gamesPlayed: player.gamesPlayed }
   ];
   const rankColors = ['#FFD600', '#C0C0C0', '#CD7F32'];
   const medals = ['🥇', '🥈', '🥉'];
-  const isInTop = fullList.some(e => e.name === player.name);
-  const myRankDisplay = myRank ?? (isInTop ? fullList.find(e => e.name === player.name)?.rank : null);
+  const isInTop10 = top10.some(e => e.name === player.name);
+  // Реальный ранк с сервера, либо позиция в топ-10 если там есть
+  const myRankDisplay = myRank ?? (isInTop10 ? top10.find(e => e.name === player.name)?.rank : null);
+  const fullList = top10;
 
   return (
     <div className="min-h-screen flex flex-col px-4 py-6 gap-5 max-w-lg mx-auto">
@@ -91,7 +93,7 @@ export function LeaderboardScreen({ player, leaderboardData, setScreen }: Leader
       </div>
 
       {/* Место игрока если не в топ-10 */}
-      {!isInTop && myRankDisplay && (
+      {!isInTop10 && myRankDisplay && (
         <div className="card-game-solid p-3 flex items-center gap-3 border border-yellow-500/30">
           <div className="font-russo text-lg w-8 text-center shrink-0 text-white/40">#{myRankDisplay}</div>
           <div className="text-xl shrink-0">{player.emoji}</div>
