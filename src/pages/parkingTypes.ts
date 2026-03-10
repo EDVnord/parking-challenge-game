@@ -63,7 +63,7 @@ declare global {
 }
 
 interface YaPayments {
-  catalog: () => Promise<YaProduct[]>;
+  getCatalog: () => Promise<YaProduct[]>;
   purchase: (opts: { id: string }) => Promise<{ purchaseData: string; signature: string }>;
   getPurchases: () => Promise<{ productID: string; purchaseToken: string }[]>;
   consumePurchase: (token: string) => Promise<void>;
@@ -212,7 +212,7 @@ export async function getYaCatalog(): Promise<GemPackInfo[]> {
   if (!sdk) return [];
   try {
     const payments = await sdk.getPayments({ signed: false });
-    const products = await payments.catalog();
+    const products = await payments.getCatalog();
     return products.map(p => {
       let currencyImageUrl = '';
       try {
