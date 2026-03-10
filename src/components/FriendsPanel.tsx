@@ -62,6 +62,7 @@ export default function FriendsPanel({ playerName, playerEmoji, localPlayerId, n
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
   const [listLoading, setListLoading] = useState(true);
+  const [invitedCode, setInvitedCode] = useState<string | null>(null);
 
   const loadFriends = useCallback(async () => {
     setListLoading(true);
@@ -112,6 +113,26 @@ export default function FriendsPanel({ playerName, playerEmoji, localPlayerId, n
       await friendsApiWith(localPlayerId, 'remove', { code });
     } catch {
       setFriends(prev);
+    }
+  };
+
+  const handleInvite = (f: Friend) => {
+    const gameUrl = window.location.href.split('?')[0];
+    const msg = `${playerEmoji} ${playerName} приглашает тебя в «Король парковки»! Мой код друга: ${myCode}. Заходи: ${gameUrl}`;
+    if (navigator.share) {
+      navigator.share({ title: 'Король парковки', text: msg, url: gameUrl }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(msg).catch(() => {
+        const el = document.createElement('textarea');
+        el.value = msg;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+      });
+      setInvitedCode(f.code);
+      setTimeout(() => setInvitedCode(null), 2000);
+      notify(`✅ Ссылка для ${f.name} скопирована!`);
     }
   };
 
@@ -198,6 +219,12 @@ export default function FriendsPanel({ playerName, playerEmoji, localPlayerId, n
                   <div className="font-nunito text-white/20 text-xs">{(f.xp ?? 0).toLocaleString()} XP</div>
                 </div>
               )}
+              <button
+                className={`text-xs font-russo px-2 py-1 rounded-lg transition-all shrink-0 ${invitedCode === f.code ? 'bg-green-500 text-white' : 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/40'}`}
+                onClick={() => handleInvite(f)}
+              >
+                {invitedCode === f.code ? '✓' : '🎮'}
+              </button>
               <button
                 className="text-white/20 hover:text-red-400 transition-colors text-xs font-russo ml-1 shrink-0"
                 onClick={() => handleRemove(f.code)}
