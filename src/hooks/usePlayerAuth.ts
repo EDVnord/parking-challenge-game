@@ -3,7 +3,7 @@ import {
   PlayerData, DEFAULT_PLAYER, FRIENDS_URL,
   loadProfile, saveProfile, profileToSavePayload,
   apiAuth, getYaPlayer, initYandexGames, notifyGameReady, getOrCreateAnonId,
-  DAILY_STREAK_REWARDS, makeDailyQuests, todayDateStr, restoreGemPurchases,
+  DAILY_STREAK_REWARDS, makeDailyQuests, makeWeeklyQuests, todayDateStr, weeklyDateStr, restoreGemPurchases,
 } from '@/pages/parkingTypes';
 import { initI18n, t } from '@/i18n';
 import { getSavedNick } from '@/components/NicknameSetup';
@@ -33,6 +33,37 @@ export function usePlayerAuth(notify: (msg: string) => void) {
   const autoLoginDone = useRef(false);
   // Используем state вместо ref чтобы эффект автосохранения корректно срабатывал
   const [serverLoadDone, setServerLoadDone] = useState(false);
+
+  // Перегенерирует label-строки заданий (сохраняя прогресс) после инициализации i18n
+  const relabelQuests = useCallback((p: PlayerData): PlayerData => {
+    const today = todayDateStr();
+    const thisWeek = weeklyDateStr();
+    let result = { ...p };
+
+    if (p.dailyQuestsDate === today && p.dailyQuests?.length) {
+      const fresh = makeDailyQuests(today, t);
+      result = {
+        ...result,
+        dailyQuests: p.dailyQuests.map(q => {
+          const f = fresh.find(fq => fq.id === q.id);
+          return f ? { ...q, label: f.label } : q;
+        }),
+      };
+    }
+
+    if (p.weeklyQuestsDate === thisWeek && p.weeklyQuests?.length) {
+      const fresh = makeWeeklyQuests(thisWeek, t);
+      result = {
+        ...result,
+        weeklyQuests: p.weeklyQuests.map(q => {
+          const f = fresh.find(fq => fq.id === q.id);
+          return f ? { ...q, label: f.label } : q;
+        }),
+      };
+    }
+
+    return result;
+  }, []);
 
   const checkDailyBonus = useCallback((p: PlayerData): PlayerData => {
     const today = todayDateStr();
@@ -65,7 +96,7 @@ export function usePlayerAuth(notify: (msg: string) => void) {
         await initYandexGames();
         initI18n();
         const ya = await getYaPlayer();
-        const saved = loadProfile();
+        const saved = loadProfile() ? relabelQuests(loadProfile()!) : null;
         let base: PlayerData;
 
         if (ya) {
