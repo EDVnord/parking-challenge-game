@@ -2,7 +2,7 @@
 set -e
 
 # =====================================================
-#  Обновление бэкенда "Король парковки"
+#  Обновление «Король парковки» (бэкенд + фронтенд)
 #  Запуск: sudo bash update.sh
 # =====================================================
 
@@ -14,10 +14,11 @@ NC='\033[0m'
 info()  { echo -e "${GREEN}[✓]${NC} $1"; }
 warn()  { echo -e "${YELLOW}[!]${NC} $1"; }
 error() { echo -e "${RED}[✗]${NC} $1"; exit 1; }
+ask()   { echo -e "${YELLOW}[?]${NC} $1"; }
 
 echo ""
 echo "================================================="
-echo "   Обновление бэкенда «Король парковки»"
+echo "   Обновление «Король парковки»"
 echo "================================================="
 echo ""
 
@@ -26,7 +27,9 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 INSTALL_DIR="/var/www/parking"
+FRONTEND_DIR="$INSTALL_DIR/frontend"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 if [ ! -d "$INSTALL_DIR" ]; then
   error "Бэкенд не установлен. Сначала запусти install.sh"
@@ -36,8 +39,34 @@ if [ ! -f "$INSTALL_DIR/.env" ]; then
   error "Файл .env не найден в $INSTALL_DIR. Что-то пошло не так."
 fi
 
-info "Копирую обновлённые файлы..."
-# Копируем всё кроме .env и venv — они не трогаются
+# =====================================================
+#  ФРОНТЕНД
+# =====================================================
+info "Ищу папку с билдом фронтенда..."
+
+# Ищем dist/ или build/ в корне репозитория
+DIST_DIR=""
+if [ -d "$REPO_ROOT/dist" ]; then
+  DIST_DIR="$REPO_ROOT/dist"
+elif [ -d "$REPO_ROOT/build" ]; then
+  DIST_DIR="$REPO_ROOT/build"
+fi
+
+if [ -n "$DIST_DIR" ]; then
+  info "Обновляю фронтенд из $DIST_DIR..."
+  mkdir -p "$FRONTEND_DIR"
+  rsync -a --delete "$DIST_DIR/" "$FRONTEND_DIR/"
+  info "Фронтенд обновлён!"
+else
+  warn "Папка dist/ или build/ не найдена — фронтенд не обновлён."
+  warn "Чтобы собрать: установи Node.js и запусти 'bun run build' в корне репозитория."
+  warn "Или скачай билд вручную с poehali.dev (Скачать → Скачать билд) и распакуй в /var/www/parking/frontend/"
+fi
+
+# =====================================================
+#  БЭКЕНД
+# =====================================================
+info "Копирую обновлённые файлы бэкенда..."
 rsync -a --exclude='.env' --exclude='venv/' --exclude='install.sh' \
   "$SCRIPT_DIR/" "$INSTALL_DIR/"
 
@@ -57,10 +86,18 @@ else
   warn "Сервис не запустился. Проверь логи: journalctl -u parking -n 50"
 fi
 
+# =====================================================
+#  NGINX
+# =====================================================
+if nginx -t 2>/dev/null; then
+  systemctl reload nginx
+  info "Nginx перезагружен!"
+fi
+
 echo ""
 echo "================================================="
 info "Обновление завершено!"
 echo ""
-echo "  Проверь API:  curl http://localhost:8000/"
+echo "  Проверь сайт: https://$(hostname -f 2>/dev/null || echo 'твой-домен')"
 echo "  Логи:         journalctl -u parking -f"
 echo "================================================="
