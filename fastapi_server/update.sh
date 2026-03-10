@@ -40,11 +40,25 @@ if [ ! -f "$INSTALL_DIR/.env" ]; then
 fi
 
 # =====================================================
-#  ФРОНТЕНД
+#  BUN — установка если не установлен
 # =====================================================
-info "Ищу папку с билдом фронтенда..."
+if ! command -v bun &>/dev/null; then
+  info "Устанавливаю Bun..."
+  curl -fsSL https://bun.sh/install | bash
+  export BUN_INSTALL="$HOME/.bun"
+  export PATH="$BUN_INSTALL/bin:$PATH"
+fi
+export BUN_INSTALL="${BUN_INSTALL:-$HOME/.bun}"
+export PATH="$BUN_INSTALL/bin:$PATH"
 
-# Ищем dist/ или build/ в корне репозитория
+# =====================================================
+#  ФРОНТЕНД — сборка и деплой
+# =====================================================
+info "Собираю фронтенд..."
+cd "$REPO_ROOT"
+bun install --frozen-lockfile 2>/dev/null || bun install
+bun run build
+
 DIST_DIR=""
 if [ -d "$REPO_ROOT/dist" ]; then
   DIST_DIR="$REPO_ROOT/dist"
@@ -53,14 +67,12 @@ elif [ -d "$REPO_ROOT/build" ]; then
 fi
 
 if [ -n "$DIST_DIR" ]; then
-  info "Обновляю фронтенд из $DIST_DIR..."
+  info "Копирую билд в $FRONTEND_DIR..."
   mkdir -p "$FRONTEND_DIR"
   rsync -a --delete "$DIST_DIR/" "$FRONTEND_DIR/"
   info "Фронтенд обновлён!"
 else
-  warn "Папка dist/ или build/ не найдена — фронтенд не обновлён."
-  warn "Чтобы собрать: установи Node.js и запусти 'bun run build' в корне репозитория."
-  warn "Или скачай билд вручную с poehali.dev (Скачать → Скачать билд) и распакуй в /var/www/parking/frontend/"
+  warn "Билд не найден — проверь ошибки выше."
 fi
 
 # =====================================================
