@@ -129,16 +129,20 @@ export function usePlayerAuth(notify: (msg: string) => void) {
 
           // Загружаем профиль с сервера — он авторитетен
           let serverProfile: PlayerData | null = null;
-          try {
-            const resp = await apiAuth('load_ya', { yaId: ya.id });
-            console.log('[Auth] load_ya response:', resp?.profile ? `profile found: ${resp.profile.name}` : 'no profile');
-            if (resp.profile) {
-              serverProfile = { ...DEFAULT_PLAYER, ...resp.profile, password: '' } as PlayerData;
+          for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+              if (attempt > 0) await new Promise(r => setTimeout(r, 2000));
+              const resp = await apiAuth('load_ya', { yaId: ya.id });
+              console.log('[Auth] load_ya response:', resp?.profile ? `profile found: ${resp.profile.name}` : 'no profile');
+              if (resp.profile) {
+                serverProfile = { ...DEFAULT_PLAYER, ...resp.profile, password: '' } as PlayerData;
+              }
+              setServerOnline(true);
+              break;
+            } catch (e) {
+              console.log(`[Auth] load_ya fetch error (attempt ${attempt + 1}):`, e);
+              if (attempt === 1) setServerOnline(false);
             }
-            setServerOnline(true);
-          } catch (e) {
-            console.log('[Auth] load_ya fetch error:', e);
-            setServerOnline(false);
           }
 
           if (serverProfile) {

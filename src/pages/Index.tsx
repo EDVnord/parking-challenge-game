@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Screen, LeaderboardResult, RoomState, fetchLeaderboard, todayDateStr, weeklyDateStr } from './parkingTypes';
+import { Screen, LeaderboardResult, RoomState, fetchLeaderboard, todayDateStr, weeklyDateStr, isYandexGamesEnv } from './parkingTypes';
 import { getFriends } from '@/components/FriendsPanel';
 import { MenuScreen, GameScreen, GameOverScreen } from './GameScreens';
 import { GarageScreen, ShopScreen, ProfileScreen, LeaderboardScreen, FriendsScreen } from './PlayerScreens';
@@ -184,7 +184,7 @@ export default function Index() {
 
       <AchievementToast player={player} />
 
-      {serverOnline === false && (
+      {serverOnline === false && !isYandexGamesEnv() && (
         <div className="fixed top-0 left-0 right-0 z-50 flex justify-center pointer-events-none">
           <div className="bg-red-900/90 border-b border-red-500/50 text-red-200 text-xs font-russo px-4 py-1.5 w-full text-center">
             ⚠️ Сервер недоступен — прогресс сохраняется локально
