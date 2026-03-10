@@ -83,13 +83,13 @@ export function ShopScreen({ player, setScreen, setPlayer, notify }: ShopScreenP
     }
   };
 
-  // productId должен совпадать с ID продукта в кабинете разработчика Яндекс Игр
-  // gems = фактическое количество начисляемых кристаллов (из GEM_PACK_MAP)
-  const gemPacks: { id: string; gems: number; price: string; currencyImg?: string; bonus?: string; popular?: boolean }[] = [
-    { id: 'gems_100',  gems: 100,  price: sdkCatalog['gems_100']?.price  ?? '—', currencyImg: sdkCatalog['gems_100']?.currencyImageUrl },
-    { id: 'gems_300',  gems: 350,  price: sdkCatalog['gems_300']?.price  ?? '—', currencyImg: sdkCatalog['gems_300']?.currencyImageUrl, bonus: `+50 ${t('bonus_label')}`,  popular: true },
-    { id: 'gems_700',  gems: 850,  price: sdkCatalog['gems_700']?.price  ?? '—', currencyImg: sdkCatalog['gems_700']?.currencyImageUrl, bonus: `+150 ${t('bonus_label')}` },
-    { id: 'gems_1500', gems: 2000, price: sdkCatalog['gems_1500']?.price ?? '—', currencyImg: sdkCatalog['gems_1500']?.currencyImageUrl, bonus: `+500 ${t('bonus_label')}` },
+  // productId совпадает с ID в кабинете Яндекс Игр
+  // baseGems — сколько написано в названии пака, bonusGems — бонус сверху, итого начисляется baseGems+bonusGems
+  const gemPacks: { id: string; baseGems: number; bonusGems: number; price: string; currencyImg?: string; popular?: boolean }[] = [
+    { id: 'gems_100',  baseGems: 100,  bonusGems: 0,   price: sdkCatalog['gems_100']?.price  ?? '—', currencyImg: sdkCatalog['gems_100']?.currencyImageUrl },
+    { id: 'gems_300',  baseGems: 300,  bonusGems: 50,  price: sdkCatalog['gems_300']?.price  ?? '—', currencyImg: sdkCatalog['gems_300']?.currencyImageUrl, popular: true },
+    { id: 'gems_700',  baseGems: 700,  bonusGems: 150, price: sdkCatalog['gems_700']?.price  ?? '—', currencyImg: sdkCatalog['gems_700']?.currencyImageUrl },
+    { id: 'gems_1500', baseGems: 1500, bonusGems: 500, price: sdkCatalog['gems_1500']?.price ?? '—', currencyImg: sdkCatalog['gems_1500']?.currencyImageUrl },
   ];
 
   const handleBuyGems = async (pack: typeof gemPacks[0]) => {
@@ -99,8 +99,9 @@ export function ShopScreen({ player, setScreen, setPlayer, notify }: ShopScreenP
     try {
       const result = await buyGems(pack.id);
       if (result.ok) {
-        setPlayer(prev => ({ ...prev, gems: prev.gems + pack.gems }));
-        notify(`${t('notify_gems_recv')} ${pack.gems} 💎!`);
+        const total = pack.baseGems + pack.bonusGems;
+        setPlayer(prev => ({ ...prev, gems: prev.gems + total }));
+        notify(`${t('notify_gems_recv')} ${total} 💎!`);
       } else if (result.error !== 'cancelled') {
         notify(t('payment_error'));
       }
@@ -362,20 +363,21 @@ export function ShopScreen({ player, setScreen, setPlayer, notify }: ShopScreenP
                   <div className={`flex items-center justify-center ${pack.popular ? 'mt-3' : ''}`} style={{ height: '2.25rem' }}>
                     {isLoading ? <span className="text-3xl">⏳</span> : <GemIcon size={36} />}
                   </div>
-                  <div className="font-russo text-white text-xl">{pack.gems}</div>
-                  {pack.bonus && (
-                    <div className="text-green-400 text-xs font-bold font-nunito">{pack.bonus}</div>
-                  )}
+                  <div className="font-russo text-white text-xl">{pack.baseGems}</div>
+                  {pack.bonusGems > 0 ? (
+                    <div className="flex flex-col items-center gap-0.5">
+                      <div className="text-green-400 text-xs font-bold font-nunito">+{pack.bonusGems} {t('bonus_label')}</div>
+                      <div className="text-white/50 text-[10px] font-nunito">= {pack.baseGems + pack.bonusGems} 💎</div>
+                    </div>
+                  ) : <div className="h-8" />}
                   <div className={`font-russo text-sm py-1.5 px-3 w-full text-center rounded-xl flex items-center justify-center gap-1
                     ${isLoading ? 'bg-white/20 text-white/60' : 'bg-yellow-400 text-gray-900'}
                   `}>
                     {isLoading ? t('paying') : (
                       <>
                         {pack.currencyImg
-                          ? <img src={pack.currencyImg} alt={sdkCatalog[pack.id]?.priceCurrencyCode ?? ''} className="w-4 h-4 object-contain" />
-                          : sdkCatalog[pack.id]?.priceCurrencyCode
-                            ? <span className="text-xs font-bold">{sdkCatalog[pack.id]?.priceCurrencyCode}</span>
-                            : null
+                          ? <img src={pack.currencyImg} alt="" className="w-4 h-4 object-contain" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                          : null
                         }
                         {pack.price}
                       </>

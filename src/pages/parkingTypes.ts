@@ -205,16 +205,26 @@ export async function getYaCatalog(): Promise<GemPackInfo[]> {
     if (!sdk) return [];
     const payments = await sdk.getPayments({ signed: false });
     const products = await payments.catalog();
-    return products.map(p => ({
-      id: p.id,
-      price: p.price,
-      priceValue: p.priceValue,
-      priceCurrencyCode: p.priceCurrencyCode,
-      currencyImageUrl: typeof p.getPriceCurrencyImage === 'function'
-        ? p.getPriceCurrencyImage('small')
-        : '',
-    }));
-  } catch {
+    console.log('[YaGames] catalog products:', products?.length, products?.[0]);
+    return products.map(p => {
+      let currencyImageUrl = '';
+      try {
+        if (typeof p.getPriceCurrencyImage === 'function') {
+          const url = p.getPriceCurrencyImage('small');
+          // Яндекс возвращает //yastatic.net/... — добавляем https:
+          currencyImageUrl = url ? (url.startsWith('//') ? `https:${url}` : url) : '';
+        }
+      } catch { /* ignore */ }
+      return {
+        id: p.id,
+        price: p.price,
+        priceValue: p.priceValue,
+        priceCurrencyCode: p.priceCurrencyCode,
+        currencyImageUrl,
+      };
+    });
+  } catch (e) {
+    console.log('[YaGames] getYaCatalog error:', e);
     return [];
   }
 }
