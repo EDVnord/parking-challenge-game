@@ -54,10 +54,13 @@ export PATH="$BUN_INSTALL/bin:$PATH"
 # =====================================================
 #  ФРОНТЕНД — сборка и деплой
 # =====================================================
-info "Собираю фронтенд..."
+info "Собираю фронтенд для сервера..."
 cd "$REPO_ROOT"
 bun install --frozen-lockfile 2>/dev/null || bun install
 bun run build
+
+info "Собираю билд для Яндекс Игр (./assets/)..."
+bunx vite build --base ./ --outDir dist_ya
 
 DIST_DIR=""
 if [ -d "$REPO_ROOT/dist" ]; then
@@ -73,6 +76,15 @@ if [ -n "$DIST_DIR" ]; then
   info "Фронтенд обновлён!"
 else
   warn "Билд не найден — проверь ошибки выше."
+fi
+
+# Упаковываем билд для Яндекс Игр в zip
+if [ -d "$REPO_ROOT/dist_ya" ]; then
+  info "Упаковываю билд для Яндекс Игр..."
+  cd "$REPO_ROOT/dist_ya"
+  zip -r "$REPO_ROOT/yandex_games_build.zip" . -x "*.DS_Store"
+  cd "$REPO_ROOT"
+  info "Готово: $REPO_ROOT/yandex_games_build.zip"
 fi
 
 # =====================================================
