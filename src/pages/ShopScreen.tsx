@@ -352,6 +352,9 @@ export function ShopScreen({ player, setScreen, setPlayer, notify }: ShopScreenP
 
       {tab === 'gems' && (
         <div className="flex flex-col gap-3">
+          <div className="text-white/30 text-[10px] font-mono text-center">
+            sdk:{inYa?'✓':'✗'} catalog:{Object.keys(sdkCatalog).length} loading:{catalogLoading?'…':'done'}
+          </div>
           {!inYa && (
             <div className="card-game p-3 text-center text-white/40 text-xs font-nunito border border-yellow-400/10">
               {t('gems_ya_only')}

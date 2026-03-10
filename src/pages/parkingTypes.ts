@@ -130,13 +130,13 @@ async function waitForYaGames(ms: number): Promise<void> {
 
 export async function initYandexGames() {
   try {
-    await waitForYaGames(3000);
+    await waitForYaGames(5000);
     if (!window.YaGames) {
-      console.log('[YaGames] window.YaGames not found after 3s wait');
+      console.log('[YaGames] window.YaGames not found');
       return;
     }
     console.log('[YaGames] calling YaGames.init()...');
-    _ysdk = await withTimeout(window.YaGames.init(), 3000);
+    _ysdk = await window.YaGames.init();
     window._yaSDK = _ysdk;
     console.log('[YaGames] SDK initialized OK, env:', _ysdk?.environment?.app?.id);
   } catch (e) {
@@ -200,18 +200,14 @@ export function isYandexGamesEnv(): boolean {
 }
 
 export async function getYaCatalog(): Promise<GemPackInfo[]> {
-  // Ждём SDK до 5 секунд (он может грузиться асинхронно)
   let sdk = _ysdk ?? window._yaSDK;
-  if (!sdk) {
-    await new Promise<void>(resolve => {
-      const deadline = Date.now() + 5000;
-      const check = () => {
-        sdk = _ysdk ?? window._yaSDK;
-        if (sdk || Date.now() >= deadline) { resolve(); return; }
-        setTimeout(check, 200);
-      };
-      check();
-    });
+  // Если SDK упал при init — пробуем ещё раз напрямую
+  if (!sdk && window.YaGames) {
+    try {
+      sdk = await window.YaGames.init();
+      _ysdk = sdk;
+      window._yaSDK = sdk;
+    } catch { /* ignore */ }
   }
   if (!sdk) return [];
   try {
