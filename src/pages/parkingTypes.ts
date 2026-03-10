@@ -230,10 +230,14 @@ export async function getYaCatalog(): Promise<GemPackInfo[]> {
       };
     });
   } catch (e) {
-    console.log('[YaGames] getYaCatalog error:', e);
+    const msg = e instanceof Error ? e.message : JSON.stringify(e);
+    _catalogError = msg;
     return [];
   }
 }
+
+let _catalogError = '';
+export function getCatalogError(): string { return _catalogError; }
 
 export async function buyGems(productId: string): Promise<{ ok: boolean; error?: string }> {
   try {

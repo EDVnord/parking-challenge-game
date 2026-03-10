@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PlayerData, Screen, GemPackInfo, buyGems, isYandexGamesEnv, restoreGemPurchases, getYaCatalog } from './parkingTypes';
+import { PlayerData, Screen, GemPackInfo, buyGems, isYandexGamesEnv, restoreGemPurchases, getYaCatalog, getCatalogError } from './parkingTypes';
 import { CoinIcon, GemIcon } from '@/components/ui/CoinIcon';
 import { t } from '@/i18n';
 
@@ -354,6 +354,7 @@ export function ShopScreen({ player, setScreen, setPlayer, notify }: ShopScreenP
         <div className="flex flex-col gap-3">
           <div className="text-white/30 text-[10px] font-mono text-center">
             sdk:{inYa?'✓':'✗'} catalog:{Object.keys(sdkCatalog).length} loading:{catalogLoading?'…':'done'}
+            {getCatalogError() ? <span className="text-red-400 ml-1">err:{getCatalogError()}</span> : null}
           </div>
           {!inYa && (
             <div className="card-game p-3 text-center text-white/40 text-xs font-nunito border border-yellow-400/10">
