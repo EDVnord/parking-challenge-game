@@ -21,16 +21,6 @@ export const LEADERBOARD_URL = `${_BASE}/leaderboard`;
 export const ROOM_URL = `${_BASE}/room-manager`;
 export const FRIENDS_URL = `${_BASE}/friends`;
 
-export async function apiAuth(action: string, payload: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
-  const res = await fetch(AUTH_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, ...payload }),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}: ${AUTH_URL}`);
-  return res.json();
-}
-
 // Тип одного игрока в комнате (с бэкенда)
 export interface RoomPlayer {
   player_id: string;
@@ -453,7 +443,7 @@ export async function apiAuth(action: string, payload: Record<string, unknown>) 
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action, ...payload }),
   });
-  if (!res.ok) throw new Error(`server_error_${res.status}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}: ${AUTH_URL}`);
   return res.json();
 }
 
