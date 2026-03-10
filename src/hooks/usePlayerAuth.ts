@@ -28,7 +28,9 @@ async function prefetchFriendCode(localPlayerId: string) {
 // Явно сохраняет профиль на сервер — вызывается только после загрузки серверных данных
 function persistToServer(pid: string, p: PlayerData) {
   if (!p.name) return;
-  saveProfile(p);
+  // Сохраняем с ключом привязанным к ya_id чтобы разные аккаунты не смешивались
+  const yaId = pid.startsWith('ya_') ? pid : undefined;
+  saveProfile(p, yaId);
   if (p.password) {
     apiAuth('save', { name: p.name, password: p.password, profile: profileToSavePayload(p) }).catch(() => {});
   } else if (pid.startsWith('ya_')) {
@@ -119,7 +121,9 @@ export function usePlayerAuth(notify: (msg: string) => void) {
         initI18n();
         const ya = await getYaPlayer();
         console.log('[Auth] getYaPlayer result:', ya);
-        const saved = loadProfile() ? relabelQuests(loadProfile()!) : null;
+        // Загружаем профиль с ключом привязанным к ya_id, чтобы разные аккаунты не смешивались
+        const yaKey = ya ? ya.id : undefined;
+        const saved = loadProfile(yaKey) ? relabelQuests(loadProfile(yaKey)!) : null;
         console.log('[Auth] saved local profile name:', saved?.name);
         let base: PlayerData;
         let pid = '';
@@ -257,7 +261,7 @@ export function usePlayerAuth(notify: (msg: string) => void) {
         // Обновляем UI
         setLocalPlayerId(pid);
         setPlayer(withLabels);
-        saveProfile(withLabels);
+        saveProfile(withLabels, pid.startsWith('ya_') ? pid : undefined);
       } catch {
         const saved = loadProfile();
         if (saved && saved.name) {
@@ -284,8 +288,9 @@ export function usePlayerAuth(notify: (msg: string) => void) {
     prevPlayerRef.current = player;
 
     if (!player.name) return;
-    saveProfile(player);
-    persistToServer(pidRef.current || localPlayerId, player);
+    const pid = pidRef.current || localPlayerId;
+    saveProfile(player, pid.startsWith('ya_') ? pid : undefined);
+    persistToServer(pid, player);
   }, [player, localPlayerId]);
 
   const resolvePlayer = useCallback(async (): Promise<{ pid: string; displayName: string } | null> => {

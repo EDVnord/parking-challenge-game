@@ -771,9 +771,13 @@ export const DEFAULT_PLAYER: PlayerData = {
   weeklyQuestsDate: '',
 };
 
-export function loadProfile(): PlayerData | null {
+export function getProfileKey(yaId?: string): string {
+  return yaId ? `${SAVE_KEY}_ya_${yaId}` : SAVE_KEY;
+}
+
+export function loadProfile(yaId?: string): PlayerData | null {
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
+    const raw = localStorage.getItem(getProfileKey(yaId));
     if (!raw) return null;
     const saved = JSON.parse(raw) as PlayerData;
     const mergedCars = INITIAL_CARS.map(ic => {
@@ -850,8 +854,8 @@ export function profileToSavePayload(p: PlayerData) {
   };
 }
 
-export function saveProfile(p: PlayerData) {
+export function saveProfile(p: PlayerData, yaId?: string) {
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify(p));
+    localStorage.setItem(getProfileKey(yaId), JSON.stringify(p));
   } catch { /* ignore */ }
 }

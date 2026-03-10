@@ -396,11 +396,9 @@ export function useGameLoop({
     animRef.current = requestAnimationFrame(loop);
 
     const handleVisibility = () => {
-      if (document.hidden) {
-        cancelAnimationFrame(animRef.current);
-      } else {
+      if (!document.hidden) {
+        // Сбрасываем время чтобы не было резкого прыжка после возврата вкладки
         timeRef.current = performance.now();
-        animRef.current = requestAnimationFrame(loop);
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
