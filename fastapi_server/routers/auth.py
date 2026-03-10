@@ -289,7 +289,7 @@ def auth_handler(body: dict):
             return {'success': True}
 
         elif action == 'load_anon':
-            anon_id = (body.get('anonId') or '').strip()
+            anon_id = (body.get('anonId') or body.get('playerId') or '').strip()
             if not anon_id:
                 raise HTTPException(400, 'Нет anonId')
 
