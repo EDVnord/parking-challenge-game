@@ -291,6 +291,24 @@ const translations: Record<string, Record<Lang, string>> = {
   // Privacy
   'privacy_policy_title': { ru: 'Политика конфиденциальности', en: 'Privacy Policy' },
   'privacy_close':        { ru: 'Закрыть', en: 'Close' },
+  'privacy_data_title':   { ru: 'Какие данные мы собираем:', en: 'What data we collect:' },
+  'privacy_data_text':    { ru: 'Никнейм, выбранный аватар и игровые показатели (монеты, уровень, результаты игр). Данные сохраняются в защищённой базе данных для синхронизации профиля между устройствами.', en: 'Nickname, selected avatar and game stats (coins, level, game results). Data is stored in a secure database to sync your profile across devices.' },
+  'privacy_id_title':     { ru: 'Идентификация:', en: 'Identification:' },
+  'privacy_id_text':      { ru: 'При входе через Яндекс Игры используется анонимный идентификатор Яндекс-аккаунта. При анонимной игре генерируется случайный ID и сохраняется в браузере.', en: 'When signing in via Yandex Games, your anonymous Yandex account ID is used. In anonymous mode, a random ID is generated and stored in the browser.' },
+  'privacy_pay_title':    { ru: 'Покупки:', en: 'Purchases:' },
+  'privacy_pay_text':     { ru: 'Внутриигровые покупки обрабатываются платёжной системой Яндекса. Мы не храним платёжные данные.', en: 'In-game purchases are processed by Yandex payment system. We do not store payment data.' },
+  'privacy_ads_title':    { ru: 'Реклама:', en: 'Advertising:' },
+  'privacy_ads_text':     { ru: 'В игре могут показываться рекламные объявления через рекламную сеть Яндекса.', en: 'The game may display advertisements through the Yandex advertising network.' },
+  'privacy_updated':      { ru: 'Последнее обновление: март 2025', en: 'Last updated: March 2025' },
+
+  // Friends panel descriptions
+  'friends_bonus_desc':   { ru: 'Отправь код другу — когда играете вместе, оба получают', en: 'Share your code — when you play together, both of you get' },
+  'friends_bonus_coins':  { ru: '+10% монет', en: '+10% coins' },
+  'friends_bonus_xp':     { ru: 'и +15% опыта', en: 'and +15% XP' },
+  'friends_mutual_note':  { ru: 'Друг сразу увидит тебя в своём списке — добавление взаимное', en: 'Your friend will instantly see you in their list — it\'s mutual' },
+  'friends_play_btn':     { ru: '👥 Играть', en: '👥 Play' },
+  'friends_invite_btn':   { ru: 'Скопировать', en: 'Copy' },
+  'friends_invite_copied': { ru: '✓ Скопировано', en: '✓ Copied' },
 
   // Friends panel extra
   'friends_copy':        { ru: 'Скопировать', en: 'Copy' },

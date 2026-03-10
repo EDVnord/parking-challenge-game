@@ -63,19 +63,11 @@ export function PrivacyPolicyModal({ onClose }: PrivacyPolicyModalProps) {
           <button onClick={onClose} className="text-white/40 hover:text-white text-xl">✕</button>
         </div>
         <div className="font-nunito text-white/60 text-sm flex flex-col gap-3">
-          <p><strong className="text-white/80">Какие данные мы собираем:</strong><br/>
-            Никнейм, выбранный аватар и игровые показатели (монеты, уровень, результаты игр). Данные сохраняются в защищённой базе данных для синхронизации профиля между устройствами.
-          </p>
-          <p><strong className="text-white/80">Идентификация:</strong><br/>
-            При входе через Яндекс Игры используется анонимный идентификатор Яндекс-аккаунта. При анонимной игре генерируется случайный ID и сохраняется в браузере.
-          </p>
-          <p><strong className="text-white/80">Покупки:</strong><br/>
-            Внутриигровые покупки обрабатываются платёжной системой Яндекса. Мы не храним платёжные данные.
-          </p>
-          <p><strong className="text-white/80">Реклама:</strong><br/>
-            В игре могут показываться рекламные объявления через рекламную сеть Яндекса.
-          </p>
-          <p className="text-white/30 text-xs">Последнее обновление: март 2025</p>
+          <p><strong className="text-white/80">{t('privacy_data_title')}</strong><br/>{t('privacy_data_text')}</p>
+          <p><strong className="text-white/80">{t('privacy_id_title')}</strong><br/>{t('privacy_id_text')}</p>
+          <p><strong className="text-white/80">{t('privacy_pay_title')}</strong><br/>{t('privacy_pay_text')}</p>
+          <p><strong className="text-white/80">{t('privacy_ads_title')}</strong><br/>{t('privacy_ads_text')}</p>
+          <p className="text-white/30 text-xs">{t('privacy_updated')}</p>
         </div>
         <button className="btn-game bg-white/10 text-white border-b-white/20 py-2" onClick={onClose}>{t('privacy_close')}</button>
       </div>

@@ -446,13 +446,20 @@ export interface PlayerData {
 }
 
 export async function apiAuth(action: string, payload: Record<string, unknown>) {
-  const res = await fetch(AUTH_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, ...payload }),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}: ${AUTH_URL}`);
-  return res.json();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5000);
+  try {
+    const res = await fetch(AUTH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, ...payload }),
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}: ${AUTH_URL}`);
+    return res.json();
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 const LB_CACHE_KEY = 'parking_lb_cache';

@@ -165,11 +165,11 @@ export default function FriendsPanel({ playerName, playerEmoji, localPlayerId, n
             className={`text-xs font-russo px-3 py-1.5 rounded-lg transition-all ${copied ? 'bg-green-500 text-white' : 'bg-white/10 text-white hover:bg-white/20'}`}
             onClick={copyCode}
           >
-            {copied ? '✓ Скопировано' : 'Копировать'}
+            {copied ? t('friends_invite_copied') : t('friends_invite_btn')}
           </button>
         </div>
         <p className="text-white/20 text-xs font-nunito">
-          Отправь код другу — когда играете вместе, оба получают <span className="text-yellow-400 font-bold">+10% монет</span> и <span className="text-green-400 font-bold">+15% опыта</span>
+          {t('friends_bonus_desc')} <span className="text-yellow-400 font-bold">{t('friends_bonus_coins')}</span> {t('friends_bonus_xp')}
         </p>
       </div>
 
@@ -194,7 +194,7 @@ export default function FriendsPanel({ playerName, playerEmoji, localPlayerId, n
           </button>
         </div>
         <p className="text-white/20 text-xs font-nunito">
-          Друг сразу увидит тебя в своём списке — добавление взаимное
+          {t('friends_mutual_note')}
         </p>
       </div>
 
