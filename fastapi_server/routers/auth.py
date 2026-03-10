@@ -245,6 +245,18 @@ def auth_handler(body: dict):
                 'nicknameChanges': profile.get('nicknameChanges', 0),
             })
 
+            # Если игрок с таким anon_id не найден — ищем по имени и привязываем
+            cur.execute(f'SELECT id FROM {SCHEMA}.players WHERE anon_id = %s LIMIT 1', (anon_id,))
+            if not cur.fetchone():
+                cur.execute(
+                    f"SELECT id FROM {SCHEMA}.players WHERE LOWER(name) = LOWER(%s) AND (password_hash = '' OR password_hash IS NULL) AND anon_id IS NULL AND ya_id IS NULL LIMIT 1",
+                    (name,)
+                )
+                row = cur.fetchone()
+                if row:
+                    cur.execute(f'UPDATE {SCHEMA}.players SET anon_id = %s WHERE id = %s', (anon_id, row[0]))
+                    conn.commit()
+
             cur.execute(
                 f'''INSERT INTO {SCHEMA}.players
                     (anon_id, name, emoji, coins, gems, xp, wins, games_played,
