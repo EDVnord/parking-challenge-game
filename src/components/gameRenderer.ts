@@ -6,6 +6,7 @@ import {
   EXCL_LEFT, EXCL_RIGHT, EXCL_TOP, EXCL_BOTTOM, EXCL_RADIUS,
   EXCL_RX, EXCL_RY,
 } from './gameTypes';
+import { t } from '@/i18n';
 
 // Полифилл roundRect для Safari < 15.4 и старых Android WebView
 if (!CanvasRenderingContext2D.prototype.roundRect) {
@@ -267,7 +268,7 @@ export function drawParkingArea(ctx: CanvasRenderingContext2D, spots: ParkingSpo
     ctx.fillStyle = 'rgba(255,45,85,0.6)';
     ctx.font = 'bold 11px Russo One, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('🚫 ВЪЕЗД ЗАКРЫТ', CENTER_X, CENTER_Y - ORBIT_R - 6);
+    ctx.fillText(t('renderer_entry_closed'), CENTER_X, CENTER_Y - ORBIT_R - 6);
   }
 
   ctx.restore();
@@ -387,7 +388,7 @@ export function drawSignal(ctx: CanvasRenderingContext2D, time: number) {
   ctx.textBaseline = 'middle';
   ctx.shadowColor = '#FFD600';
   ctx.shadowBlur = 30;
-  ctx.fillText('ПАРКУЙСЯ!', CENTER_X, CENTER_Y - CANVAS_H / 3);
+  ctx.fillText(t('renderer_park'), CENTER_X, CENTER_Y - CANVAS_H / 3);
   ctx.shadowBlur = 0;
   ctx.restore();
 }
@@ -405,21 +406,21 @@ export function drawRoundEnd(ctx: CanvasRenderingContext2D, eliminated: Car | nu
     ctx.font = 'bold 38px Russo One, sans-serif';
     ctx.shadowColor = '#34C759';
     ctx.shadowBlur = 20;
-    ctx.fillText('🏁 ТРЕНИРОВКА ЗАВЕРШЕНА!', CENTER_X, CENTER_Y - 30);
+    ctx.fillText(t('renderer_training_end'), CENTER_X, CENTER_Y - 30);
     ctx.shadowBlur = 0;
     ctx.fillStyle = 'rgba(255,255,255,0.6)';
     ctx.font = '20px Nunito, sans-serif';
-    ctx.fillText('Теперь начинается настоящий бой', CENTER_X, CENTER_Y + 20);
+    ctx.fillText(t('renderer_battle_start'), CENTER_X, CENTER_Y + 20);
   } else if (eliminated) {
     ctx.fillStyle = '#FF2D55';
     ctx.font = 'bold 42px Russo One, sans-serif';
     ctx.shadowColor = '#FF2D55';
     ctx.shadowBlur = 20;
-    ctx.fillText(`${eliminated.emoji} ${eliminated.name} вылетает!`, CENTER_X, CENTER_Y - 30);
+    ctx.fillText(`${eliminated.emoji} ${eliminated.name} ${t('renderer_eliminated')}`, CENTER_X, CENTER_Y - 30);
     ctx.shadowBlur = 0;
     ctx.fillStyle = 'rgba(255,255,255,0.7)';
     ctx.font = '20px Nunito, sans-serif';
-    ctx.fillText(`Раунд ${round} завершён`, CENTER_X, CENTER_Y + 20);
+    ctx.fillText(t('renderer_round_end').replace('{n}', String(round)), CENTER_X, CENTER_Y + 20);
   }
 
   ctx.restore();
@@ -520,7 +521,7 @@ export function drawWinner(ctx: CanvasRenderingContext2D, player: Car | null, ti
 
     ctx.fillStyle = 'rgba(255,214,0,0.7)';
     ctx.font = '15px Nunito, sans-serif';
-    ctx.fillText('КОРОЛЬ ПАРКОВКИ', CENTER_X, CENTER_Y + 108);
+    ctx.fillText(t('renderer_parking_king'), CENTER_X, CENTER_Y + 108);
   }
 
   // Вращающиеся звёзды
@@ -557,15 +558,15 @@ export function drawHUD(ctx: CanvasRenderingContext2D, state: GameState, time: n
   ctx.fillStyle = state.round === 0 ? '#34C759' : state.isFinalRound ? '#FF6B35' : '#FFD600';
   ctx.font = 'bold 14px Russo One, sans-serif';
   ctx.textAlign = 'left';
-  const roundLabel = state.round === 0 ? 'ТРЕНИРОВКА' : state.isFinalRound ? '🏆 ФИНАЛ!' : `РАУНД ${state.round} / ${state.maxRounds}`;
+  const roundLabel = state.round === 0 ? t('renderer_training') : state.isFinalRound ? t('renderer_final') : `${t('renderer_round')} ${state.round} / ${state.maxRounds}`;
   ctx.fillText(roundLabel, 20, 32);
 
   const activeCars = state.cars.filter(c => !c.eliminated).length;
   const activeSpots = state.spots.length;
   ctx.fillStyle = 'rgba(255,255,255,0.7)';
   ctx.font = '13px Nunito, sans-serif';
-  ctx.fillText(`🚗 Машин: ${activeCars}`, 20, 52);
-  ctx.fillText(`🅿️ Мест: ${activeSpots}`, 20, 68);
+  ctx.fillText(`🚗 ${t('renderer_cars')}: ${activeCars}`, 20, 52);
+  ctx.fillText(`🅿️ ${t('renderer_spots')}: ${activeSpots}`, 20, 68);
   ctx.restore();
 
   // Список живых игроков справа (только в развёрнутом режиме)
@@ -581,7 +582,7 @@ export function drawHUD(ctx: CanvasRenderingContext2D, state: GameState, time: n
     ctx.fillStyle = '#FFD600';
     ctx.font = 'bold 11px Russo One, sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText(`👥 ЖИВЫЕ (${aliveCars.length})`, CANVAS_W - listW, 24);
+    ctx.fillText(`👥 ${t('renderer_alive')} (${aliveCars.length})`, CANVAS_W - listW, 24);
     aliveCars.slice(0, 10).forEach((c, i) => {
       const yy = 40 + i * 18;
       const isMe = c.isPlayer;
@@ -604,7 +605,7 @@ export function drawHUD(ctx: CanvasRenderingContext2D, state: GameState, time: n
     ctx.fillStyle = state.round === 0 ? '#34C759' : state.isFinalRound ? (isUrgent ? '#FF2D55' : '#FF6B35') : (isUrgent ? '#FF2D55' : '#FFD600');
     ctx.font = 'bold 22px Russo One, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(state.round === 0 ? `🟢 ${seconds}с` : state.isFinalRound ? `⚡ ${seconds}с` : `⏱ ${seconds}с`, 0, 0);
+    ctx.fillText(state.round === 0 ? `🟢 ${seconds}s` : state.isFinalRound ? `⚡ ${seconds}s` : `⏱ ${seconds}s`, 0, 0);
     ctx.restore();
   }
 
@@ -647,7 +648,7 @@ export function drawHUD(ctx: CanvasRenderingContext2D, state: GameState, time: n
   if (player.parked) {
     ctx.fillStyle = '#34C759';
     ctx.font = 'bold 11px Russo One, sans-serif';
-    ctx.fillText('✅ ПРИПАРКОВАН!', 20, CANVAS_H - 22);
+    ctx.fillText(t('renderer_parked'), 20, CANVAS_H - 22);
   } else {
     const u = upgrades ?? {
       nitro: state.playerNitro, gps: state.playerGps,
@@ -657,17 +658,17 @@ export function drawHUD(ctx: CanvasRenderingContext2D, state: GameState, time: n
     // Показываем только реально купленные апгрейды
     type UpgradeItem = { icon: string; tip: string };
     const activeUpgrades: UpgradeItem[] = [];
-    if (u.nitro === true) activeUpgrades.push({ icon: '⚡', tip: 'Space=нитро' });
+    if (u.nitro === true) activeUpgrades.push({ icon: '⚡', tip: t('renderer_nitro_tip') });
     if (u.gps === true) activeUpgrades.push({ icon: '📡', tip: 'GPS' });
-    if (u.bumper === true) activeUpgrades.push({ icon: '🛡️', tip: '-50% урон' });
-    if (u.autoRepair === true) activeUpgrades.push({ icon: '🔧', tip: '+HP/раунд' });
-    if (u.magnet === true) activeUpgrades.push({ icon: '🧲', tip: 'Магнит' });
-    if (u.turbo === true) activeUpgrades.push({ icon: '🚀', tip: 'Турбо' });
+    if (u.bumper === true) activeUpgrades.push({ icon: '🛡️', tip: t('renderer_bumper_tip') });
+    if (u.autoRepair === true) activeUpgrades.push({ icon: '🔧', tip: t('renderer_autorepair_tip') });
+    if (u.magnet === true) activeUpgrades.push({ icon: '🧲', tip: t('renderer_magnet_tip') });
+    if (u.turbo === true) activeUpgrades.push({ icon: '🚀', tip: t('renderer_turbo_tip') });
     if (u.shield === true) {
       if (!state.shieldUsed) {
-        activeUpgrades.push({ icon: '🔵', tip: '1 удар без урона' });
+        activeUpgrades.push({ icon: '🔵', tip: t('renderer_shield_tip') });
       } else {
-        activeUpgrades.push({ icon: '⬜', tip: 'щит потрачен' });
+        activeUpgrades.push({ icon: '⬜', tip: t('renderer_shield_used') });
       }
     }
     if (activeUpgrades.length > 0) {

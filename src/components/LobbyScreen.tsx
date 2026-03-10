@@ -75,10 +75,10 @@ export default function LobbyScreen({ room, localPlayerId, onCancel }: LobbyScre
         const friend = friends.find(f =>
           p.player_id.toUpperCase().includes(f.code) || f.code.includes(p.player_id.toUpperCase().slice(0, 8))
         );
-        setToast(`👥 ${friend?.name ?? p.name} присоединился! +10% монет`);
+        setToast(`👥 ${friend?.name ?? p.name} ${t('lobby_friend_joined')}`);
         setTimeout(() => setToast(null), 4000);
       } else {
-        setToast(`${p.emoji} ${p.name} вошёл в лобби`);
+        setToast(`${p.emoji} ${p.name} ${t('lobby_player_joined')}`);
         setTimeout(() => setToast(null), 2500);
       }
     });
@@ -95,7 +95,7 @@ export default function LobbyScreen({ room, localPlayerId, onCancel }: LobbyScre
   }, [room.timerEnd]);
 
   const handleCopyLink = () => {
-    const text = `Привет! Добавь мой код в игре "Король парковки" → Друзья: ${myFriendCode} — и получим бонус +10% монет при совместной игре!`;
+    const text = t('lobby_invite_msg').replace('{code}', myFriendCode ?? '');
     navigator.clipboard.writeText(text).catch(() => {
       const el = document.createElement('textarea');
       el.value = text; document.body.appendChild(el); el.select();
@@ -125,9 +125,9 @@ export default function LobbyScreen({ room, localPlayerId, onCancel }: LobbyScre
         <div className="card-game-solid p-5 flex flex-col items-center gap-3 text-center">
           <div className="text-5xl animate-float">🅿️</div>
           <div>
-            <h2 className="font-russo text-2xl text-yellow-400">Поиск игроков{dots}</h2>
+            <h2 className="font-russo text-2xl text-yellow-400">{t('lobby_searching')}{dots}</h2>
             <p className="font-nunito text-white/40 text-xs mt-1">
-              {secs > 0 ? `Через ${secs}с добавятся боты до 10 машин` : 'Запускаем...'}
+              {secs > 0 ? t('lobby_bots_fill').replace('{secs}', String(secs)) : t('lobby_launching')}
             </p>
           </div>
 
@@ -142,12 +142,12 @@ export default function LobbyScreen({ room, localPlayerId, onCancel }: LobbyScre
             <div className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse inline-block" />
               <span className="font-russo text-green-400">{realPlayers.length}</span>
-              <span className="text-white/30 font-nunito">реальных</span>
+              <span className="text-white/30 font-nunito">{t('lobby_real')}</span>
             </div>
             <span className="text-white/20">+</span>
             <div className="flex items-center gap-1.5">
               <span className="text-white/40 font-russo">{botSlots}</span>
-              <span className="text-white/30 font-nunito">ботов</span>
+              <span className="text-white/30 font-nunito">{t('lobby_bots')}</span>
             </div>
             <span className="text-white/20">=</span>
             <div className="font-russo text-white">10 🚗</div>
@@ -156,7 +156,7 @@ export default function LobbyScreen({ room, localPlayerId, onCancel }: LobbyScre
 
         {/* Список игроков */}
         <div className="card-game p-4 flex flex-col gap-2">
-          <div className="font-russo text-white/40 text-xs uppercase tracking-wider mb-1">Игроки в комнате</div>
+          <div className="font-russo text-white/40 text-xs uppercase tracking-wider mb-1">{t('lobby_players_room')}</div>
           {(() => {
             const myFriends = getFriends();
             const friendsInRoom = realPlayers.filter(p => p.player_id !== localPlayerId && myFriends.some(f =>
@@ -167,10 +167,10 @@ export default function LobbyScreen({ room, localPlayerId, onCancel }: LobbyScre
                 <span className="text-base">👥</span>
                 <span className="font-russo text-green-400 text-xs">
                   {friendsInRoom.length === 1
-                    ? `${friendsInRoom[0].name} уже в комнате!`
-                    : `${friendsInRoom.map(f => f.name).join(', ')} уже здесь!`}
+                    ? `${friendsInRoom[0].name} ${t('lobby_friend_here1')}`
+                    : `${friendsInRoom.map(f => f.name).join(', ')} ${t('lobby_friends_here')}`}
                 </span>
-                <span className="text-green-400/60 text-xs ml-auto">+10% монет</span>
+                <span className="text-green-400/60 text-xs ml-auto">{t('lobby_friend_bonus')}</span>
               </div>
             ) : null;
           })()}
@@ -192,16 +192,16 @@ export default function LobbyScreen({ room, localPlayerId, onCancel }: LobbyScre
                 >
                   <span className="text-base">{p.emoji}</span>
                   <span className={`font-nunito text-sm flex-1 truncate ${isMe ? 'text-yellow-400 font-bold' : isFriend ? 'text-green-400' : 'text-white/80'}`}>
-                    {p.name}{isMe && ' (ты)'}{isFriend && ' 👥'}
+                    {p.name}{isMe && ` (${t('lobby_you')})`}{isFriend && ' 👥'}
                   </span>
-                  <span className={`text-xs shrink-0 ${isFriend ? 'text-green-400' : 'text-green-500/60'}`}>● онлайн</span>
+                  <span className={`text-xs shrink-0 ${isFriend ? 'text-green-400' : 'text-green-500/60'}`}>● online</span>
                 </div>
               );
             })}
             {Array.from({ length: Math.max(0, botSlots) }).map((_, i) => (
               <div key={`bot_${i}`} className="flex items-center gap-2 rounded-lg px-3 py-1.5 bg-white/3 border border-dashed border-white/10">
                 <span className="text-white/20 text-base">🤖</span>
-                <span className="font-nunito text-white/20 text-sm">Бот{dots}</span>
+                <span className="font-nunito text-white/20 text-sm">Bot{dots}</span>
               </div>
             ))}
           </div>
@@ -210,7 +210,7 @@ export default function LobbyScreen({ room, localPlayerId, onCancel }: LobbyScre
         {/* Пригласить друга */}
         <div className="card-game p-3 flex items-center gap-3">
           <div className="flex-1 min-w-0">
-            <div className="font-nunito text-white/30 text-xs">👥 Твой код для друга</div>
+            <div className="font-nunito text-white/30 text-xs">👥 {t('friends_invite_btn')}</div>
             <div className="font-russo text-yellow-400 text-sm tracking-widest truncate">{myFriendCode}</div>
           </div>
           <button
@@ -219,7 +219,7 @@ export default function LobbyScreen({ room, localPlayerId, onCancel }: LobbyScre
             }`}
             onClick={handleCopyLink}
           >
-            {copied ? '✓ Скопировано' : 'Копировать'}
+            {copied ? t('lobby_invite_copied') : t('lobby_invite_code')}
           </button>
         </div>
 
@@ -230,13 +230,13 @@ export default function LobbyScreen({ room, localPlayerId, onCancel }: LobbyScre
         >
           <span className="text-xl shrink-0 mt-0.5">{TIPS[tipIdx].icon}</span>
           <div>
-            <div className="text-white/30 text-[10px] font-russo uppercase tracking-widest mb-0.5">Совет</div>
+            <div className="text-white/30 text-[10px] font-russo uppercase tracking-widest mb-0.5">{t('tip_label')}</div>
             <div className="text-white/70 font-nunito text-xs leading-relaxed">{t(TIPS[tipIdx].key)}</div>
           </div>
         </div>
 
         <button className="btn-red py-3 font-russo" onClick={onCancel}>
-          Отмена
+          {t('lobby_cancel')}
         </button>
       </div>
     </div>
