@@ -78,13 +78,35 @@ else
   warn "Билд не найден — проверь ошибки выше."
 fi
 
-# Упаковываем билд для Яндекс Игр в zip
+# Упаковываем и загружаем билд для Яндекс Игр
 if [ -d "$REPO_ROOT/dist_ya" ]; then
   info "Упаковываю билд для Яндекс Игр..."
   cd "$REPO_ROOT/dist_ya"
   zip -r "$REPO_ROOT/yandex_games_build.zip" . -x "*.DS_Store"
   cd "$REPO_ROOT"
-  info "Готово: $REPO_ROOT/yandex_games_build.zip"
+
+  UPLOAD_TOKEN="${UPLOAD_BUILD_TOKEN:-}"
+  UPLOAD_URL="https://functions.poehali.dev/a1f25142-8e2c-41b2-8690-0585cfa6d1e6"
+
+  if [ -n "$UPLOAD_TOKEN" ]; then
+    info "Загружаю zip в облако..."
+    RESPONSE=$(curl -s -X POST "$UPLOAD_URL" \
+      -H "X-Upload-Token: $UPLOAD_TOKEN" \
+      -H "Content-Type: application/octet-stream" \
+      --data-binary @"$REPO_ROOT/yandex_games_build.zip")
+    CDN_URL=$(echo "$RESPONSE" | grep -o '"url":"[^"]*"' | cut -d'"' -f4)
+    if [ -n "$CDN_URL" ]; then
+      info "Билд для Яндекс Игр доступен по ссылке:"
+      echo ""
+      echo "  $CDN_URL"
+      echo ""
+    else
+      warn "Не удалось загрузить в облако. Zip сохранён: $REPO_ROOT/yandex_games_build.zip"
+    fi
+  else
+    warn "UPLOAD_BUILD_TOKEN не задан. Zip сохранён локально: $REPO_ROOT/yandex_games_build.zip"
+    warn "Добавь в /etc/environment: UPLOAD_BUILD_TOKEN=твой_токен"
+  fi
 fi
 
 # =====================================================
