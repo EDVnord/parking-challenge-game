@@ -5,7 +5,7 @@ from config import SCHEMA
 router = APIRouter(prefix="/leaderboard", tags=["leaderboard"])
 
 
-@router.get("/")
+@router.get("")
 def get_leaderboard(name: str = ''):
     conn = get_conn()
     cur = conn.cursor()

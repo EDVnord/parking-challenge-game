@@ -175,7 +175,7 @@ def maybe_start_room(db, room_id: str, room: dict, players: list):
     return room, players
 
 
-@router.post("/")
+@router.post("")
 def room_handler(body: dict):
     action = body.get('action', '')
     db = get_conn()

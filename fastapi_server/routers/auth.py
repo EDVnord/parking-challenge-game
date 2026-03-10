@@ -47,7 +47,7 @@ def row_to_profile(row) -> dict:
     return result
 
 
-@router.post("/")
+@router.post("")
 def auth_handler(body: dict):
     action = body.get('action', '')
     conn = get_conn()

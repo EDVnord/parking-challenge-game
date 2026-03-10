@@ -15,7 +15,7 @@ GEM_PACKS = {
 }
 
 
-@router.post("/")
+@router.post("")
 def payment_handler(body: dict):
     if not YOOKASSA_SHOP_ID or not YOOKASSA_SECRET_KEY:
         raise HTTPException(503, 'Платежи не настроены')

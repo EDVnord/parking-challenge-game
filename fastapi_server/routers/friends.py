@@ -31,7 +31,7 @@ def ensure_friend_code(cur, conn, player_id):
     return code
 
 
-@router.post("/")
+@router.post("")
 def friends_handler(body: dict):
     action = body.get('action', '')
     conn = get_conn()
