@@ -439,6 +439,7 @@ const translations: Record<string, Record<Lang, string>> = {
   'renderer_autorepair_tip': { ru: '+HP/раунд', en: '+HP/round' },
   'renderer_magnet_tip':    { ru: 'Магнит', en: 'Magnet' },
   'renderer_turbo_tip':     { ru: 'Турбо', en: 'Turbo' },
+  'for_gems':               { ru: 'за', en: 'for' },
 };
 
 let _lang: Lang = 'ru';

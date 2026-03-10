@@ -210,11 +210,14 @@ export async function getYaCatalog(): Promise<GemPackInfo[]> {
       let currencyImageUrl = '';
       try {
         if (typeof p.getPriceCurrencyImage === 'function') {
-          const url = p.getPriceCurrencyImage('small');
-          // Яндекс возвращает //yastatic.net/... — добавляем https:
-          currencyImageUrl = url ? (url.startsWith('//') ? `https:${url}` : url) : '';
+          const raw = p.getPriceCurrencyImage('small') || p.getPriceCurrencyImage('medium') || p.getPriceCurrencyImage('svg');
+          console.log('[YaGames] currencyImg raw:', p.id, p.priceCurrencyCode, raw);
+          if (raw) {
+            currencyImageUrl = raw.startsWith('//') ? `https:${raw}` : raw.startsWith('http') ? raw : raw;
+          }
         }
       } catch { /* ignore */ }
+      console.log('[YaGames] product:', p.id, p.price, p.priceCurrencyCode, currencyImageUrl);
       return {
         id: p.id,
         price: p.price,

@@ -56,15 +56,29 @@ export function ShopScreen({ player, setScreen, setPlayer, notify }: ShopScreenP
   const [restoring, setRestoring] = useState(false);
   const inYa = isYandexGamesEnv();
   const [sdkCatalog, setSdkCatalog] = useState<Record<string, GemPackInfo>>({});
+  const [catalogLoading, setCatalogLoading] = useState(true);
 
-  useEffect(() => {
-    if (!inYa) return;
+  const loadCatalog = () => {
+    if (!inYa) { setCatalogLoading(false); return; }
+    setCatalogLoading(true);
     getYaCatalog().then(catalog => {
       const map: Record<string, GemPackInfo> = {};
       catalog.forEach(p => { map[p.id] = p; });
       setSdkCatalog(map);
-    }).catch(() => {});
+    }).catch(() => {}).finally(() => setCatalogLoading(false));
+  };
+
+  useEffect(() => {
+    loadCatalog();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inYa]);
+
+  useEffect(() => {
+    if (tab === 'gems' && inYa && Object.keys(sdkCatalog).length === 0 && !catalogLoading) {
+      loadCatalog();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
 
   const handleRestore = async () => {
     if (!inYa) { notify(t('restore_ya_only')); return; }
@@ -85,11 +99,11 @@ export function ShopScreen({ player, setScreen, setPlayer, notify }: ShopScreenP
 
   // productId совпадает с ID в кабинете Яндекс Игр
   // baseGems — сколько написано в названии пака, bonusGems — бонус сверху, итого начисляется baseGems+bonusGems
-  const gemPacks: { id: string; baseGems: number; bonusGems: number; price: string; currencyImg?: string; popular?: boolean }[] = [
-    { id: 'gems_100',  baseGems: 100,  bonusGems: 0,   price: sdkCatalog['gems_100']?.price  ?? '—', currencyImg: sdkCatalog['gems_100']?.currencyImageUrl },
-    { id: 'gems_300',  baseGems: 300,  bonusGems: 50,  price: sdkCatalog['gems_300']?.price  ?? '—', currencyImg: sdkCatalog['gems_300']?.currencyImageUrl, popular: true },
-    { id: 'gems_700',  baseGems: 700,  bonusGems: 150, price: sdkCatalog['gems_700']?.price  ?? '—', currencyImg: sdkCatalog['gems_700']?.currencyImageUrl },
-    { id: 'gems_1500', baseGems: 1500, bonusGems: 500, price: sdkCatalog['gems_1500']?.price ?? '—', currencyImg: sdkCatalog['gems_1500']?.currencyImageUrl },
+  const gemPacks: { id: string; baseGems: number; bonusGems: number; price: string; currencyImg: string; popular?: boolean }[] = [
+    { id: 'gems_100',  baseGems: 100,  bonusGems: 0,   price: sdkCatalog['gems_100']?.price  ?? '—', currencyImg: sdkCatalog['gems_100']?.currencyImageUrl ?? '' },
+    { id: 'gems_300',  baseGems: 300,  bonusGems: 50,  price: sdkCatalog['gems_300']?.price  ?? '—', currencyImg: sdkCatalog['gems_300']?.currencyImageUrl ?? '', popular: true },
+    { id: 'gems_700',  baseGems: 700,  bonusGems: 150, price: sdkCatalog['gems_700']?.price  ?? '—', currencyImg: sdkCatalog['gems_700']?.currencyImageUrl ?? '' },
+    { id: 'gems_1500', baseGems: 1500, bonusGems: 500, price: sdkCatalog['gems_1500']?.price ?? '—', currencyImg: sdkCatalog['gems_1500']?.currencyImageUrl ?? '' },
   ];
 
   const handleBuyGems = async (pack: typeof gemPacks[0]) => {
@@ -328,7 +342,7 @@ export function ShopScreen({ player, setScreen, setPlayer, notify }: ShopScreenP
             >
               <CoinIcon size={32} />
               <div className="font-russo text-yellow-400 text-lg">{pack.coins.toLocaleString()}</div>
-              <div className="text-white/30 text-xs flex items-center gap-1">за {pack.gems} <GemIcon size={12} /></div>
+              <div className="text-white/30 text-xs flex items-center gap-1">{t('for_gems')} {pack.gems} <GemIcon size={12} /></div>
               <div className="bg-purple-500/20 border border-purple-500/30 text-purple-300 font-russo text-sm py-1.5 px-4 w-full text-center rounded-xl flex items-center justify-center gap-1">
                 {pack.gems} <GemIcon size={13} />
               </div>
@@ -370,16 +384,22 @@ export function ShopScreen({ player, setScreen, setPlayer, notify }: ShopScreenP
                       <div className="text-white/50 text-[10px] font-nunito">= {pack.baseGems + pack.bonusGems} 💎</div>
                     </div>
                   ) : <div className="h-8" />}
-                  <div className={`font-russo text-sm py-1.5 px-3 w-full text-center rounded-xl flex items-center justify-center gap-1
+                  <div className={`font-russo text-sm py-1.5 px-3 w-full text-center rounded-xl flex items-center justify-center gap-1.5
                     ${isLoading ? 'bg-white/20 text-white/60' : 'bg-yellow-400 text-gray-900'}
                   `}>
-                    {isLoading ? t('paying') : (
+                    {isLoading ? t('paying') : catalogLoading ? (
+                      <span className="opacity-50">…</span>
+                    ) : (
                       <>
-                        {pack.currencyImg
-                          ? <img src={pack.currencyImg} alt="" className="w-4 h-4 object-contain" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                          : null
-                        }
-                        {pack.price}
+                        {pack.currencyImg ? (
+                          <img
+                            src={pack.currencyImg}
+                            alt={sdkCatalog[pack.id]?.priceCurrencyCode ?? ''}
+                            className="w-5 h-5 object-contain flex-shrink-0"
+                            onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                          />
+                        ) : null}
+                        <span>{pack.price}</span>
                       </>
                     )}
                   </div>
