@@ -587,7 +587,7 @@ export interface LevelReward {
   level: number;
   coins: number;
   gems?: number;
-  bonus?: string;
+  bonusKey?: string;
 }
 
 export const LEVEL_REWARDS: LevelReward[] = [
@@ -595,17 +595,17 @@ export const LEVEL_REWARDS: LevelReward[] = [
   { level: 2,  coins: 250 },
   { level: 3,  coins: 300 },
   { level: 4,  coins: 350 },
-  { level: 5,  coins: 500,  gems: 5,  bonus: '🔓 Новый цвет машины' },
+  { level: 5,  coins: 500,  gems: 5,  bonusKey: 'lvl_bonus_5' },
   { level: 6,  coins: 400 },
   { level: 7,  coins: 450 },
   { level: 8,  coins: 500 },
   { level: 9,  coins: 550 },
-  { level: 10, coins: 800,  gems: 10, bonus: '🚗 Скидка 20% в гараже' },
+  { level: 10, coins: 800,  gems: 10, bonusKey: 'lvl_bonus_10' },
   { level: 12, coins: 600 },
-  { level: 15, coins: 1000, gems: 15, bonus: '⚡ Нитро бесплатно на день' },
-  { level: 20, coins: 1500, gems: 20, bonus: '👑 Рамка "Элита"' },
-  { level: 25, coins: 2000, gems: 25, bonus: '🏎️ Уникальное авто "Болид+"' },
-  { level: 30, coins: 3000, gems: 30, bonus: '🌟 Статус Легенды' },
+  { level: 15, coins: 1000, gems: 15, bonusKey: 'lvl_bonus_15' },
+  { level: 20, coins: 1500, gems: 20, bonusKey: 'lvl_bonus_20' },
+  { level: 25, coins: 2000, gems: 25, bonusKey: 'lvl_bonus_25' },
+  { level: 30, coins: 3000, gems: 30, bonusKey: 'lvl_bonus_30' },
 ];
 
 export const DAILY_STREAK_REWARDS: { coins: number; gems: number }[] = [

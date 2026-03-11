@@ -20,20 +20,12 @@ function claimAch(id: string) {
   if (!claimed.includes(id)) localStorage.setItem(CLAIMABLE_ACH_KEY, JSON.stringify([...claimed, id]));
 }
 
-const CATEGORY_ORDER = ['Победы', 'Игры', 'Скиллы', 'Богатство', 'Гараж', 'Уровни', 'Серия'];
-const CATEGORY_I18N: Record<string, string> = {
-  'Победы': 'cat_wins',
-  'Игры': 'cat_games',
-  'Скиллы': 'cat_skills',
-  'Богатство': 'cat_wealth',
-  'Гараж': 'cat_garage',
-  'Уровни': 'cat_levels',
-  'Серия': 'cat_streak',
-};
+// Используем ключи переводов — не зависят от языка
+const CATEGORY_KEYS = ['cat_wins', 'cat_games', 'cat_skills', 'cat_wealth', 'cat_garage', 'cat_levels', 'cat_streak'];
 
 export default function AchievementsScreen({ player, setScreen, setPlayer, notify }: AchievementsScreenProps) {
   const [tab, setTab] = useState<'achievements' | 'levels'>('achievements');
-  const [achCat, setAchCat] = useState('Победы');
+  const [achCatKey, setAchCatKey] = useState('cat_wins');
   const claimedAchs = getClaimedAchs();
 
   const xpInLevel = (() => {
@@ -43,14 +35,15 @@ export default function AchievementsScreen({ player, setScreen, setPlayer, notif
     return { current: rem, needed: xpForLevel(l) };
   })();
 
-  const grouped = CATEGORY_ORDER.map(cat => ({
-    cat,
-    items: ALL_ACHIEVEMENTS.filter((a: AchDef) => a.category === cat),
+  // Группируем по catKey — category геттер возвращает t(catKey), сравниваем с текущим переводом
+  const grouped = CATEGORY_KEYS.map(catKey => ({
+    catKey,
+    items: ALL_ACHIEVEMENTS.filter((a: AchDef) => a.category === t(catKey)),
   }));
 
   const totalDone = ALL_ACHIEVEMENTS.filter((a: AchDef) => a.check(player)).length;
   const hasClaimable = ALL_ACHIEVEMENTS.some((a: AchDef) => a.check(player) && !claimedAchs.includes(a.id));
-  const currentItems = grouped.find(g => g.cat === achCat)?.items ?? [];
+  const currentItems = grouped.find(g => g.catKey === achCatKey)?.items ?? [];
 
   const handleClaimAch = (ach: AchDef) => {
     claimAch(ach.id);
@@ -59,16 +52,16 @@ export default function AchievementsScreen({ player, setScreen, setPlayer, notif
       coins: prev.coins + (ach.reward.coins ?? 0),
       gems: prev.gems + (ach.reward.gems ?? 0),
     }));
-    notify(`🏅 Достижение «${ach.title}»! +${ach.reward.coins ?? 0}🪙${ach.reward.gems ? ` +${ach.reward.gems}💎` : ''}`);
+    notify(`${t('ach_toast_title')} «${ach.title}»! +${ach.reward.coins ?? 0}🪙${ach.reward.gems ? ` +${ach.reward.gems}💎` : ''}`);
   };
 
   return (
     <div className="min-h-screen flex flex-col px-4 py-6 gap-4 max-w-lg mx-auto">
-      <div className="flex items-center gap-3">
-        <button className="btn-game bg-white/10 text-white border-b-white/20 py-2 px-4" onClick={() => setScreen('profile')}>←</button>
-        <h2 className="font-russo text-2xl text-yellow-400">{t('ach_title')}</h2>
-        <span className="ml-auto font-russo text-xs text-yellow-400/60">{totalDone}/{ALL_ACHIEVEMENTS.length}</span>
-        {hasClaimable && <span className="text-xs font-nunito text-yellow-300 animate-pulse">{t('ach_rewards')}</span>}
+      <div className="flex items-center gap-2 min-w-0">
+        <button className="btn-game bg-white/10 text-white border-b-white/20 py-2 px-4 shrink-0" onClick={() => setScreen('profile')}>←</button>
+        <h2 className="font-russo text-xl text-yellow-400 truncate">{t('ach_title')}</h2>
+        <span className="ml-auto font-russo text-xs text-yellow-400/60 shrink-0">{totalDone}/{ALL_ACHIEVEMENTS.length}</span>
+        {hasClaimable && <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 animate-pulse shrink-0" />}
       </div>
 
       {/* XP progress */}
@@ -111,11 +104,11 @@ export default function AchievementsScreen({ player, setScreen, setPlayer, notif
               const claimCnt = g.items.filter((a: AchDef) => a.check(player) && !claimedAchs.includes(a.id)).length;
               return (
                 <button
-                  key={g.cat}
-                  onClick={() => setAchCat(g.cat)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-russo transition-all relative ${achCat === g.cat ? 'bg-yellow-400/20 text-yellow-300 border border-yellow-400/30' : 'bg-white/5 text-white/30 hover:text-white/50'}`}
+                  key={g.catKey}
+                  onClick={() => setAchCatKey(g.catKey)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-russo transition-all relative ${achCatKey === g.catKey ? 'bg-yellow-400/20 text-yellow-300 border border-yellow-400/30' : 'bg-white/5 text-white/30 hover:text-white/50'}`}
                 >
-                  {t(CATEGORY_I18N[g.cat] ?? g.cat)} {doneCnt}/{g.items.length}
+                  {t(g.catKey)} {doneCnt}/{g.items.length}
                   {claimCnt > 0 && <span className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-400 rounded-full" />}
                 </button>
               );
@@ -179,9 +172,9 @@ export default function AchievementsScreen({ player, setScreen, setPlayer, notif
                     <span className="font-nunito text-yellow-400 text-sm flex items-center gap-0.5">+{r.coins.toLocaleString()} <CoinIcon size={13} /></span>
                     {r.gems && <span className="font-nunito text-blue-300 text-sm flex items-center gap-0.5">+{r.gems} <GemIcon size={13} /></span>}
                   </div>
-                  {r.bonus && <div className="font-nunito text-white/50 text-xs mt-0.5">{r.bonus}</div>}
+                  {r.bonusKey && <div className="font-nunito text-white/50 text-xs mt-0.5">{t(r.bonusKey)}</div>}
                   <div className="font-nunito text-white/20 text-xs mt-0.5">
-                    XP для уровня: {Array.from({ length: r.level - 1 }, (_, i) => xpForLevel(i + 1)).reduce((a, b) => a + b, 0).toLocaleString()}
+                    {t('xp_for_level')}: {Array.from({ length: r.level - 1 }, (_, i) => xpForLevel(i + 1)).reduce((a, b) => a + b, 0).toLocaleString()}
                   </div>
                 </div>
                 <div className="shrink-0 text-lg">

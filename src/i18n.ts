@@ -121,6 +121,15 @@ const translations: Record<string, Record<Lang, string>> = {
   'level_rewards':    { ru: '📈 Награды за уровни', en: '📈 Level rewards' },
   'level_rewards_note': { ru: 'Награды начисляются автоматически при достижении уровня', en: 'Rewards are granted automatically on level up' },
   'claim':            { ru: 'Забрать!', en: 'Claim!' },
+  'xp_for_level':     { ru: 'XP для уровня', en: 'XP for level' },
+
+  // Level reward bonuses
+  'lvl_bonus_5':   { ru: '🔓 Новый цвет машины', en: '🔓 New car color' },
+  'lvl_bonus_10':  { ru: '🚗 Скидка 20% в гараже', en: '🚗 20% discount in garage' },
+  'lvl_bonus_15':  { ru: '⚡ Нитро бесплатно на день', en: '⚡ Free nitro for a day' },
+  'lvl_bonus_20':  { ru: '👑 Рамка "Элита"', en: '👑 "Elite" frame' },
+  'lvl_bonus_25':  { ru: '🏎️ Уникальное авто "Болид+"', en: '🏎️ Unique car "Racer+"' },
+  'lvl_bonus_30':  { ru: '🌟 Статус Легенды', en: '🌟 Legend status' },
 
   // Achievement categories
   'cat_wins':         { ru: 'Победы', en: 'Wins' },

@@ -178,8 +178,8 @@ export function ProfileScreen({ player, setScreen, setPlayer, notify, localPlaye
           <div className="font-russo text-white text-sm">{t('achievements_btn')}</div>
           <div className="font-nunito text-white/30 text-xs">{totalDone} {t('profile_ach_progress')} {ALL_ACHIEVEMENTS.length} {t('profile_ach_done')}</div>
         </div>
-        {hasClaimable && <span className="text-xs font-nunito text-yellow-300 animate-pulse mr-1">{t('profile_rewards')}</span>}
-        <div className="text-white/30 text-sm">→</div>
+        {hasClaimable && <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 animate-pulse shrink-0" />}
+        <div className="text-white/30 text-sm shrink-0">→</div>
       </button>
 
       {gemLog.length > 0 && (
