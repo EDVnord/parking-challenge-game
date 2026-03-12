@@ -74,6 +74,128 @@ export function drawCar(ctx: CanvasRenderingContext2D, car: Car, time: number) {
   ctx.fill();
   ctx.restore();
 
+  const isRocket = car.emoji === '🚀';
+
+  if (isRocket) {
+    // ── ROCKET ──────────────────────────────────────────────────
+    // Координаты: Y отрицательный = нос (вперёд), Y положительный = сопло (назад)
+    const rW = 11; // ширина корпуса
+    const rH = 32; // высота корпуса
+
+    // --- Пламя из сопла (сзади = +Y, рисуем ДО корпуса чтобы было за ракетой)
+    const flameLen = 14 + 10 * Math.abs(Math.sin(time * 12 + car.id));
+    const flameW   = 7  + 3  * Math.abs(Math.sin(time * 15 + car.id * 1.3));
+    // Внешнее пламя (оранжево-красное)
+    const flameGrad = ctx.createLinearGradient(0, rH / 2, 0, rH / 2 + flameLen);
+    flameGrad.addColorStop(0,   'rgba(255,200,50,0.95)');
+    flameGrad.addColorStop(0.4, 'rgba(255,100,0,0.85)');
+    flameGrad.addColorStop(1,   'rgba(255,30,0,0)');
+    ctx.beginPath();
+    ctx.moveTo(-flameW / 2, rH / 2);
+    ctx.quadraticCurveTo(-flameW * 0.8, rH / 2 + flameLen * 0.6, 0, rH / 2 + flameLen);
+    ctx.quadraticCurveTo(flameW * 0.8,  rH / 2 + flameLen * 0.6, flameW / 2, rH / 2);
+    ctx.closePath();
+    ctx.fillStyle = flameGrad;
+    ctx.fill();
+    // Внутреннее пламя (ярко-белое/жёлтое)
+    const innerLen = flameLen * 0.55;
+    const innerW   = flameW * 0.45;
+    const innerGrad = ctx.createLinearGradient(0, rH / 2, 0, rH / 2 + innerLen);
+    innerGrad.addColorStop(0,   'rgba(255,255,220,1)');
+    innerGrad.addColorStop(1,   'rgba(255,200,50,0)');
+    ctx.beginPath();
+    ctx.moveTo(-innerW / 2, rH / 2);
+    ctx.quadraticCurveTo(-innerW * 0.7, rH / 2 + innerLen * 0.5, 0, rH / 2 + innerLen);
+    ctx.quadraticCurveTo( innerW * 0.7, rH / 2 + innerLen * 0.5, innerW / 2, rH / 2);
+    ctx.closePath();
+    ctx.fillStyle = innerGrad;
+    ctx.fill();
+
+    // --- Плавники (сзади, по бокам)
+    ctx.fillStyle = car.bodyColor;
+    // Левый плавник
+    ctx.beginPath();
+    ctx.moveTo(-rW / 2, rH / 2);
+    ctx.lineTo(-rW / 2 - 7, rH / 2 + 4);
+    ctx.lineTo(-rW / 2 - 4, rH / 2 - 10);
+    ctx.lineTo(-rW / 2, rH / 2 - 12);
+    ctx.closePath();
+    ctx.fill();
+    // Правый плавник
+    ctx.beginPath();
+    ctx.moveTo(rW / 2, rH / 2);
+    ctx.lineTo(rW / 2 + 7, rH / 2 + 4);
+    ctx.lineTo(rW / 2 + 4, rH / 2 - 10);
+    ctx.lineTo(rW / 2, rH / 2 - 12);
+    ctx.closePath();
+    ctx.fill();
+
+    // --- Корпус (цилиндр — округлый прямоугольник)
+    ctx.beginPath();
+    ctx.roundRect(-rW / 2, -rH / 2, rW, rH, [rW / 2, rW / 2, 4, 4]);
+    ctx.fillStyle = car.color;
+    ctx.fill();
+    if (car.isPlayer) {
+      const bp = 0.6 + 0.4 * Math.sin(time * 4);
+      ctx.strokeStyle = `rgba(0,255,140,${0.7 + 0.3 * bp})`;
+      ctx.lineWidth = 2.5;
+      ctx.shadowColor = 'rgba(0,255,140,0.9)';
+      ctx.shadowBlur = 10 + 6 * bp;
+    } else {
+      ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+      ctx.lineWidth = 1.5;
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // --- Нос (конус — вперёд = -Y)
+    ctx.beginPath();
+    ctx.moveTo(-rW / 2, -rH / 2);
+    ctx.quadraticCurveTo(-rW * 0.3, -rH / 2 - 8, 0, -rH / 2 - 14);
+    ctx.quadraticCurveTo( rW * 0.3, -rH / 2 - 8, rW / 2, -rH / 2);
+    ctx.closePath();
+    ctx.fillStyle = car.bodyColor;
+    ctx.fill();
+
+    // --- Иллюминатор
+    ctx.beginPath();
+    ctx.arc(0, -rH / 2 + 10, 4, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(150,220,255,0.8)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // --- Полоска на корпусе
+    ctx.beginPath();
+    ctx.roundRect(-rW / 2 + 2, -rH / 2 + 18, rW - 4, 3, 1);
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.fill();
+
+    // --- Сопло
+    ctx.beginPath();
+    ctx.roundRect(-rW / 2 + 1, rH / 2 - 5, rW - 2, 5, [0, 0, 3, 3]);
+    ctx.fillStyle = '#333';
+    ctx.fill();
+
+    // Damage
+    if (healthRatio < 0.6) {
+      ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(-2, -5); ctx.lineTo(3, 2); ctx.lineTo(-1, 8);
+      ctx.stroke();
+    }
+    if (healthRatio < 0.3) {
+      ctx.strokeStyle = 'rgba(255,50,0,0.6)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(2, -10); ctx.lineTo(-4, 0); ctx.lineTo(4, 6);
+      ctx.stroke();
+    }
+  } else {
+  // ── ОБЫЧНАЯ МАШИНА ──────────────────────────────────────────
+
   // Body
   ctx.beginPath();
   ctx.roundRect(-carW / 2, -carH / 2, carW, carH, 6);
@@ -158,6 +280,7 @@ export function drawCar(ctx: CanvasRenderingContext2D, car: Car, time: number) {
       ctx.fill();
     }
   }
+  } // end обычная машина
 
   // Shield glow (только если щит активен и ещё не использован)
   // Доступа к state здесь нет — щит рисуется через внешний флаг в drawHUD

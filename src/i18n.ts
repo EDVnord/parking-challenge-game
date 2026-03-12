@@ -287,7 +287,7 @@ const translations: Record<string, Record<Lang, string>> = {
   'car_5': { ru: 'Полицейский', en: 'Police'  },
   'car_6': { ru: 'Болид',     en: 'Racer'     },
   'car_7': { ru: 'Пикап',     en: 'Pickup'    },
-  'car_8': { ru: 'Лимузин',   en: 'Limousine' },
+  'car_8': { ru: 'Ракета',    en: 'Rocket'    },
 
   // Profile labels
   'profile_level_label': { ru: 'Уровень', en: 'Level' },
