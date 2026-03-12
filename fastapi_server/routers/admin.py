@@ -111,6 +111,42 @@ def admin_handler(body: dict):
             conn.commit()
             return {'success': True, 'updated': len(updates)}
 
+        elif action == 'link_ya':
+            player_id = body.get('playerId')
+            ya_id = (body.get('yaId') or '').strip()
+            if not player_id:
+                raise HTTPException(400, 'Нет playerId')
+            if not ya_id:
+                raise HTTPException(400, 'Нет yaId')
+
+            # Проверяем: нет ли уже такого ya_id у другого игрока
+            cur.execute(f'SELECT id, name FROM {SCHEMA}.players WHERE ya_id = %s AND id != %s LIMIT 1', (ya_id, player_id))
+            conflict = cur.fetchone()
+            if conflict:
+                # Сливаем: берём лучшие данные из обоих, оставляем target игрока
+                cur.execute(f'SELECT coins, gems, xp, wins, games_played, best_position FROM {SCHEMA}.players WHERE id = %s', (player_id,))
+                target = cur.fetchone()
+                cur.execute(f'SELECT coins, gems, xp, wins, games_played, best_position FROM {SCHEMA}.players WHERE id = %s', (conflict[0],))
+                src = cur.fetchone()
+                cur.execute(
+                    f'''UPDATE {SCHEMA}.players SET
+                        ya_id=%s,
+                        coins=GREATEST(coins,%s), gems=GREATEST(gems,%s),
+                        xp=GREATEST(xp,%s), wins=GREATEST(wins,%s),
+                        games_played=GREATEST(games_played,%s),
+                        best_position=LEAST(best_position,%s),
+                        updated_at=NOW()
+                        WHERE id=%s''',
+                    (ya_id, src[0], src[1], src[2], src[3], src[4], src[5], player_id)
+                )
+                cur.execute(f'DELETE FROM {SCHEMA}.friends WHERE player_id=%s OR friend_id=%s', (conflict[0], conflict[0]))
+                cur.execute(f'DELETE FROM {SCHEMA}.players WHERE id=%s', (conflict[0],))
+            else:
+                cur.execute(f'UPDATE {SCHEMA}.players SET ya_id=%s, updated_at=NOW() WHERE id=%s', (ya_id, player_id))
+
+            conn.commit()
+            return {'success': True, 'merged': conflict is not None, 'mergedName': conflict[1] if conflict else None}
+
         elif action == 'ban':
             player_id = body.get('playerId')
             if not player_id:

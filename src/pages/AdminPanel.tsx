@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import Icon from '@/components/ui/icon';
 
-const ADMIN_URL = import.meta.env.VITE_SERVER_URL
-  ? `${import.meta.env.VITE_SERVER_URL}/admin`
-  : 'https://ednord.ru/api/admin';
+const _BASE = (import.meta.env['VITE_API_URL'] || 'https://ednord.ru/api').replace(/\/$/, '');
+const ADMIN_URL = `${_BASE}/admin`;
 
 interface Player {
   id: number;
@@ -62,6 +61,7 @@ export default function AdminPanel() {
   const [editFields, setEditFields] = useState<Record<string, string | number>>({});
   const [editError, setEditError] = useState('');
   const [editSuccess, setEditSuccess] = useState('');
+  const [linkYaId, setLinkYaId] = useState('');
 
   const [confirmDelete, setConfirmDelete] = useState<Player | null>(null);
   const [msg, setMsg] = useState('');
@@ -129,6 +129,25 @@ export default function AdminPanel() {
     setEditFields({ coins: p.coins, gems: p.gems, xp: p.xp, wins: p.wins, name: p.name, emoji: p.emoji });
     setEditError('');
     setEditSuccess('');
+    setLinkYaId('');
+  };
+
+  const handleLinkYa = async () => {
+    if (!editPlayer || !linkYaId.trim()) return;
+    setEditError('');
+    setLoading(true);
+    try {
+      const res = await adminApi(secret, 'link_ya', { playerId: editPlayer.id, yaId: linkYaId.trim() });
+      setEditSuccess(res.merged
+        ? `✅ Яндекс ID привязан, профиль «${res.mergedName}» слит`
+        : '✅ Яндекс ID привязан');
+      setLinkYaId('');
+      loadData(secret, search, page);
+    } catch (e: unknown) {
+      setEditError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSave = async () => {
@@ -515,6 +534,31 @@ export default function AdminPanel() {
                   />
                 </div>
               ))}
+            </div>
+
+            {/* Яндекс ID */}
+            <div className="mt-4 pt-4 border-t border-gray-700">
+              <div className="text-xs text-gray-400 mb-2">
+                Яндекс ID сейчас: <span className="text-yellow-400 font-mono">{editPlayer?.yaId || 'не привязан'}</span>
+              </div>
+              <label className="text-xs text-gray-400 mb-1 block">Привязать / сменить Яндекс ID</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="ya_1234567890"
+                  value={linkYaId}
+                  onChange={e => setLinkYaId(e.target.value)}
+                  className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-yellow-500"
+                />
+                <button
+                  onClick={handleLinkYa}
+                  disabled={loading || !linkYaId.trim()}
+                  className="bg-yellow-600 hover:bg-yellow-500 disabled:opacity-40 text-white rounded-xl px-3 py-2 text-sm font-semibold transition"
+                >
+                  Привязать
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Яндекс ID можно найти в консоли браузера при входе через Яндекс Игры (вида ya_123…)</p>
             </div>
 
             {editError && <p className="text-red-400 text-sm mt-3">{editError}</p>}
