@@ -183,9 +183,13 @@ def auth_handler(body: dict):
                      best_position, selected_car, owned_cars, upgrades, cars, extra_data)
                     VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                     ON CONFLICT (ya_id) DO UPDATE SET
-                    name=EXCLUDED.name, emoji=EXCLUDED.emoji, coins=EXCLUDED.coins,
-                    gems=EXCLUDED.gems, xp=EXCLUDED.xp, wins=EXCLUDED.wins,
-                    games_played=EXCLUDED.games_played, best_position=EXCLUDED.best_position,
+                    name=EXCLUDED.name, emoji=EXCLUDED.emoji,
+                    coins=GREATEST({SCHEMA}.players.coins, EXCLUDED.coins),
+                    gems=GREATEST({SCHEMA}.players.gems, EXCLUDED.gems),
+                    xp=GREATEST({SCHEMA}.players.xp, EXCLUDED.xp),
+                    wins=GREATEST({SCHEMA}.players.wins, EXCLUDED.wins),
+                    games_played=GREATEST({SCHEMA}.players.games_played, EXCLUDED.games_played),
+                    best_position=LEAST({SCHEMA}.players.best_position, EXCLUDED.best_position),
                     selected_car=EXCLUDED.selected_car, owned_cars=EXCLUDED.owned_cars,
                     upgrades=EXCLUDED.upgrades, cars=EXCLUDED.cars,
                     extra_data=EXCLUDED.extra_data, updated_at=NOW()''',
