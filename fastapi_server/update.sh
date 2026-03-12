@@ -110,6 +110,38 @@ if [ -d "$REPO_ROOT/dist_ya" ]; then
 fi
 
 # =====================================================
+#  МИГРАЦИИ БД — добавляем новые таблицы если нет
+# =====================================================
+info "Применяю миграции БД..."
+source "$INSTALL_DIR/.env" 2>/dev/null || true
+if [ -n "$DATABASE_URL" ] && [ -n "$MAIN_DB_SCHEMA" ]; then
+  sudo -u www-data "$INSTALL_DIR/venv/bin/python3" -c "
+import psycopg2, os
+os.chdir('$INSTALL_DIR')
+from dotenv import load_dotenv
+load_dotenv()
+schema = os.environ.get('MAIN_DB_SCHEMA', 'parking')
+conn = psycopg2.connect(os.environ['DATABASE_URL'])
+cur = conn.cursor()
+cur.execute(f'''
+CREATE TABLE IF NOT EXISTS {schema}.admin_gifts_log (
+    id         SERIAL PRIMARY KEY,
+    coins      INTEGER NOT NULL DEFAULT 0,
+    gems       INTEGER NOT NULL DEFAULT 0,
+    target     VARCHAR(32) NOT NULL DEFAULT ''all'',
+    affected   INTEGER NOT NULL DEFAULT 0,
+    comment    VARCHAR(120),
+    created_at TIMESTAMP DEFAULT NOW()
+);
+GRANT ALL ON {schema}.admin_gifts_log TO CURRENT_USER;
+''')
+conn.commit()
+cur.close(); conn.close()
+print('Миграции применены')
+" 2>&1 || warn "Миграции пропущены (проверь логи)"
+fi
+
+# =====================================================
 #  БЭКЕНД
 # =====================================================
 info "Копирую обновлённые файлы бэкенда..."

@@ -135,6 +135,7 @@ def admin_handler(body: dict):
             coins = int(body.get('coins', 0))
             gems = int(body.get('gems', 0))
             target = body.get('target', 'all')
+            comment = (body.get('comment') or '').strip()[:120]
 
             if coins == 0 and gems == 0:
                 raise HTTPException(400, 'Укажи монеты или гемы')
@@ -163,8 +164,32 @@ def admin_handler(body: dict):
                 raise HTTPException(400, 'Неверный target')
 
             affected = cur.rowcount
+            cur.execute(
+                f'''INSERT INTO {SCHEMA}.admin_gifts_log (coins, gems, target, affected, comment)
+                    VALUES (%s, %s, %s, %s, %s)''',
+                (coins, gems, target, affected, comment)
+            )
             conn.commit()
             return {'success': True, 'affected': affected}
+
+        elif action == 'gifts_log':
+            limit = min(int(body.get('limit', 30)), 100)
+            cur.execute(
+                f'''SELECT id, coins, gems, target, affected, comment, created_at
+                    FROM {SCHEMA}.admin_gifts_log
+                    ORDER BY created_at DESC LIMIT %s''',
+                (limit,)
+            )
+            rows = cur.fetchall()
+            return {'success': True, 'log': [
+                {
+                    'id': r[0], 'coins': r[1], 'gems': r[2],
+                    'target': r[3], 'affected': r[4],
+                    'comment': r[5] or '',
+                    'createdAt': str(r[6]) if r[6] else None,
+                }
+                for r in rows
+            ]}
 
         elif action == 'stats':
             cur.execute(f'SELECT COUNT(*) FROM {SCHEMA}.players')

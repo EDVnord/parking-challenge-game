@@ -66,11 +66,18 @@ export default function AdminPanel() {
   const [confirmDelete, setConfirmDelete] = useState<Player | null>(null);
   const [msg, setMsg] = useState('');
 
+  const [tab, setTab] = useState<'players' | 'gifts'>('players');
+
   const [giftOpen, setGiftOpen] = useState(false);
   const [giftCoins, setGiftCoins] = useState('0');
   const [giftGems, setGiftGems] = useState('0');
   const [giftTarget, setGiftTarget] = useState('all');
+  const [giftComment, setGiftComment] = useState('');
   const [giftMsg, setGiftMsg] = useState('');
+
+  interface GiftLog { id: number; coins: number; gems: number; target: string; affected: number; comment: string; createdAt: string; }
+  const [giftsLog, setGiftsLog] = useState<GiftLog[]>([]);
+  const [giftsLoading, setGiftsLoading] = useState(false);
 
   const loadData = useCallback(async (s: string, searchVal = search, pageVal = page) => {
     setLoading(true);
@@ -149,6 +156,27 @@ export default function AdminPanel() {
     }
   };
 
+  const loadGiftsLog = useCallback(async () => {
+    setGiftsLoading(true);
+    try {
+      const res = await adminApi(secret, 'gifts_log', { limit: 50 });
+      setGiftsLog(res.log);
+    } catch { /* ignore */ } finally {
+      setGiftsLoading(false);
+    }
+  }, [secret]);
+
+  useEffect(() => {
+    if (authed && tab === 'gifts') loadGiftsLog();
+  }, [tab, authed, loadGiftsLog]);
+
+  const TARGET_LABELS: Record<string, string> = {
+    all: 'Все игроки',
+    ya: 'Яндекс игроки',
+    active_week: 'Активные за неделю',
+    active_day: 'Активные сегодня',
+  };
+
   const handleGift = async () => {
     setGiftMsg('');
     setLoading(true);
@@ -157,9 +185,12 @@ export default function AdminPanel() {
         coins: Number(giftCoins),
         gems: Number(giftGems),
         target: giftTarget,
+        comment: giftComment,
       });
       setGiftMsg(`✅ Подарок отправлен ${res.affected} игрокам!`);
+      setGiftComment('');
       loadData(secret, search, page);
+      if (tab === 'gifts') loadGiftsLog();
     } catch (e: unknown) {
       setGiftMsg(`❌ ${(e as Error).message}`);
     } finally {
@@ -251,6 +282,27 @@ export default function AdminPanel() {
           </div>
         )}
 
+        {/* Tabs */}
+        <div className="flex gap-2 border-b border-gray-800">
+          {[
+            { key: 'players', label: 'Игроки', icon: 'Users' },
+            { key: 'gifts', label: 'История подарков', icon: 'Gift' },
+          ].map(t => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key as 'players' | 'gifts')}
+              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition -mb-px ${
+                tab === t.key
+                  ? 'border-blue-500 text-white'
+                  : 'border-transparent text-gray-400 hover:text-white'
+              }`}
+            >
+              <Icon name={t.icon as 'Users'} size={15} /> {t.label}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'players' && (<>
         {/* Search */}
         <div className="flex gap-3">
           <input
@@ -377,6 +429,55 @@ export default function AdminPanel() {
             </div>
           </div>
         </div>
+        </>)}
+
+        {tab === 'gifts' && (
+          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
+              <span className="font-medium text-sm">История начислений</span>
+              <button onClick={loadGiftsLog} className="text-gray-400 hover:text-white transition">
+                <Icon name="RefreshCw" size={15} />
+              </button>
+            </div>
+            {giftsLoading ? (
+              <div className="text-center py-8 text-gray-500">Загрузка...</div>
+            ) : giftsLog.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">История пуста</div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-800 text-gray-400 text-left">
+                    <th className="px-4 py-3 font-medium">Дата</th>
+                    <th className="px-4 py-3 font-medium">Кому</th>
+                    <th className="px-4 py-3 font-medium">💰 Монеты</th>
+                    <th className="px-4 py-3 font-medium">💎 Гемы</th>
+                    <th className="px-4 py-3 font-medium">Игроков</th>
+                    <th className="px-4 py-3 font-medium">Комментарий</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {giftsLog.map(g => (
+                    <tr key={g.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
+                      <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
+                        {g.createdAt ? new Date(g.createdAt).toLocaleString('ru') : '—'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="bg-gray-800 text-gray-300 text-xs px-2 py-0.5 rounded-full">
+                          {TARGET_LABELS[g.target] || g.target}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-yellow-400 font-mono">+{g.coins.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-blue-400 font-mono">+{g.gems.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-gray-300">{g.affected}</td>
+                      <td className="px-4 py-3 text-gray-400">{g.comment || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
       </div>
 
       {/* Edit Modal */}
@@ -512,6 +613,17 @@ export default function AdminPanel() {
                     className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white outline-none focus:border-yellow-500"
                   />
                 </div>
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 mb-1 block">Комментарий (необязательно)</label>
+                <input
+                  type="text"
+                  placeholder="Например: За обновление 1.5"
+                  value={giftComment}
+                  onChange={e => setGiftComment(e.target.value)}
+                  maxLength={120}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white outline-none focus:border-yellow-500"
+                />
               </div>
             </div>
 

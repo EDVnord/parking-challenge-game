@@ -166,6 +166,20 @@ CREATE TABLE IF NOT EXISTS ${DB_SCHEMA}.room_players (
 
 GRANT ALL ON ${DB_SCHEMA}.room_players TO ${DB_USER};
 
+-- Таблица истории подарков
+CREATE TABLE IF NOT EXISTS ${DB_SCHEMA}.admin_gifts_log (
+    id          SERIAL PRIMARY KEY,
+    coins       INTEGER NOT NULL DEFAULT 0,
+    gems        INTEGER NOT NULL DEFAULT 0,
+    target      VARCHAR(32) NOT NULL DEFAULT 'all',
+    affected    INTEGER NOT NULL DEFAULT 0,
+    comment     VARCHAR(120),
+    created_at  TIMESTAMP DEFAULT NOW()
+);
+
+GRANT ALL ON ${DB_SCHEMA}.admin_gifts_log TO ${DB_USER};
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA ${DB_SCHEMA} TO ${DB_USER};
+
 -- =====================================================
 --  ПЕРЕНОС ДАННЫХ из poehali.dev (снимок от 2026-03-10)
 -- =====================================================
@@ -208,11 +222,13 @@ python3.11 -m venv "$INSTALL_DIR/venv"
 "$INSTALL_DIR/venv/bin/pip" install -q -r "$INSTALL_DIR/requirements.txt"
 
 info "Создаю файл переменных окружения..."
+ADMIN_SECRET_VAL="$(openssl rand -base64 18 | tr -d '/+=')"
 cat > "$INSTALL_DIR/.env" <<EOF
 DATABASE_URL=${DATABASE_URL}
 MAIN_DB_SCHEMA=${DB_SCHEMA}
 YOOKASSA_SHOP_ID=${YOOKASSA_SHOP_ID}
 YOOKASSA_SECRET_KEY=${YOOKASSA_SECRET_KEY}
+ADMIN_SECRET=${ADMIN_SECRET_VAL}
 EOF
 chmod 600 "$INSTALL_DIR/.env"
 
@@ -372,6 +388,10 @@ echo "  • База:     ${DB_NAME}"
 echo "  • Юзер:     ${DB_USER}"
 echo "  • Пароль:   ${DB_PASS}"
 echo "  • URL:      ${DATABASE_URL}"
+echo ""
+echo "  Админ-панель:"
+echo "  • Адрес:    https://${DOMAIN}/#/admin"
+echo "  • Пароль:   ${ADMIN_SECRET_VAL}"
 echo ""
 echo "  Полезные команды:"
 echo "  • Статус:      systemctl status parking"
