@@ -1,48 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import Icon from '@/components/ui/icon';
-
-const _BASE = (import.meta.env['VITE_API_URL'] || 'https://ednord.ru/api').replace(/\/$/, '');
-const ADMIN_URL = `${_BASE}/admin`;
-
-interface Player {
-  id: number;
-  name: string;
-  emoji: string;
-  coins: number;
-  gems: number;
-  xp: number;
-  wins: number;
-  gamesPlayed: number;
-  yaId?: string;
-  anonId?: string;
-  friendCode?: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-interface Stats {
-  totalPlayers: number;
-  yaPlayers: number;
-  activeDay: number;
-  activeWeek: number;
-  totalCoins: number;
-  totalGems: number;
-  maxXp: number;
-  maxWins: number;
-}
-
-async function adminApi(secret: string, action: string, payload: Record<string, unknown> = {}) {
-  const res = await fetch(ADMIN_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ secret, action, ...payload }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: 'Ошибка сети' }));
-    throw new Error(err.detail || 'Ошибка');
-  }
-  return res.json();
-}
+import { adminApi, Player, Stats } from './adminApi';
+import AdminEditModal from './AdminEditModal';
+import { AdminGiftModal, GiftsLogTab } from './AdminGiftModal';
 
 export default function AdminPanel() {
   const [secret, setSecret] = useState(() => localStorage.getItem('admin_secret') || '');
@@ -58,26 +18,11 @@ export default function AdminPanel() {
   const PER_PAGE = 50;
 
   const [editPlayer, setEditPlayer] = useState<Player | null>(null);
-  const [editFields, setEditFields] = useState<Record<string, string | number>>({});
-  const [editError, setEditError] = useState('');
-  const [editSuccess, setEditSuccess] = useState('');
-  const [linkYaId, setLinkYaId] = useState('');
-
   const [confirmDelete, setConfirmDelete] = useState<Player | null>(null);
   const [msg, setMsg] = useState('');
 
   const [tab, setTab] = useState<'players' | 'gifts'>('players');
-
   const [giftOpen, setGiftOpen] = useState(false);
-  const [giftCoins, setGiftCoins] = useState('0');
-  const [giftGems, setGiftGems] = useState('0');
-  const [giftTarget, setGiftTarget] = useState('all');
-  const [giftComment, setGiftComment] = useState('');
-  const [giftMsg, setGiftMsg] = useState('');
-
-  interface GiftLog { id: number; coins: number; gems: number; target: string; affected: number; comment: string; createdAt: string; }
-  const [giftsLog, setGiftsLog] = useState<GiftLog[]>([]);
-  const [giftsLoading, setGiftsLoading] = useState(false);
 
   const loadData = useCallback(async (s: string, searchVal = search, pageVal = page) => {
     setLoading(true);
@@ -126,95 +71,6 @@ export default function AdminPanel() {
 
   const openEdit = (p: Player) => {
     setEditPlayer(p);
-    setEditFields({ coins: p.coins, gems: p.gems, xp: p.xp, wins: p.wins, name: p.name, emoji: p.emoji });
-    setEditError('');
-    setEditSuccess('');
-    setLinkYaId('');
-  };
-
-  const handleLinkYa = async () => {
-    if (!editPlayer || !linkYaId.trim()) return;
-    setEditError('');
-    setLoading(true);
-    try {
-      const res = await adminApi(secret, 'link_ya', { playerId: editPlayer.id, yaId: linkYaId.trim() });
-      setEditSuccess(res.merged
-        ? `✅ Яндекс ID привязан, профиль «${res.mergedName}» слит`
-        : '✅ Яндекс ID привязан');
-      setLinkYaId('');
-      loadData(secret, search, page);
-    } catch (e: unknown) {
-      setEditError((e as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSave = async () => {
-    if (!editPlayer) return;
-    setEditError('');
-    setLoading(true);
-    try {
-      await adminApi(secret, 'update', {
-        playerId: editPlayer.id,
-        fields: {
-          coins: Number(editFields.coins),
-          gems: Number(editFields.gems),
-          xp: Number(editFields.xp),
-          wins: Number(editFields.wins),
-          name: editFields.name,
-          emoji: editFields.emoji,
-        },
-      });
-      setEditSuccess('Сохранено!');
-      loadData(secret, search, page);
-    } catch (e: unknown) {
-      setEditError((e as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadGiftsLog = useCallback(async () => {
-    setGiftsLoading(true);
-    try {
-      const res = await adminApi(secret, 'gifts_log', { limit: 50 });
-      setGiftsLog(res.log);
-    } catch { /* ignore */ } finally {
-      setGiftsLoading(false);
-    }
-  }, [secret]);
-
-  useEffect(() => {
-    if (authed && tab === 'gifts') loadGiftsLog();
-  }, [tab, authed, loadGiftsLog]);
-
-  const TARGET_LABELS: Record<string, string> = {
-    all: 'Все игроки',
-    ya: 'Яндекс игроки',
-    active_week: 'Активные за неделю',
-    active_day: 'Активные сегодня',
-  };
-
-  const handleGift = async () => {
-    setGiftMsg('');
-    setLoading(true);
-    try {
-      const res = await adminApi(secret, 'gift', {
-        coins: Number(giftCoins),
-        gems: Number(giftGems),
-        target: giftTarget,
-        comment: giftComment,
-      });
-      setGiftMsg(`✅ Подарок отправлен ${res.affected} игрокам!`);
-      setGiftComment('');
-      loadData(secret, search, page);
-      if (tab === 'gifts') loadGiftsLog();
-    } catch (e: unknown) {
-      setGiftMsg(`❌ ${(e as Error).message}`);
-    } finally {
-      setLoading(false);
-    }
   };
 
   const handleDelete = async (p: Player) => {
@@ -265,7 +121,7 @@ export default function AdminPanel() {
         <h1 className="text-xl font-bold">Админ-панель · Король парковки</h1>
         <div className="flex items-center gap-3">
           <button
-            onClick={() => { setGiftOpen(true); setGiftMsg(''); }}
+            onClick={() => { setGiftOpen(true); }}
             className="bg-yellow-600 hover:bg-yellow-500 text-white text-sm px-4 py-2 rounded-xl flex items-center gap-2 transition font-semibold"
           >
             <Icon name="Gift" size={16} /> Подарок игрокам
@@ -451,136 +307,21 @@ export default function AdminPanel() {
         </>)}
 
         {tab === 'gifts' && (
-          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
-              <span className="font-medium text-sm">История начислений</span>
-              <button onClick={loadGiftsLog} className="text-gray-400 hover:text-white transition">
-                <Icon name="RefreshCw" size={15} />
-              </button>
-            </div>
-            {giftsLoading ? (
-              <div className="text-center py-8 text-gray-500">Загрузка...</div>
-            ) : giftsLog.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">История пуста</div>
-            ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-800 text-gray-400 text-left">
-                    <th className="px-4 py-3 font-medium">Дата</th>
-                    <th className="px-4 py-3 font-medium">Кому</th>
-                    <th className="px-4 py-3 font-medium">💰 Монеты</th>
-                    <th className="px-4 py-3 font-medium">💎 Гемы</th>
-                    <th className="px-4 py-3 font-medium">Игроков</th>
-                    <th className="px-4 py-3 font-medium">Комментарий</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {giftsLog.map(g => (
-                    <tr key={g.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
-                      <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
-                        {g.createdAt ? new Date(g.createdAt).toLocaleString('ru') : '—'}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="bg-gray-800 text-gray-300 text-xs px-2 py-0.5 rounded-full">
-                          {TARGET_LABELS[g.target] || g.target}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-yellow-400 font-mono">+{g.coins.toLocaleString()}</td>
-                      <td className="px-4 py-3 text-blue-400 font-mono">+{g.gems.toLocaleString()}</td>
-                      <td className="px-4 py-3 text-gray-300">{g.affected}</td>
-                      <td className="px-4 py-3 text-gray-400">{g.comment || '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
+          <GiftsLogTab secret={secret} active={tab === 'gifts'} />
         )}
 
       </div>
 
       {/* Edit Modal */}
       {editPlayer && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-2xl p-6 w-full max-w-md border border-gray-700">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold">
-                Редактировать: {editPlayer.emoji} {editPlayer.name}
-              </h2>
-              <button onClick={() => setEditPlayer(null)} className="text-gray-400 hover:text-white">
-                <Icon name="X" size={20} />
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              {[
-                { key: 'name', label: 'Ник', type: 'text' },
-                { key: 'emoji', label: 'Эмодзи', type: 'text' },
-                { key: 'coins', label: '💰 Монеты', type: 'number' },
-                { key: 'gems', label: '💎 Гемы', type: 'number' },
-                { key: 'xp', label: '⭐ XP', type: 'number' },
-                { key: 'wins', label: '🏆 Победы', type: 'number' },
-              ].map(f => (
-                <div key={f.key}>
-                  <label className="text-xs text-gray-400 mb-1 block">{f.label}</label>
-                  <input
-                    type={f.type}
-                    value={editFields[f.key] ?? ''}
-                    onChange={e => setEditFields(prev => ({
-                      ...prev,
-                      [f.key]: f.type === 'number' ? Number(e.target.value) : e.target.value,
-                    }))}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white outline-none focus:border-blue-500"
-                  />
-                </div>
-              ))}
-            </div>
-
-            {/* Яндекс ID */}
-            <div className="mt-4 pt-4 border-t border-gray-700">
-              <div className="text-xs text-gray-400 mb-2">
-                Яндекс ID сейчас: <span className="text-yellow-400 font-mono">{editPlayer?.yaId || 'не привязан'}</span>
-              </div>
-              <label className="text-xs text-gray-400 mb-1 block">Привязать / сменить Яндекс ID</label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="ya_1234567890"
-                  value={linkYaId}
-                  onChange={e => setLinkYaId(e.target.value)}
-                  className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-yellow-500"
-                />
-                <button
-                  onClick={handleLinkYa}
-                  disabled={loading || !linkYaId.trim()}
-                  className="bg-yellow-600 hover:bg-yellow-500 disabled:opacity-40 text-white rounded-xl px-3 py-2 text-sm font-semibold transition"
-                >
-                  Привязать
-                </button>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">Яндекс ID можно найти в консоли браузера при входе через Яндекс Игры (вида ya_123…)</p>
-            </div>
-
-            {editError && <p className="text-red-400 text-sm mt-3">{editError}</p>}
-            {editSuccess && <p className="text-green-400 text-sm mt-3">{editSuccess}</p>}
-
-            <div className="flex gap-3 mt-5">
-              <button
-                onClick={() => setEditPlayer(null)}
-                className="flex-1 bg-gray-800 hover:bg-gray-700 rounded-xl py-2.5 transition"
-              >
-                Отмена
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={loading}
-                className="flex-1 bg-blue-600 hover:bg-blue-500 rounded-xl py-2.5 font-semibold transition"
-              >
-                {loading ? 'Сохраняю...' : 'Сохранить'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <AdminEditModal
+          player={editPlayer}
+          secret={secret}
+          loading={loading}
+          setLoading={setLoading}
+          onClose={() => setEditPlayer(null)}
+          onSaved={() => loadData(secret, search, page)}
+        />
       )}
 
       {/* Confirm Delete Modal */}
@@ -609,91 +350,19 @@ export default function AdminPanel() {
           </div>
         </div>
       )}
+
       {/* Gift Modal */}
       {giftOpen && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-2xl p-6 w-full max-w-md border border-gray-700">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold flex items-center gap-2">
-                <Icon name="Gift" size={20} className="text-yellow-400" /> Подарок игрокам
-              </h2>
-              <button onClick={() => setGiftOpen(false)} className="text-gray-400 hover:text-white">
-                <Icon name="X" size={20} />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs text-gray-400 mb-1 block">Кому отправить</label>
-                <select
-                  value={giftTarget}
-                  onChange={e => setGiftTarget(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white outline-none focus:border-yellow-500"
-                >
-                  <option value="all">Всем игрокам</option>
-                  <option value="ya">Только Яндекс игрокам</option>
-                  <option value="active_week">Активным за неделю</option>
-                  <option value="active_day">Активным сегодня</option>
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-gray-400 mb-1 block">💰 Монеты</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={giftCoins}
-                    onChange={e => setGiftCoins(e.target.value)}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white outline-none focus:border-yellow-500"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-400 mb-1 block">💎 Гемы</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={giftGems}
-                    onChange={e => setGiftGems(e.target.value)}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white outline-none focus:border-yellow-500"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="text-xs text-gray-400 mb-1 block">Комментарий (необязательно)</label>
-                <input
-                  type="text"
-                  placeholder="Например: За обновление 1.5"
-                  value={giftComment}
-                  onChange={e => setGiftComment(e.target.value)}
-                  maxLength={120}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white outline-none focus:border-yellow-500"
-                />
-              </div>
-            </div>
-
-            {giftMsg && (
-              <p className={`text-sm mt-4 ${giftMsg.startsWith('✅') ? 'text-green-400' : 'text-red-400'}`}>
-                {giftMsg}
-              </p>
-            )}
-
-            <div className="flex gap-3 mt-5">
-              <button
-                onClick={() => setGiftOpen(false)}
-                className="flex-1 bg-gray-800 hover:bg-gray-700 rounded-xl py-2.5 transition"
-              >
-                Закрыть
-              </button>
-              <button
-                onClick={handleGift}
-                disabled={loading}
-                className="flex-1 bg-yellow-600 hover:bg-yellow-500 rounded-xl py-2.5 font-semibold transition"
-              >
-                {loading ? 'Отправляю...' : 'Отправить подарок'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <AdminGiftModal
+          secret={secret}
+          loading={loading}
+          setLoading={setLoading}
+          onClose={() => setGiftOpen(false)}
+          onGiftSent={() => {
+            loadData(secret, search, page);
+            setGiftOpen(false);
+          }}
+        />
       )}
     </div>
   );
