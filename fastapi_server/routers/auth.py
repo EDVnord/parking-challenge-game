@@ -11,6 +11,14 @@ def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
 
 
+def check_ban(cur, player_id: int):
+    cur.execute(f'SELECT banned_until FROM {SCHEMA}.players WHERE id = %s', (player_id,))
+    row = cur.fetchone()
+    if row and row[0] and row[0] > __import__('datetime').datetime.now(row[0].tzinfo):
+        until = row[0].strftime('%d.%m.%Y %H:%M')
+        raise HTTPException(403, f'Ваш аккаунт заблокирован до {until}')
+
+
 def row_to_profile(row) -> dict:
     result = {
         'id': row[0],
@@ -101,6 +109,7 @@ def auth_handler(body: dict):
                 raise HTTPException(400, 'Игрок с таким ником не найден')
             if row[3] != pw_hash:
                 raise HTTPException(400, 'Неверный пароль')
+            check_ban(cur, row[0])
             return {'success': True, 'profile': row_to_profile(row)}
 
         elif action == 'save':
@@ -197,6 +206,10 @@ def auth_handler(body: dict):
                  best_position, selected_car, owned_cars, upgrades, cars_json, extra_data)
             )
             conn.commit()
+            cur.execute(f'SELECT id FROM {SCHEMA}.players WHERE ya_id = %s', (ya_id,))
+            saved = cur.fetchone()
+            if saved:
+                check_ban(cur, saved[0])
             return {'success': True}
 
         elif action == 'load_ya':
@@ -213,6 +226,7 @@ def auth_handler(body: dict):
             row = cur.fetchone()
             if not row:
                 return {'found': False}
+            check_ban(cur, row[0])
             return {'found': True, 'profile': row_to_profile(row)}
 
         elif action == 'save_anon':
