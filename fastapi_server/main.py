@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import auth, friends, leaderboard, payment, room_manager
+from routers import auth, friends, leaderboard, payment, room_manager, admin
 
 app = FastAPI(title="Король парковки — API")
 
@@ -16,6 +16,7 @@ app.include_router(friends.router)
 app.include_router(leaderboard.router)
 app.include_router(payment.router)
 app.include_router(room_manager.router)
+app.include_router(admin.router)
 
 @app.get("/")
 def root():
