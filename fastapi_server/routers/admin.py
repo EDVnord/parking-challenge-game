@@ -131,6 +131,41 @@ def admin_handler(body: dict):
             conn.commit()
             return {'success': True}
 
+        elif action == 'gift':
+            coins = int(body.get('coins', 0))
+            gems = int(body.get('gems', 0))
+            target = body.get('target', 'all')
+
+            if coins == 0 and gems == 0:
+                raise HTTPException(400, 'Укажи монеты или гемы')
+
+            if target == 'all':
+                cur.execute(
+                    f'UPDATE {SCHEMA}.players SET coins=coins+%s, gems=gems+%s, updated_at=NOW()',
+                    (coins, gems)
+                )
+            elif target == 'ya':
+                cur.execute(
+                    f'UPDATE {SCHEMA}.players SET coins=coins+%s, gems=gems+%s, updated_at=NOW() WHERE ya_id IS NOT NULL',
+                    (coins, gems)
+                )
+            elif target == 'active_week':
+                cur.execute(
+                    f"UPDATE {SCHEMA}.players SET coins=coins+%s, gems=gems+%s, updated_at=NOW() WHERE updated_at > NOW() - INTERVAL '7 days'",
+                    (coins, gems)
+                )
+            elif target == 'active_day':
+                cur.execute(
+                    f"UPDATE {SCHEMA}.players SET coins=coins+%s, gems=gems+%s, updated_at=NOW() WHERE updated_at > NOW() - INTERVAL '24 hours'",
+                    (coins, gems)
+                )
+            else:
+                raise HTTPException(400, 'Неверный target')
+
+            affected = cur.rowcount
+            conn.commit()
+            return {'success': True, 'affected': affected}
+
         elif action == 'stats':
             cur.execute(f'SELECT COUNT(*) FROM {SCHEMA}.players')
             total = cur.fetchone()[0]

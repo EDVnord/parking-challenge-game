@@ -66,6 +66,12 @@ export default function AdminPanel() {
   const [confirmDelete, setConfirmDelete] = useState<Player | null>(null);
   const [msg, setMsg] = useState('');
 
+  const [giftOpen, setGiftOpen] = useState(false);
+  const [giftCoins, setGiftCoins] = useState('0');
+  const [giftGems, setGiftGems] = useState('0');
+  const [giftTarget, setGiftTarget] = useState('all');
+  const [giftMsg, setGiftMsg] = useState('');
+
   const loadData = useCallback(async (s: string, searchVal = search, pageVal = page) => {
     setLoading(true);
     try {
@@ -143,6 +149,24 @@ export default function AdminPanel() {
     }
   };
 
+  const handleGift = async () => {
+    setGiftMsg('');
+    setLoading(true);
+    try {
+      const res = await adminApi(secret, 'gift', {
+        coins: Number(giftCoins),
+        gems: Number(giftGems),
+        target: giftTarget,
+      });
+      setGiftMsg(`✅ Подарок отправлен ${res.affected} игрокам!`);
+      loadData(secret, search, page);
+    } catch (e: unknown) {
+      setGiftMsg(`❌ ${(e as Error).message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDelete = async (p: Player) => {
     setLoading(true);
     try {
@@ -189,12 +213,20 @@ export default function AdminPanel() {
       {/* Header */}
       <div className="bg-gray-900 border-b border-gray-800 px-6 py-4 flex items-center justify-between">
         <h1 className="text-xl font-bold">Админ-панель · Король парковки</h1>
-        <button
-          onClick={() => { setAuthed(false); localStorage.removeItem('admin_secret'); }}
-          className="text-gray-400 hover:text-white text-sm flex items-center gap-2"
-        >
-          <Icon name="LogOut" size={16} /> Выйти
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => { setGiftOpen(true); setGiftMsg(''); }}
+            className="bg-yellow-600 hover:bg-yellow-500 text-white text-sm px-4 py-2 rounded-xl flex items-center gap-2 transition font-semibold"
+          >
+            <Icon name="Gift" size={16} /> Подарок игрокам
+          </button>
+          <button
+            onClick={() => { setAuthed(false); localStorage.removeItem('admin_secret'); }}
+            className="text-gray-400 hover:text-white text-sm flex items-center gap-2"
+          >
+            <Icon name="LogOut" size={16} /> Выйти
+          </button>
+        </div>
       </div>
 
       <div className="max-w-7xl mx-auto p-6 space-y-6">
@@ -427,6 +459,81 @@ export default function AdminPanel() {
                 className="flex-1 bg-red-600 hover:bg-red-500 rounded-xl py-2.5 font-semibold transition"
               >
                 {loading ? '...' : 'Удалить'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Gift Modal */}
+      {giftOpen && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 rounded-2xl p-6 w-full max-w-md border border-gray-700">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <Icon name="Gift" size={20} className="text-yellow-400" /> Подарок игрокам
+              </h2>
+              <button onClick={() => setGiftOpen(false)} className="text-gray-400 hover:text-white">
+                <Icon name="X" size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs text-gray-400 mb-1 block">Кому отправить</label>
+                <select
+                  value={giftTarget}
+                  onChange={e => setGiftTarget(e.target.value)}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white outline-none focus:border-yellow-500"
+                >
+                  <option value="all">Всем игрокам</option>
+                  <option value="ya">Только Яндекс игрокам</option>
+                  <option value="active_week">Активным за неделю</option>
+                  <option value="active_day">Активным сегодня</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">💰 Монеты</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={giftCoins}
+                    onChange={e => setGiftCoins(e.target.value)}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white outline-none focus:border-yellow-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-400 mb-1 block">💎 Гемы</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={giftGems}
+                    onChange={e => setGiftGems(e.target.value)}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white outline-none focus:border-yellow-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {giftMsg && (
+              <p className={`text-sm mt-4 ${giftMsg.startsWith('✅') ? 'text-green-400' : 'text-red-400'}`}>
+                {giftMsg}
+              </p>
+            )}
+
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={() => setGiftOpen(false)}
+                className="flex-1 bg-gray-800 hover:bg-gray-700 rounded-xl py-2.5 transition"
+              >
+                Закрыть
+              </button>
+              <button
+                onClick={handleGift}
+                disabled={loading}
+                className="flex-1 bg-yellow-600 hover:bg-yellow-500 rounded-xl py-2.5 font-semibold transition"
+              >
+                {loading ? 'Отправляю...' : 'Отправить подарок'}
               </button>
             </div>
           </div>
