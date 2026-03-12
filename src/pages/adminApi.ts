@@ -15,6 +15,7 @@ export interface Player {
   friendCode?: string;
   createdAt?: string;
   updatedAt?: string;
+  bannedUntil?: string;
 }
 
 export interface Stats {

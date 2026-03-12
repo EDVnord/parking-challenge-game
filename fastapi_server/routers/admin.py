@@ -31,7 +31,7 @@ def admin_handler(body: dict):
             if search:
                 cur.execute(
                     f'''SELECT id, name, emoji, coins, gems, xp, wins, games_played,
-                        ya_id, anon_id, friend_code, created_at, updated_at
+                        ya_id, anon_id, friend_code, created_at, updated_at, banned_until
                         FROM {SCHEMA}.players
                         WHERE LOWER(name) LIKE LOWER(%s) OR ya_id LIKE %s OR friend_code LIKE %s
                         ORDER BY xp DESC LIMIT %s OFFSET %s''',
@@ -40,7 +40,7 @@ def admin_handler(body: dict):
             else:
                 cur.execute(
                     f'''SELECT id, name, emoji, coins, gems, xp, wins, games_played,
-                        ya_id, anon_id, friend_code, created_at, updated_at
+                        ya_id, anon_id, friend_code, created_at, updated_at, banned_until
                         FROM {SCHEMA}.players
                         ORDER BY xp DESC LIMIT %s OFFSET %s''',
                     (limit, offset)
@@ -59,6 +59,7 @@ def admin_handler(body: dict):
                     'yaId': r[8], 'anonId': r[9], 'friendCode': r[10],
                     'createdAt': str(r[11]) if r[11] else None,
                     'updatedAt': str(r[12]) if r[12] else None,
+                    'bannedUntil': str(r[13]) if r[13] else None,
                 })
             return {'success': True, 'players': players, 'total': total}
 
@@ -149,10 +150,24 @@ def admin_handler(body: dict):
 
         elif action == 'ban':
             player_id = body.get('playerId')
+            duration = body.get('duration', 24)  # часы
             if not player_id:
                 raise HTTPException(400, 'Нет playerId')
             cur.execute(
-                f"UPDATE {SCHEMA}.players SET name='[BAN]', coins=0, gems=0 WHERE id = %s",
+                f"UPDATE {SCHEMA}.players SET banned_until = NOW() + (%s || ' hours')::interval, updated_at=NOW() WHERE id = %s",
+                (str(int(duration)), player_id)
+            )
+            conn.commit()
+            cur.execute(f"SELECT banned_until FROM {SCHEMA}.players WHERE id = %s", (player_id,))
+            row = cur.fetchone()
+            return {'success': True, 'bannedUntil': str(row[0]) if row else None}
+
+        elif action == 'unban':
+            player_id = body.get('playerId')
+            if not player_id:
+                raise HTTPException(400, 'Нет playerId')
+            cur.execute(
+                f"UPDATE {SCHEMA}.players SET banned_until = NULL, updated_at=NOW() WHERE id = %s",
                 (player_id,)
             )
             conn.commit()

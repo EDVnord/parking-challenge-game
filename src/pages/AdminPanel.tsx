@@ -3,6 +3,7 @@ import Icon from '@/components/ui/icon';
 import { adminApi, Player, Stats } from './adminApi';
 import AdminEditModal from './AdminEditModal';
 import { AdminGiftModal, GiftsLogTab } from './AdminGiftModal';
+import AdminBanModal from './AdminBanModal';
 
 export default function AdminPanel() {
   const [secret, setSecret] = useState(() => localStorage.getItem('admin_secret') || '');
@@ -18,6 +19,7 @@ export default function AdminPanel() {
   const PER_PAGE = 50;
 
   const [editPlayer, setEditPlayer] = useState<Player | null>(null);
+  const [banPlayer, setBanPlayer] = useState<Player | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Player | null>(null);
   const [msg, setMsg] = useState('');
 
@@ -250,12 +252,17 @@ export default function AdminPanel() {
                     <td className="px-4 py-3 text-green-400 font-mono">{p.wins}</td>
                     <td className="px-4 py-3 text-gray-400">{p.gamesPlayed}</td>
                     <td className="px-4 py-3">
-                      {p.yaId
-                        ? <span className="bg-yellow-900/40 text-yellow-400 text-xs px-2 py-0.5 rounded-full">Яндекс</span>
-                        : p.anonId
-                        ? <span className="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded-full">Аноним</span>
-                        : <span className="bg-blue-900/40 text-blue-400 text-xs px-2 py-0.5 rounded-full">Аккаунт</span>
-                      }
+                      <div className="flex flex-col gap-1">
+                        {p.yaId
+                          ? <span className="bg-yellow-900/40 text-yellow-400 text-xs px-2 py-0.5 rounded-full w-fit">Яндекс</span>
+                          : p.anonId
+                          ? <span className="bg-gray-800 text-gray-400 text-xs px-2 py-0.5 rounded-full w-fit">Аноним</span>
+                          : <span className="bg-blue-900/40 text-blue-400 text-xs px-2 py-0.5 rounded-full w-fit">Аккаунт</span>
+                        }
+                        {p.bannedUntil && new Date(p.bannedUntil) > new Date() && (
+                          <span className="bg-red-900/40 text-red-400 text-xs px-2 py-0.5 rounded-full w-fit">Бан</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-gray-500 font-mono text-xs">{p.friendCode || '—'}</td>
                     <td className="px-4 py-3">
@@ -266,6 +273,13 @@ export default function AdminPanel() {
                           title="Редактировать"
                         >
                           <Icon name="Pencil" size={15} />
+                        </button>
+                        <button
+                          onClick={() => setBanPlayer(p)}
+                          className={`transition ${p.bannedUntil && new Date(p.bannedUntil) > new Date() ? 'text-green-500 hover:text-green-400' : 'text-orange-400 hover:text-orange-300'}`}
+                          title={p.bannedUntil && new Date(p.bannedUntil) > new Date() ? 'Снять бан' : 'Забанить'}
+                        >
+                          <Icon name="Ban" size={15} />
                         </button>
                         <button
                           onClick={() => setConfirmDelete(p)}
@@ -349,6 +363,16 @@ export default function AdminPanel() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Ban Modal */}
+      {banPlayer && (
+        <AdminBanModal
+          player={banPlayer}
+          secret={secret}
+          onClose={() => setBanPlayer(null)}
+          onDone={() => loadData(secret, search, page)}
+        />
       )}
 
       {/* Gift Modal */}
