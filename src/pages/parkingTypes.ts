@@ -479,7 +479,10 @@ export async function apiAuth(action: string, payload: Record<string, unknown>) 
       body: JSON.stringify({ action, ...payload }),
       signal: controller.signal,
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}: ${AUTH_URL}`);
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({}));
+      throw new Error(errJson.detail || `HTTP ${res.status}`);
+    }
     return res.json();
   } finally {
     clearTimeout(timer);

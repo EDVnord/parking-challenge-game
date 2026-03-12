@@ -49,6 +49,7 @@ export function usePlayerAuth(notify: (msg: string) => void) {
   const [needNickname, setNeedNickname] = useState(false);
   const [dailyBonus, setDailyBonus] = useState<{ streak: number; coins: number; gems: number } | null>(null);
   const [serverOnline, setServerOnline] = useState<boolean | null>(null);
+  const [bannedUntil, setBannedUntil] = useState<string | null>(null);
   const autoLoginDone = useRef(false);
 
   // После загрузки сервера сохраняем pid здесь — автосохранение использует ref, не state
@@ -143,10 +144,16 @@ export function usePlayerAuth(notify: (msg: string) => void) {
               }
               setServerOnline(true);
               break;
-            } catch (e) {
+            } catch (e: unknown) {
+              const msg = e instanceof Error ? e.message : String(e);
+              if (msg.includes('403')) {
+                const match = msg.match(/до (.+)/);
+                setBannedUntil(match ? match[1] : 'неизвестного времени');
+                setIsLoading(false);
+                return;
+              }
               console.log(`[Auth] load_ya fetch error (attempt ${attempt + 1}):`, e);
               if (attempt === 1) {
-                // В YA-окружении сервер может быть недоступен — это нормально, прогресс в Яндекс Storage
                 if (!window.YaGames) setServerOnline(false);
               }
             }
@@ -317,6 +324,7 @@ export function usePlayerAuth(notify: (msg: string) => void) {
     needNickname, setNeedNickname,
     dailyBonus, setDailyBonus,
     serverOnline,
+    bannedUntil,
     resolvePlayer,
   };
 }

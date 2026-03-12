@@ -41,6 +41,7 @@ export default function Index() {
     needNickname, setNeedNickname,
     dailyBonus, setDailyBonus,
     serverOnline,
+    bannedUntil,
     resolvePlayer,
   } = usePlayerAuth(notify);
 
@@ -158,6 +159,19 @@ export default function Index() {
 
   if (isLoading) {
     return <LoadingScreen />;
+  }
+
+  if (bannedUntil) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-950 px-6 gap-6 text-center">
+        <div className="text-6xl">🚫</div>
+        <div className="text-white font-russo text-xl">Аккаунт заблокирован</div>
+        <div className="text-gray-400 text-sm max-w-xs">
+          Доступ в игру ограничен до<br />
+          <span className="text-red-400 font-semibold">{bannedUntil}</span>
+        </div>
+      </div>
+    );
   }
 
   return (
