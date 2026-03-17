@@ -4,7 +4,7 @@ import {
   PARK_LEFT, PARK_RIGHT, PARK_TOP, PARK_BOTTOM,
   EXCL_LEFT, EXCL_RIGHT, EXCL_TOP, EXCL_BOTTOM, EXCL_RADIUS,
   EXCL_RX, EXCL_RY,
-  CAR_COLORS, CAR_EMOJIS, CAR_NAMES,
+  CAR_COLORS, CAR_EMOJIS, CAR_NAMES, randomBotName,
 } from './gameTypes';
 import { playCollisionSound } from './gameAudio';
 
@@ -188,7 +188,7 @@ export function createInitialState(playerName: string, playerHp?: number, player
       maxHp: i === 0 ? (playerMaxHp ?? 100) : 100,
       isPlayer: i === 0,
       isBot: i !== 0,
-      name: i === 0 ? playerName : CAR_NAMES[i],
+      name: i === 0 ? playerName : randomBotName(cars.map(c => c.name)),
       orbitRadius: ORBIT_R,
       orbitAngle,
       orbitSpeed: 0.016 + Math.random() * 0.008,
