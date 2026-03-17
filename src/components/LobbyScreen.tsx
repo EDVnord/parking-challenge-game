@@ -30,8 +30,10 @@ interface LobbyScreenProps {
 
 const LOBBY_WAIT_SEC = 15;
 
+
 export default function LobbyScreen({ room, localPlayerId, onCancel }: LobbyScreenProps) {
-  const [secs, setSecs] = useState(Math.max(0, Math.ceil((room.timerEnd - Date.now()) / 1000)));
+  const serverDriftRef = useRef(room.serverNow ? room.serverNow - Date.now() : 0);
+  const [secs, setSecs] = useState(Math.max(0, Math.ceil((room.timerEnd - (Date.now() + serverDriftRef.current)) / 1000)));
   const [copied, setCopied] = useState(false);
   const [dots, setDots] = useState('');
   const [toast, setToast] = useState<string | null>(null);
@@ -87,8 +89,14 @@ export default function LobbyScreen({ room, localPlayerId, onCancel }: LobbyScre
   }, [room.players, localPlayerId]);
 
   useEffect(() => {
+    if (room.serverNow) {
+      serverDriftRef.current = room.serverNow - Date.now();
+    }
+  }, [room.serverNow]);
+
+  useEffect(() => {
     intervalRef.current = setInterval(() => {
-      setSecs(Math.max(0, Math.ceil((room.timerEnd - Date.now()) / 1000)));
+      setSecs(Math.max(0, Math.ceil((room.timerEnd - (Date.now() + serverDriftRef.current)) / 1000)));
       setDots(d => d.length >= 3 ? '' : d + '.');
     }, 500);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
