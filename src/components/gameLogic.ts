@@ -247,8 +247,17 @@ export function applyRoomState(state: GameState, room: RoomState, localPlayerId:
     if (existing) {
       // Не перезаписывать позицию локального игрока — он управляет сам
       if (rp.player_id !== localPlayerId) {
-        existing.x = rp.x;
-        existing.y = rp.y;
+        // Интерполяция позиции — плавно двигаем к серверной позиции, не прыгаем
+        const lerpFactor = 0.3;
+        const dist = Math.hypot(rp.x - existing.x, rp.y - existing.y);
+        if (dist > 200) {
+          // Большой рывок — просто ставим на место без интерполяции
+          existing.x = rp.x;
+          existing.y = rp.y;
+        } else {
+          existing.x += (rp.x - existing.x) * lerpFactor;
+          existing.y += (rp.y - existing.y) * lerpFactor;
+        }
         existing.angle = rp.angle;
         existing.speed = rp.speed;
         existing.orbitAngle = rp.orbit_angle;
@@ -285,16 +294,29 @@ export function applyRoomState(state: GameState, room: RoomState, localPlayerId:
     }
   });
 
-  // Обновить фазу/раунд
+  // Синхронизируем фазу и таймер с сервером
   state.round = room.round;
-  if (room.timerEnd) state.serverTimerEndMs = room.timerEnd;
-  if (room.phase === 'driving' && state.phase !== 'driving') {
-    state.phase = 'driving';
-    state.signal = false;
-  }
-  if (room.phase === 'signal' && state.phase === 'driving') {
-    state.phase = 'signal';
-    state.signal = true;
-  }
   if (room.isFinal) state.isFinalRound = true;
+
+  // Сохраняем серверное время для синхронизации таймера в gameLoop
+  if (room.timerEnd && room.serverNow) {
+    state.serverTimerEndMs = room.timerEnd;
+    state.serverNowMs = room.serverNow;
+  }
+
+  // Синхронизируем фазу
+  const serverPhase = room.phase as GameState['phase'];
+  if (serverPhase !== state.phase) {
+    if (serverPhase === 'driving') {
+      state.phase = 'driving';
+      state.signal = false;
+    } else if (serverPhase === 'signal') {
+      state.phase = 'signal';
+      state.signal = true;
+    } else if (serverPhase === 'roundEnd') {
+      state.phase = 'roundEnd';
+    } else if (serverPhase === 'winner') {
+      state.phase = 'winner';
+    }
+  }
 }

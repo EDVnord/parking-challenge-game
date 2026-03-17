@@ -58,6 +58,7 @@ export interface GameState {
   shieldUsed: boolean;
   reviveAndContinue?: boolean;
   serverTimerEndMs?: number;
+  serverNowMs?: number;
 }
 
 export interface Upgrades {
