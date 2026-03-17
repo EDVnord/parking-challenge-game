@@ -18,7 +18,7 @@ export function getOrCreateAnonId(): string {
 const _BASE = (import.meta.env['VITE_API_URL'] || 'https://ednord.ru/api').replace(/\/$/, '');
 export const AUTH_URL = `${_BASE}/auth`;
 export const LEADERBOARD_URL = `${_BASE}/leaderboard`;
-export const ROOM_URL = `${_BASE}/room-manager`;
+export const ROOM_URL = `${_BASE}/room-manager/`;
 export const FRIENDS_URL = `${_BASE}/friends`;
 
 // Тип одного игрока в комнате (с бэкенда)
