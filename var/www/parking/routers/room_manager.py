@@ -12,9 +12,8 @@ SCHEMA = 'parking'
 MAX_PLAYERS = 10
 LOBBY_TIMEOUT = 15
 LOBBY_MIN_REAL = 1
-SIGNAL_DURATION = 8000    # ms — фаза парковки
-ROUND_END_DURATION = 3000 # ms — пауза между раундами
-SLOT_INTERVAL = 30        # сек — глобальный интервал заездов
+SIGNAL_DURATION = 8000
+ROUND_END_DURATION = 3000
 
 BOT_NAMES = ['Вася', 'Петя', 'Коля', 'Маша', 'Катя', 'Женя', 'Саша', 'Лёша', 'Дима', 'Игорь']
 BOT_EMOJIS = ['🚕', '🚙', '🏎️', '🚓', '🚑', '🚒', '🛻', '🚐', '🚌', '🚗']
@@ -28,13 +27,6 @@ CENTER_X, CENTER_Y = 400, 300
 SPOT_COLS = 5
 SPOT_COL_GAP = 66
 SPOT_ROW_GAP = 80
-
-
-def get_next_slot_ms() -> int:
-    """Возвращает время старта следующего глобального слота (кратно SLOT_INTERVAL)."""
-    now_ms = int(time.time() * 1000)
-    slot_ms = SLOT_INTERVAL * 1000
-    return ((now_ms // slot_ms) + 1) * slot_ms
 
 
 def make_spots(count: int) -> list:
@@ -70,137 +62,131 @@ def get_room_players(db, room_id: str) -> list:
 def get_room(db, room_id: str):
     cur = db.cursor()
     cur.execute(
-        f"SELECT id, status, round, phase, timer_end, spots_json, created_at, started_at, "
-        f"max_players, eliminated_this_round "
+        f"SELECT id, status, round, phase, timer_end, spots_json, created_at, started_at, max_players "
         f"FROM {SCHEMA}.rooms WHERE id=%s",
         (room_id,)
     )
     row = cur.fetchone()
     if not row:
         return None
-    cols = ['id', 'status', 'round', 'phase', 'timer_end', 'spots_json', 'created_at',
-            'started_at', 'max_players', 'eliminated_this_round']
+    cols = ['id', 'status', 'round', 'phase', 'timer_end', 'spots_json', 'created_at', 'started_at', 'max_players']
     d = dict(zip(cols, row))
     d['spots'] = json.loads(d['spots_json'])
     return d
 
 
+def now_ms() -> int:
+    return int(time.time() * 1000)
+
+
+def build_response(room: dict, players: list, room_id: str = None) -> dict:
+    active = [p for p in players if not p['eliminated']]
+    is_final = len(active) == 2 and room['phase'] in ('driving', 'signal')
+    resp = {
+        'status': room['status'],
+        'round': room['round'],
+        'phase': room['phase'],
+        'timerEnd': room['timer_end'],
+        'serverNow': now_ms(),
+        'spots': room['spots'],
+        'players': players,
+        'isFinal': is_final,
+    }
+    if room_id:
+        resp['roomId'] = room_id
+    return resp
+
+
 def tick_room(db, room_id: str, room: dict, players: list):
-    """Серверный тик: проверяет таймеры и переключает фазы."""
-    now_ms = int(time.time() * 1000)
+    """Серверный тик: проверяет таймеры и переключает фазы автоматически."""
+    if room['status'] != 'playing':
+        return room, players
+
+    t = now_ms()
     phase = room['phase']
     timer_end = room['timer_end']
 
-    # Авто-элиминация игроков отвалившихся более 8 секунд назад (не боты)
-    DISCONNECT_TIMEOUT_MS = 8000
-    disconnected = [
-        p for p in players
-        if not p['is_bot'] and not p['eliminated']
-        and (now_ms - p['last_seen']) > DISCONNECT_TIMEOUT_MS
-    ]
-    if disconnected:
-        cur = db.cursor()
-        for p in disconnected:
-            cur.execute(
-                f"UPDATE {SCHEMA}.room_players SET eliminated=TRUE "
-                f"WHERE room_id=%s AND player_id=%s",
-                (room_id, p['player_id'])
-            )
-        db.commit()
-        players = get_room_players(db, room_id)
-
-        # Если после дисконнектов остался один живой — сразу финал
-        active_after = [p for p in players if not p['eliminated']]
-        if len(active_after) <= 1 and phase not in ('winner', 'roundEnd'):
-            cur = db.cursor()
-            cur.execute(
-                f"UPDATE {SCHEMA}.rooms SET status='finished', phase='winner', "
-                f"eliminated_this_round=NULL WHERE id=%s",
-                (room_id,)
-            )
-            db.commit()
-            room = get_room(db, room_id)
-            phase = 'winner'
-
-    if phase == 'driving' and now_ms >= timer_end:
+    if phase == 'driving' and t >= timer_end:
         active = [p for p in players if not p['eliminated']]
         spots_count = max(1, len(active) - 1)
         if room['round'] == 0:
             spots_count = len(active)
         spots = make_spots(spots_count)
-        signal_end = now_ms + SIGNAL_DURATION
+        signal_end = t + SIGNAL_DURATION
         cur = db.cursor()
         cur.execute(
-            f"UPDATE {SCHEMA}.rooms SET phase='signal', timer_end=%s, spots_json=%s, "
-            f"eliminated_this_round=NULL WHERE id=%s",
+            f"UPDATE {SCHEMA}.rooms SET phase='signal', timer_end=%s, spots_json=%s WHERE id=%s",
             (signal_end, json.dumps(spots), room_id)
         )
         db.commit()
         room = get_room(db, room_id)
+        phase = 'signal'
+        timer_end = signal_end
 
-    elif phase == 'signal' and now_ms >= timer_end:
+    if phase == 'signal' and t >= timer_end:
         active = [p for p in players if not p['eliminated']]
         unparked = [p for p in active if not p['parked']]
         cur = db.cursor()
-        eliminated_id = None
 
         if room['round'] > 0 and unparked:
             elim = sorted(unparked, key=lambda p: p['hp'] / max(p['max_hp'], 1))[0]
-            eliminated_id = elim['player_id']
             cur.execute(
                 f"UPDATE {SCHEMA}.room_players SET eliminated=TRUE WHERE room_id=%s AND player_id=%s",
-                (room_id, eliminated_id)
+                (room_id, elim['player_id'])
             )
 
-        round_end_end = now_ms + ROUND_END_DURATION
+        active_after = [p for p in active if not p['parked']] if room['round'] > 0 else active
+        remaining = len(active) - (1 if room['round'] > 0 and unparked else 0)
+
+        round_end_end = t + ROUND_END_DURATION
         cur.execute(
-            f"UPDATE {SCHEMA}.rooms SET phase='roundEnd', timer_end=%s, eliminated_this_round=%s WHERE id=%s",
-            (round_end_end, eliminated_id, room_id)
+            f"UPDATE {SCHEMA}.rooms SET phase='roundEnd', timer_end=%s WHERE id=%s",
+            (round_end_end, room_id)
         )
         db.commit()
         players = get_room_players(db, room_id)
         room = get_room(db, room_id)
+        phase = 'roundEnd'
+        timer_end = round_end_end
 
-    elif phase == 'roundEnd' and now_ms >= timer_end:
+    if phase == 'roundEnd' and t >= timer_end:
         active = [p for p in players if not p['eliminated']]
         new_round = room['round'] + 1
         cur = db.cursor()
 
         if len(active) <= 1 or new_round > 9:
             cur.execute(
-                f"UPDATE {SCHEMA}.rooms SET status='finished', phase='winner', "
-                f"eliminated_this_round=NULL WHERE id=%s",
+                f"UPDATE {SCHEMA}.rooms SET status='finished', phase='winner' WHERE id=%s",
                 (room_id,)
             )
             db.commit()
             room = get_room(db, room_id)
-        else:
-            is_final = len(active) == 2
-            spot_count = 1 if is_final else len(active) - 1
-            spots = make_spots(spot_count)
-            round_secs = 5000 + int(random.random() * 7000)
-            new_timer_end = now_ms + round_secs
-            cur.execute(
-                f"UPDATE {SCHEMA}.rooms SET round=%s, phase='driving', timer_end=%s, "
-                f"spots_json=%s, eliminated_this_round=NULL WHERE id=%s",
-                (new_round, new_timer_end, json.dumps(spots), room_id)
-            )
-            cur.execute(
-                f"UPDATE {SCHEMA}.room_players SET parked=FALSE, park_spot=-1 "
-                f"WHERE room_id=%s AND NOT eliminated",
-                (room_id,)
-            )
-            db.commit()
-            players = get_room_players(db, room_id)
-            room = get_room(db, room_id)
+            return room, get_room_players(db, room_id)
+
+        round_secs = 3 + random.random() * 8
+        new_timer_end = t + int(round_secs * 1000)
+        spots_count = max(1, len(active) - 1)
+        spots = make_spots(spots_count)
+
+        cur.execute(
+            f"UPDATE {SCHEMA}.rooms SET round=%s, phase='driving', timer_end=%s, spots_json=%s WHERE id=%s",
+            (new_round, new_timer_end, json.dumps(spots), room_id)
+        )
+        cur.execute(
+            f"UPDATE {SCHEMA}.room_players SET parked=FALSE, park_spot=-1 WHERE room_id=%s AND NOT eliminated",
+            (room_id,)
+        )
+        db.commit()
+        players = get_room_players(db, room_id)
+        room = get_room(db, room_id)
 
     return room, players
 
 
 def find_or_create_room(db, friend_codes: list = None) -> str:
     cur = db.cursor()
-    now_ms = int(time.time() * 1000)
-    stale_threshold = now_ms - 60_000
+    t = now_ms()
+    stale_threshold = t - 60_000
 
     if friend_codes:
         for code in friend_codes:
@@ -216,7 +202,6 @@ def find_or_create_room(db, friend_codes: list = None) -> str:
             if row:
                 return row[0]
 
-    # Ищем существующую комнату ожидания
     cur.execute(
         f"SELECT r.id FROM {SCHEMA}.rooms r "
         f"WHERE r.status='waiting' AND r.timer_end > %s "
@@ -227,15 +212,12 @@ def find_or_create_room(db, friend_codes: list = None) -> str:
     if row:
         return row[0]
 
-    # Создаём новую комнату, лобби заканчивается на ближайшем глобальном слоте
     room_id = str(uuid.uuid4())
     spots = make_spots(MAX_PLAYERS)
-    lobby_end = get_next_slot_ms()
     cur.execute(
-        f"INSERT INTO {SCHEMA}.rooms (id, status, round, phase, timer_end, spots_json, "
-        f"created_at, started_at, max_players, eliminated_this_round) "
-        f"VALUES (%s, 'waiting', 0, 'lobby', %s, %s, %s, 0, %s, NULL)",
-        (room_id, lobby_end, json.dumps(spots), now_ms, MAX_PLAYERS)
+        f"INSERT INTO {SCHEMA}.rooms (id, status, round, phase, timer_end, spots_json, created_at, started_at, max_players) "
+        f"VALUES (%s, 'waiting', 0, 'lobby', %s, %s, %s, 0, %s)",
+        (room_id, t + LOBBY_TIMEOUT * 1000, json.dumps(spots), t, MAX_PLAYERS)
     )
     db.commit()
     return room_id
@@ -261,7 +243,7 @@ def add_bots(db, room_id: str, players: list, max_players: int):
         orbit_angle = (all_players_count / max_players) * math.pi * 2
         x = CENTER_X + math.cos(orbit_angle) * orbit_radius
         y = CENTER_Y + math.sin(orbit_angle) * orbit_radius
-        now_ms = int(time.time() * 1000)
+        t = now_ms()
         cur.execute(
             f"INSERT INTO {SCHEMA}.room_players "
             f"(room_id, player_id, name, emoji, color, body_color, x, y, angle, speed, hp, max_hp, "
@@ -269,7 +251,7 @@ def add_bots(db, room_id: str, players: list, max_players: int):
             f"VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
             (room_id, bot_id, name, emoji, color, body_color,
              x, y, orbit_angle + math.pi, 0, 100, 100,
-             orbit_angle, orbit_radius, False, -1, False, True, now_ms)
+             orbit_angle, orbit_radius, False, -1, False, True, t)
         )
         existing_ids.add(bot_id)
         bot_idx += 1
@@ -280,11 +262,11 @@ def maybe_start_room(db, room_id: str, room: dict, players: list):
     if room['status'] != 'waiting':
         return room, players
 
-    now_ms = int(time.time() * 1000)
+    t = now_ms()
     real_players = [p for p in players if not p['is_bot']]
     should_start = (
         len(players) >= MAX_PLAYERS or
-        (now_ms >= room['timer_end'] and len(real_players) >= LOBBY_MIN_REAL)
+        (t >= room['timer_end'] and len(real_players) >= LOBBY_MIN_REAL)
     )
     if not should_start:
         return room, players
@@ -292,39 +274,20 @@ def maybe_start_room(db, room_id: str, room: dict, players: list):
     add_bots(db, room_id, players, MAX_PLAYERS)
     players = get_room_players(db, room_id)
     spots = make_spots(MAX_PLAYERS)
-    # Первый раунд стартует через 7 сек после старта лобби
-    round_timer = now_ms + 7000
+    round_secs = 3 + random.random() * 8
+    round_timer = t + int(round_secs * 1000)
     cur = db.cursor()
     cur.execute(
         f"UPDATE {SCHEMA}.rooms SET status='playing', round=0, phase='driving', "
         f"timer_end=%s, spots_json=%s, started_at=%s WHERE id=%s",
-        (round_timer, json.dumps(spots), now_ms, room_id)
+        (round_timer, json.dumps(spots), t, room_id)
     )
     db.commit()
     room = get_room(db, room_id)
     return room, players
 
 
-def build_response(room: dict, players: list, room_id: str = None) -> dict:
-    active = [p for p in players if not p['eliminated']]
-    is_final = len(active) == 2 and room['phase'] in ('driving', 'signal')
-    resp = {
-        'status': room['status'],
-        'round': room['round'],
-        'phase': room['phase'],
-        'timerEnd': room['timer_end'],
-        'serverNow': int(time.time() * 1000),
-        'spots': room['spots'],
-        'players': players,
-        'isFinal': is_final,
-        'eliminatedThisRound': room.get('eliminated_this_round'),
-    }
-    if room_id:
-        resp['roomId'] = room_id
-    return resp
-
-
-@router.post("")
+@router.post("/")
 def room_handler(body: dict):
     action = body.get('action', '')
     db = get_conn()
@@ -352,7 +315,7 @@ def room_handler(body: dict):
                 orbit_angle = (idx / MAX_PLAYERS) * math.pi * 2
                 x = CENTER_X + math.cos(orbit_angle) * orbit_radius
                 y = CENTER_Y + math.sin(orbit_angle) * orbit_radius
-                now_ms = int(time.time() * 1000)
+                t = now_ms()
                 cur = db.cursor()
                 cur.execute(
                     f"INSERT INTO {SCHEMA}.room_players "
@@ -362,7 +325,7 @@ def room_handler(body: dict):
                     f"ON CONFLICT (room_id, player_id) DO UPDATE SET last_seen=%s",
                     (room_id, player_id, name, emoji, color, body_color,
                      x, y, orbit_angle + math.pi, 0, max_hp, max_hp,
-                     orbit_angle, orbit_radius, False, -1, False, False, now_ms, now_ms)
+                     orbit_angle, orbit_radius, False, -1, False, False, t, t)
                 )
                 db.commit()
                 players = get_room_players(db, room_id)
@@ -394,19 +357,19 @@ def room_handler(body: dict):
             if not room_id or not player_id:
                 raise HTTPException(400, 'roomId and playerId required')
 
-            now_ms = int(time.time() * 1000)
+            t = now_ms()
             cur = db.cursor()
             cur.execute(
                 f"UPDATE {SCHEMA}.room_players SET "
                 f"x=%s, y=%s, angle=%s, speed=%s, hp=%s, orbit_angle=%s, "
                 f"parked=%s, park_spot=%s, eliminated=%s, last_seen=%s "
-                f"WHERE room_id=%s AND player_id=%s",
+                f"WHERE room_id=%s AND player_id=%s AND is_bot=FALSE",
                 (
                     float(body.get('x', 400)), float(body.get('y', 300)),
                     float(body.get('angle', 0)), float(body.get('speed', 0)),
                     float(body.get('hp', 100)), float(body.get('orbitAngle', 0)),
                     bool(body.get('parked', False)), int(body.get('parkSpot', -1)),
-                    bool(body.get('eliminated', False)), now_ms,
+                    bool(body.get('eliminated', False)), t,
                     room_id, player_id
                 )
             )
@@ -425,8 +388,22 @@ def room_handler(body: dict):
                     )
                     db.commit()
 
-            players = get_room_players(db, room_id)
             room = get_room(db, room_id)
+            players = get_room_players(db, room_id)
+            room, players = tick_room(db, room_id, room, players)
+
+            return build_response(room, players)
+
+        elif action == 'next_round':
+            room_id = body.get('roomId', '')
+            if not room_id:
+                raise HTTPException(400, 'roomId required')
+
+            room = get_room(db, room_id)
+            if not room:
+                raise HTTPException(404, 'room not found')
+
+            players = get_room_players(db, room_id)
             room, players = tick_room(db, room_id, room, players)
 
             return build_response(room, players)
