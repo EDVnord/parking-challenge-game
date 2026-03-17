@@ -98,9 +98,9 @@ export function useGameLoop({
       if (state.shakeTimer > 0) state.shakeTimer -= dt;
 
       // Синхронизируем таймер с сервером при любой фазе
+      // Используем только серверные метки — не зависим от локальных часов устройства
       if (state.serverTimerEndMs && state.serverNowMs) {
-        const lagMs = Date.now() - state.serverNowMs;
-        const serverRemainingMs = state.serverTimerEndMs - state.serverNowMs - lagMs;
+        const serverRemainingMs = state.serverTimerEndMs - state.serverNowMs;
         const newEndAt = realNow + Math.max(0, serverRemainingMs) / 1000;
         timerEndAt = newEndAt;
         signalTimerEndAt = newEndAt;
