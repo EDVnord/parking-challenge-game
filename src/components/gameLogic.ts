@@ -259,7 +259,7 @@ export function applyRoomState(state: GameState, room: RoomState, localPlayerId:
           existing.targetX = rp.x;
           existing.targetY = rp.y;
         }
-        existing.angle = rp.angle;
+        existing.targetAngle = rp.angle;
         existing.speed = rp.speed;
         existing.orbitAngle = rp.orbit_angle;
         existing.parked = rp.parked;
@@ -305,6 +305,7 @@ export function applyRoomState(state: GameState, room: RoomState, localPlayerId:
     state.serverTimerEndMs = room.timerEnd;
     state.serverNowMs = room.serverNow;
     state.serverReceivedAt = Date.now();
+    state.serverPhaseForTimer = room.phase;
   }
 
   // Синхронизируем фазу

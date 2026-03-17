@@ -61,13 +61,13 @@ export function useGameLoop({
 
     // Звуковые флаги — чтобы не воспроизводить одно и то же несколько раз
     let signalSoundPlayed = false;
-    const winSoundPlayed = false;
     let playerParkedSoundPlayed = false;
+    const lastSignalRound = -1;
 
     // Абсолютные метки окончания таймеров (в секундах performance.now())
     let timerEndAt = performance.now() / 1000 + state.timer;
-    let signalTimerEndAt = 0;
-    let roundEndTimerEndAt = 0;
+    let signalTimerEndAt = performance.now() / 1000;
+    let roundEndTimerEndAt = performance.now() / 1000;
 
     const loop = (timestamp: number) => {
       const realNow = performance.now() / 1000;
@@ -99,26 +99,34 @@ export function useGameLoop({
           const lerpSpeed = 1 - Math.pow(0.01, dt);
           car.x += (car.targetX - car.x) * lerpSpeed;
           car.y += (car.targetY - car.y) * lerpSpeed;
+          if (car.targetAngle !== undefined) {
+            // Интерполяция угла по кратчайшему пути (через ±π)
+            let da = car.targetAngle - car.angle;
+            if (da > Math.PI) da -= 2 * Math.PI;
+            if (da < -Math.PI) da += 2 * Math.PI;
+            car.angle += da * lerpSpeed;
+          }
         }
       });
       if (state.driftMarks.length > 200) state.driftMarks.splice(0, 50);
 
       if (state.shakeTimer > 0) state.shakeTimer -= dt;
 
-      // Синхронизируем таймер с сервером при любой фазе
-      // serverRemainingMs = сколько осталось по серверному времени
-      // elapsedSinceReceive = сколько прошло с момента получения ответа (сетевая задержка + рендер)
+      // Синхронизируем таймер с сервером — только для нужной фазы
       if (state.serverTimerEndMs && state.serverNowMs && state.serverReceivedAt) {
         const serverRemainingMs = state.serverTimerEndMs - state.serverNowMs;
         const elapsedSinceReceive = Date.now() - state.serverReceivedAt;
         const adjustedMs = serverRemainingMs - elapsedSinceReceive;
         const newEndAt = realNow + Math.max(0, adjustedMs) / 1000;
-        timerEndAt = newEndAt;
-        signalTimerEndAt = newEndAt;
-        roundEndTimerEndAt = newEndAt;
+        const phase = state.serverPhaseForTimer;
+        if (phase === 'driving') timerEndAt = newEndAt;
+        else if (phase === 'signal') signalTimerEndAt = newEndAt;
+        else if (phase === 'roundEnd') roundEndTimerEndAt = newEndAt;
+        else { timerEndAt = newEndAt; signalTimerEndAt = newEndAt; roundEndTimerEndAt = newEndAt; }
         state.serverTimerEndMs = undefined;
         state.serverNowMs = undefined;
         state.serverReceivedAt = undefined;
+        state.serverPhaseForTimer = undefined;
       }
 
       if (state.phase === 'driving') {
@@ -143,10 +151,14 @@ export function useGameLoop({
       } else if (state.phase === 'signal') {
         state.signalTimer = Math.max(0, signalTimerEndAt - realNow);
 
-        // Звук сигнала один раз при входе в фазу
+        // Звук сигнала один раз при входе в фазу (сбрасываем флаг на каждый раунд)
+        if (lastSignalRound !== state.round) {
+          lastSignalRound = state.round;
+          signalSoundPlayed = false;
+          playerParkedSoundPlayed = false;
+        }
         if (!signalSoundPlayed) {
           signalSoundPlayed = true;
-          playerParkedSoundPlayed = false;
           playSignalSound();
         }
 

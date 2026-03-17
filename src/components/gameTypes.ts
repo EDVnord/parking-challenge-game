@@ -21,6 +21,7 @@ export interface Car {
   targetSpot: number | null;
   targetX?: number;
   targetY?: number;
+  targetAngle?: number;
   eliminated: boolean;
   emoji: string;
   blinkTimer: number;
@@ -62,6 +63,7 @@ export interface GameState {
   serverTimerEndMs?: number;
   serverNowMs?: number;
   serverReceivedAt?: number;
+  serverPhaseForTimer?: string;
 }
 
 export interface Upgrades {
