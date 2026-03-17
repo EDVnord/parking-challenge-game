@@ -295,32 +295,20 @@ export function applyRoomState(state: GameState, room: RoomState, localPlayerId:
     }
   });
 
-  // Синхронизируем фазу и таймер с сервером
+  // Раунд и финал
   state.round = room.round;
   if (room.isFinal) state.isFinalRound = true;
 
-  // Сохраняем серверное время для синхронизации таймера в gameLoop
-  // serverReceivedAt = локальное время в момент получения ответа
-  if (room.timerEnd && room.serverNow) {
-    state.serverTimerEndMs = room.timerEnd;
+  // Серверный таймер — сохраняем timerEnd и drift (serverNow vs Date.now())
+  // В gameLoop таймер считается: serverTimerEndMs - (Date.now() + serverDrift)
+  state.serverTimerEndMs = room.timerEnd;
+  if (room.serverNow) {
     state.serverNowMs = room.serverNow;
     state.serverReceivedAt = Date.now();
-    state.serverPhaseForTimer = room.phase;
   }
 
-  // Синхронизируем фазу
+  // Фаза — только с сервера, всегда перезаписываем
   const serverPhase = room.phase as GameState['phase'];
-  if (serverPhase !== state.phase) {
-    if (serverPhase === 'driving') {
-      state.phase = 'driving';
-      state.signal = false;
-    } else if (serverPhase === 'signal') {
-      state.phase = 'signal';
-      state.signal = true;
-    } else if (serverPhase === 'roundEnd') {
-      state.phase = 'roundEnd';
-    } else if (serverPhase === 'winner') {
-      state.phase = 'winner';
-    }
-  }
+  state.phase = serverPhase;
+  state.signal = serverPhase === 'signal';
 }

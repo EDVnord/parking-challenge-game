@@ -63,7 +63,6 @@ export interface GameState {
   serverTimerEndMs?: number;
   serverNowMs?: number;
   serverReceivedAt?: number;
-  serverPhaseForTimer?: string;
 }
 
 export interface Upgrades {
