@@ -64,7 +64,13 @@ export function useGameLoop({
     let winSoundPlayed = false;
     let playerParkedSoundPlayed = false;
 
+    // Абсолютные метки окончания таймеров (в секундах performance.now())
+    const timerEndAt = performance.now() / 1000 + state.timer;
+    const signalTimerEndAt = 0;
+    const roundEndTimerEndAt = 0;
+
     const loop = (timestamp: number) => {
+      const realNow = performance.now() / 1000;
       const dt = Math.min((timestamp - timeRef.current) / 1000, 0.05);
       timeRef.current = timestamp;
       const time = timestamp / 1000;
@@ -92,7 +98,7 @@ export function useGameLoop({
       if (state.shakeTimer > 0) state.shakeTimer -= dt;
 
       if (state.phase === 'driving') {
-        state.timer -= dt;
+        state.timer = Math.max(0, timerEndAt - realNow);
 
         // В фазе driving все едут по орбите сквозь друг друга — без столкновений
         state.cars.forEach(car => botAI(car, state, dt));
@@ -115,11 +121,12 @@ export function useGameLoop({
           state.signal = true;
           state.phase = 'signal';
           state.signalTimer = 8;
+          signalTimerEndAt = realNow + 8;
           signalSoundPlayed = false;
           playerParkedSoundPlayed = false;
         }
       } else if (state.phase === 'signal') {
-        state.signalTimer -= dt;
+        state.signalTimer = Math.max(0, signalTimerEndAt - realNow);
 
         // Звук сигнала один раз при входе в фазу
         if (!signalSoundPlayed) {
@@ -230,6 +237,7 @@ export function useGameLoop({
             // Игрок выбыл — показываем roundEnd чтобы увидел результат
             state.phase = 'roundEnd';
             state.roundEndTimer = 3;
+            roundEndTimerEndAt = realNow + 3;
           } else if (activeCarsAfter.length <= 1 || state.round >= state.maxRounds) {
             // Победа! Сразу переходим к winner без roundEnd-оверлея
             state.phase = 'winner';
@@ -247,12 +255,15 @@ export function useGameLoop({
           } else {
             state.phase = 'roundEnd';
             state.roundEndTimer = 3;
+            roundEndTimerEndAt = realNow + 3;
           }
         }
       } else if (state.phase === 'roundEnd') {
         // Пауза таймера пока показан оффер второй жизни
         if (!extraLifeOfferRef?.current) {
-          state.roundEndTimer -= dt;
+          state.roundEndTimer = Math.max(0, roundEndTimerEndAt - realNow);
+        } else {
+          roundEndTimerEndAt = realNow + state.roundEndTimer;
         }
 
         if (state.roundEndTimer <= 0) {
@@ -293,6 +304,7 @@ export function useGameLoop({
           const nextActiveCars = state.cars.filter(c => !c.eliminated);
           state.isFinalRound = nextActiveCars.length === 2;
           state.timer = randomRoundTimer(state.round, state.isFinalRound);
+          timerEndAt = realNow + state.timer;
 
           // Количество мест = (активных машин - 1), но не меньше 1
           const spotsCount = Math.max(1, nextActiveCars.length - 1);
@@ -395,9 +407,18 @@ export function useGameLoop({
     timeRef.current = performance.now();
     animRef.current = requestAnimationFrame(loop);
 
+    let hiddenAt = 0;
     const handleVisibility = () => {
-      if (!document.hidden) {
-        // Сбрасываем время чтобы не было резкого прыжка после возврата вкладки
+      if (document.hidden) {
+        hiddenAt = performance.now() / 1000;
+      } else {
+        // Сдвигаем абсолютные метки таймеров на время паузы
+        const pausedFor = performance.now() / 1000 - hiddenAt;
+        if (hiddenAt > 0 && pausedFor > 0) {
+          timerEndAt += pausedFor;
+          if (signalTimerEndAt > 0) signalTimerEndAt += pausedFor;
+          if (roundEndTimerEndAt > 0) roundEndTimerEndAt += pausedFor;
+        }
         timeRef.current = performance.now();
       }
     };
