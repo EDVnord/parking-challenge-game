@@ -62,7 +62,7 @@ export function useGameLoop({
     // Звуковые флаги — чтобы не воспроизводить одно и то же несколько раз
     let signalSoundPlayed = false;
     let playerParkedSoundPlayed = false;
-    const lastSignalRound = -1;
+    const soundState = { lastSignalRound: -1 };
 
     // Абсолютные метки окончания таймеров (в секундах performance.now())
     let timerEndAt = performance.now() / 1000 + state.timer;
@@ -152,8 +152,8 @@ export function useGameLoop({
         state.signalTimer = Math.max(0, signalTimerEndAt - realNow);
 
         // Звук сигнала один раз при входе в фазу (сбрасываем флаг на каждый раунд)
-        if (lastSignalRound !== state.round) {
-          lastSignalRound = state.round;
+        if (soundState.lastSignalRound !== state.round) {
+          soundState.lastSignalRound = state.round;
           signalSoundPlayed = false;
           playerParkedSoundPlayed = false;
         }
