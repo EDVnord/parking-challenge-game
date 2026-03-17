@@ -3,7 +3,9 @@ import { PlayerData, RoomState, roomApi, ROOM_URL } from '@/pages/parkingTypes';
 import { getFriends } from '@/components/FriendsPanel';
 
 const LOBBY_WAIT_MS = 15000;
-const JOIN_TIMEOUT_MS = 4000;
+const JOIN_TIMEOUT_MS = 5000;
+const POLL_INTERVAL_LOBBY = 1000;
+const POLL_INTERVAL_GAME = 300;
 
 interface UseMultiplayerOptions {
   player: PlayerData;
@@ -15,8 +17,9 @@ export function useMultiplayer({ player, localPlayerId, onStartGame }: UseMultip
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [isLobby, setIsLobby] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lobbyTimersRef = useRef<{ offline?: ReturnType<typeof setTimeout>; force?: ReturnType<typeof setTimeout> }>({});
-  const startGamePollingRef = useRef<(roomId: string) => void>(() => {});
+  const offlineTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const roomIdRef = useRef<string | null>(null);
+  const isPlayingRef = useRef(false);
   const onStartGameRef = useRef(onStartGame);
   useEffect(() => { onStartGameRef.current = onStartGame; }, [onStartGame]);
 
@@ -24,42 +27,45 @@ export function useMultiplayer({ player, localPlayerId, onStartGame }: UseMultip
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
   }, []);
 
-  const clearLobbyTimers = useCallback(() => {
-    if (lobbyTimersRef.current.offline) { clearTimeout(lobbyTimersRef.current.offline); lobbyTimersRef.current.offline = undefined; }
-    if (lobbyTimersRef.current.force) { clearTimeout(lobbyTimersRef.current.force); lobbyTimersRef.current.force = undefined; }
+  const clearOfflineTimer = useCallback(() => {
+    if (offlineTimerRef.current) { clearTimeout(offlineTimerRef.current); offlineTimerRef.current = null; }
   }, []);
 
-  const startGamePolling = useCallback((roomId: string) => {
+  const startGame = useCallback((room: RoomState | null, roomId?: string) => {
+    if (isPlayingRef.current) return;
+    isPlayingRef.current = true;
+    clearOfflineTimer();
     stopPolling();
-    pollRef.current = setInterval(async () => {
-      try {
-        const st = await roomApi('state', { roomId });
-        setRoomState(st as RoomState);
-        if (st.status === 'finished') stopPolling();
-      } catch { /* ignore */ }
-    }, 300);
-  }, [stopPolling]);
+    setIsLobby(false);
+    setRoomState(room);
+    onStartGameRef.current(room);
 
-  useEffect(() => { startGamePollingRef.current = startGamePolling; }, [startGamePolling]);
-  useEffect(() => () => stopPolling(), [stopPolling]);
+    if (roomId) {
+      roomIdRef.current = roomId;
+      pollRef.current = setInterval(async () => {
+        try {
+          const st = await roomApi('state', { roomId });
+          setRoomState(st as RoomState);
+          if (st.status === 'finished') stopPolling();
+        } catch { /* ignore */ }
+      }, POLL_INTERVAL_GAME);
+    }
+  }, [clearOfflineTimer, stopPolling]);
 
   const cancelLobby = useCallback(() => {
     stopPolling();
-    clearLobbyTimers();
+    clearOfflineTimer();
+    isPlayingRef.current = false;
+    roomIdRef.current = null;
     setIsLobby(false);
     setRoomState(null);
-  }, [stopPolling, clearLobbyTimers]);
-
-  const finishLobby = useCallback((room: RoomState | null, roomId?: string) => {
-    clearLobbyTimers();
-    stopPolling();
-    setRoomState(room);
-    setIsLobby(false);
-    onStartGameRef.current(room);
-    if (roomId) startGamePollingRef.current(roomId);
-  }, [clearLobbyTimers, stopPolling]);
+  }, [stopPolling, clearOfflineTimer]);
 
   const joinLobby = useCallback(async (pid: string, displayName: string) => {
+    stopPolling();
+    clearOfflineTimer();
+    isPlayingRef.current = false;
+
     const car = player.cars[player.selectedCar];
 
     const offlineRoom: RoomState = {
@@ -70,17 +76,17 @@ export function useMultiplayer({ player, localPlayerId, onStartGame }: UseMultip
         player_id: pid, name: displayName, emoji: player.emoji,
         color: car?.color ?? '#FF2D55', body_color: car?.bodyColor ?? '#CC0033',
         max_hp: car?.maxHp ?? 100, x: 0, y: 0, angle: 0, speed: 0,
-        orbit_angle: 0, orbit_radius: 290, parked: false, park_spot: -1,
+        orbit_angle: 0, orbit_radius: 230, parked: false, park_spot: -1,
         eliminated: false, is_bot: false, hp: car?.maxHp ?? 100, last_seen: Date.now(),
       }],
       spots: [],
     };
     setRoomState(offlineRoom);
     setIsLobby(true);
-    stopPolling();
-    clearLobbyTimers();
 
-    lobbyTimersRef.current.offline = setTimeout(() => finishLobby(null), LOBBY_WAIT_MS);
+    offlineTimerRef.current = setTimeout(() => {
+      if (!isPlayingRef.current) startGame(null);
+    }, LOBBY_WAIT_MS);
 
     try {
       const myFriendCodes = getFriends().map(f => f.code);
@@ -95,63 +101,57 @@ export function useMultiplayer({ player, localPlayerId, onStartGame }: UseMultip
 
       if (data.error) throw new Error(data.error);
 
+      const lobbyRoomId = data.roomId as string;
+      roomIdRef.current = lobbyRoomId;
+
       if (data.status === 'playing') {
-        finishLobby(data as RoomState, data.roomId);
+        startGame(data as RoomState, lobbyRoomId);
         return;
       }
 
       setRoomState(data as RoomState);
-      const lobbyRoomId = data.roomId;
-      const lobbyTimerEnd = data.timerEnd as number;
-
-      lobbyTimersRef.current.force = setTimeout(async () => {
-        try {
-          const st = await roomApi('join', {
-            playerId: pid, name: displayName, emoji: player.emoji,
-            color: car?.color ?? '#FF2D55', bodyColor: car?.bodyColor ?? '#CC0033',
-            maxHp: car?.maxHp ?? 100, forceStart: true,
-          });
-          finishLobby(st.status === 'playing' ? st as RoomState : null, lobbyRoomId);
-        } catch { finishLobby(null); }
-      }, Math.max(0, lobbyTimerEnd - Date.now()) + 500);
 
       pollRef.current = setInterval(async () => {
+        if (isPlayingRef.current) { stopPolling(); return; }
         try {
           const st = await roomApi('state', { roomId: lobbyRoomId });
           setRoomState(st as RoomState);
-          if (st.status === 'playing') finishLobby(st as RoomState, lobbyRoomId);
+          if (st.status === 'playing') {
+            startGame(st as RoomState, lobbyRoomId);
+          }
         } catch { /* ignore */ }
-      }, 800);
+      }, POLL_INTERVAL_LOBBY);
 
-    } catch { /* офлайн-таймер уже запущен */ }
-  }, [player, stopPolling, clearLobbyTimers, finishLobby]);
+    } catch {
+      /* офлайн-таймер уже запущен */
+    }
+  }, [player, stopPolling, clearOfflineTimer, startGame]);
 
   const handlePlayerMove = useCallback((mv: {
     x: number; y: number; angle: number; speed: number;
     hp: number; orbitAngle: number; parked: boolean; parkSpot: number; eliminated: boolean;
   }) => {
-    if (!roomState?.roomId || !localPlayerId || roomState.roomId.startsWith('offline_')) return;
-    roomApi('move', { roomId: roomState.roomId, playerId: localPlayerId, ...mv }).catch(() => {});
-  }, [roomState, localPlayerId]);
+    const roomId = roomIdRef.current;
+    if (!roomId || !localPlayerId || roomId.startsWith('offline_')) return;
+    roomApi('move', { roomId, playerId: localPlayerId, ...mv }).catch(() => {});
+  }, [localPlayerId]);
 
-  // Отправляем leave при закрытии вкладки / уходе со страницы
   const roomStateRef = useRef(roomState);
   useEffect(() => { roomStateRef.current = roomState; }, [roomState]);
 
   useEffect(() => {
     const sendLeave = () => {
-      const room = roomStateRef.current;
-      if (!room?.roomId || !localPlayerId || room.roomId.startsWith('offline_')) return;
-      const body = JSON.stringify({ action: 'leave', roomId: room.roomId, playerId: localPlayerId });
+      const roomId = roomIdRef.current;
+      if (!roomId || !localPlayerId || roomId.startsWith('offline_')) return;
+      const body = JSON.stringify({ action: 'leave', roomId, playerId: localPlayerId });
       if (navigator.sendBeacon) {
         navigator.sendBeacon(ROOM_URL, new Blob([body], { type: 'application/json' }));
       } else {
-        roomApi('leave', { roomId: room.roomId, playerId: localPlayerId }).catch(() => {});
+        roomApi('leave', { roomId, playerId: localPlayerId }).catch(() => {});
       }
     };
 
     const onVisibility = () => { if (document.visibilityState === 'hidden') sendLeave(); };
-
     window.addEventListener('beforeunload', sendLeave);
     document.addEventListener('visibilitychange', onVisibility);
     return () => {

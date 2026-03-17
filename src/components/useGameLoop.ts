@@ -94,13 +94,14 @@ export function useGameLoop({
         }
       });
 
-      // === ТАЙМЕР — считаем только из серверных меток ===
-      // serverNow + timerEnd приходят с каждым poll-ответом
-      const serverDriftMs = state.serverReceivedAt && state.serverNowMs
-        ? (state.serverNowMs - state.serverReceivedAt)
-        : 0;
-      const localServerNow = Date.now() + serverDriftMs;
-      const remainingMs = state.serverTimerEndMs ? Math.max(0, state.serverTimerEndMs - localServerNow) : 0;
+      // === ТАЙМЕР — серверное время + elapsed с момента получения ответа ===
+      // serverNowMs — время на сервере в момент ответа (ms unix)
+      // serverReceivedAt — Date.now() в момент получения ответа клиентом
+      // estimatedServerNow = serverNowMs + (Date.now() - serverReceivedAt)
+      const estimatedServerNow = state.serverNowMs && state.serverReceivedAt
+        ? state.serverNowMs + (Date.now() - state.serverReceivedAt)
+        : Date.now();
+      const remainingMs = state.serverTimerEndMs ? Math.max(0, state.serverTimerEndMs - estimatedServerNow) : 0;
       state.timer = remainingMs / 1000;
       state.signalTimer = remainingMs / 1000;
       state.roundEndTimer = remainingMs / 1000;
@@ -140,27 +141,29 @@ export function useGameLoop({
         }
       }
 
-      // === ФАЗА DRIVING — только bot AI + отправка позиции ===
+      // === ФАЗА DRIVING — орбита игрока + отправка позиции ===
       if (state.phase === 'driving') {
-        state.cars.forEach(car => botAI(car, state, dt));
+        // Игрок в driving — сам крутится по орбите как бот
+        const playerCar = state.cars.find(c => c.isPlayer && !c.eliminated);
+        if (playerCar) {
+          botAI(playerCar, state, dt);
+        }
 
         if (onPlayerMoveRef.current && time - moveThrottleRef.current > 0.2) {
           moveThrottleRef.current = time;
-          const player = state.cars.find(c => c.isPlayer);
-          if (player) {
+          if (playerCar) {
             onPlayerMoveRef.current({
-              x: player.x, y: player.y, angle: player.angle,
-              speed: player.speed, hp: player.hp,
-              orbitAngle: player.orbitAngle,
-              parked: player.parked, parkSpot: player.parkSpot ?? -1,
-              eliminated: player.eliminated,
+              x: playerCar.x, y: playerCar.y, angle: playerCar.angle,
+              speed: playerCar.speed, hp: playerCar.hp,
+              orbitAngle: playerCar.orbitAngle,
+              parked: playerCar.parked, parkSpot: playerCar.parkSpot ?? -1,
+              eliminated: playerCar.eliminated,
             });
           }
         }
 
       // === ФАЗА SIGNAL — управление игроком + паркинг ===
       } else if (state.phase === 'signal') {
-        state.cars.forEach(car => botAI(car, state, dt));
 
         const player = state.cars.find(c => c.isPlayer && !c.eliminated);
         if (player && !player.parked) {

@@ -1,0 +1,1 @@
+ALTER TABLE t_p25425030_parking_challenge_ga.room_players ADD COLUMN IF NOT EXISTS target_spot integer NOT NULL DEFAULT -1;
