@@ -77,11 +77,12 @@ export function useGameLoop({
       if (state.driftMarks.length > 200) state.driftMarks.splice(0, 50);
       if (state.shakeTimer > 0) state.shakeTimer -= dt;
 
-      // === LERP удалённых игроков к серверным позициям каждый кадр ===
+      // === LERP удалённых игроков к серверным позициям (только в signal/roundEnd/winner) ===
+      // В driving фазе боты двигаются локально через botAI — lerp не нужен
+      const useLerp = state.phase === 'signal' || state.phase === 'roundEnd' || state.phase === 'winner';
       state.cars.forEach(car => {
         if (car.blinkTimer > 0) car.blinkTimer = Math.max(0, car.blinkTimer - dt);
-        if (!car.isPlayer && car.targetX !== undefined && car.targetY !== undefined) {
-          // lerp скорость: за ~75мс достигаем цели (polling 150мс)
+        if (!car.isPlayer && useLerp && car.targetX !== undefined && car.targetY !== undefined) {
           const alpha = Math.min(1, dt * 20);
           car.x += (car.targetX - car.x) * alpha;
           car.y += (car.targetY - car.y) * alpha;

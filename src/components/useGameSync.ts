@@ -67,6 +67,16 @@ export function useGameSync({ stateRef, upgrades, playerHp, localId, roomState }
       if (roomState.phase === 'driving' && prevPhase === 'roundEnd') {
         state.shieldUsed = false;
         state.eliminatedThisRound = null;
+        // Сброс parked для всех (включая локального игрока)
+        state.cars.forEach(car => {
+          if (!car.eliminated) {
+            car.parked = false;
+            car.parkSpot = null;
+            car.targetSpot = null;
+            car.targetX = undefined;
+            car.targetY = undefined;
+          }
+        });
       }
 
       prevPhaseRef.current = roomState.phase;
