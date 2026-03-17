@@ -54,20 +54,17 @@ export function useGameSync({ stateRef, upgrades, playerHp, localId, roomState }
       if (roomState.phase === 'signal') {
         playSignalSound();
       } else if (roomState.phase === 'roundEnd') {
-        // Найти выбывшего — тот кто был активен и теперь eliminated
-        const eliminated = state.cars.find(c => c.eliminated && !c.isBot && c.playerId !== localId);
-        const playerEliminated = state.cars.find(c => c.isPlayer && c.eliminated);
-        if (playerEliminated) {
-          playEliminatedSound();
-          spawnParticles(state, playerEliminated.x, playerEliminated.y, '#FF2D55', 20);
+        // Используем eliminatedThisRound с сервера — одинаково у всех игроков
+        const eliminatedId = roomState.eliminatedThisRound;
+        const eliminatedCar = eliminatedId
+          ? state.cars.find(c => c.playerId === eliminatedId)
+          : null;
+        if (eliminatedCar) {
+          state.eliminatedThisRound = eliminatedCar;
+          spawnParticles(state, eliminatedCar.x, eliminatedCar.y, '#FF2D55', 20);
           state.shakeTimer = 0.5;
-          state.eliminatedThisRound = playerEliminated;
-        } else if (eliminated) {
-          spawnParticles(state, eliminated.x, eliminated.y, '#FF2D55', 20);
-          state.shakeTimer = 0.5;
-          state.eliminatedThisRound = eliminated;
+          if (eliminatedCar.isPlayer) playEliminatedSound();
         }
-        void playerEliminated;
       } else if (roomState.phase === 'winner') {
         playWinSound();
         state.winnerTimer = 5;
