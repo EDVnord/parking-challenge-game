@@ -4,7 +4,7 @@ import {
   PARK_LEFT, PARK_RIGHT, PARK_TOP, PARK_BOTTOM,
   EXCL_LEFT, EXCL_RIGHT, EXCL_TOP, EXCL_BOTTOM, EXCL_RADIUS,
   EXCL_RX, EXCL_RY,
-  CAR_COLORS, CAR_EMOJIS, CAR_NAMES, randomBotName,
+  CAR_COLORS, CAR_EMOJIS, CAR_NAMES,
 } from './gameTypes';
 import { playCollisionSound } from './gameAudio';
 
@@ -188,7 +188,7 @@ export function createInitialState(playerName: string, playerHp?: number, player
       maxHp: i === 0 ? (playerMaxHp ?? 100) : 100,
       isPlayer: i === 0,
       isBot: i !== 0,
-      name: i === 0 ? playerName : randomBotName(cars.map(c => c.name)),
+      name: i === 0 ? playerName : CAR_NAMES[i],
       orbitRadius: ORBIT_R,
       orbitAngle,
       orbitSpeed: 0.016 + Math.random() * 0.008,
@@ -247,19 +247,9 @@ export function applyRoomState(state: GameState, room: RoomState, localPlayerId:
     if (existing) {
       // Не перезаписывать позицию локального игрока — он управляет сам
       if (rp.player_id !== localPlayerId) {
-        const dist = Math.hypot(rp.x - existing.x, rp.y - existing.y);
-        if (dist > 200) {
-          // Большой рывок — мгновенно
-          existing.x = rp.x;
-          existing.y = rp.y;
-          existing.targetX = rp.x;
-          existing.targetY = rp.y;
-        } else {
-          // Сохраняем цель — интерполяция происходит в RAF каждый кадр
-          existing.targetX = rp.x;
-          existing.targetY = rp.y;
-        }
-        existing.targetAngle = rp.angle;
+        existing.x = rp.x;
+        existing.y = rp.y;
+        existing.angle = rp.angle;
         existing.speed = rp.speed;
         existing.orbitAngle = rp.orbit_angle;
         existing.parked = rp.parked;
@@ -295,20 +285,11 @@ export function applyRoomState(state: GameState, room: RoomState, localPlayerId:
     }
   });
 
-  // Раунд и финал
+  // Обновить фазу/раунд
   state.round = room.round;
-  if (room.isFinal) state.isFinalRound = true;
-
-  // Серверный таймер — сохраняем timerEnd и drift (serverNow vs Date.now())
-  // В gameLoop таймер считается: serverTimerEndMs - (Date.now() + serverDrift)
-  state.serverTimerEndMs = room.timerEnd;
-  if (room.serverNow) {
-    state.serverNowMs = room.serverNow;
-    state.serverReceivedAt = Date.now();
+  if (room.phase === 'driving' && state.phase !== 'driving') {
+    state.phase = 'driving';
+    state.signal = false;
   }
-
-  // Фаза — только с сервера, всегда перезаписываем
-  const serverPhase = room.phase as GameState['phase'];
-  state.phase = serverPhase;
-  state.signal = serverPhase === 'signal';
+  if (room.isFinal) state.isFinalRound = true;
 }

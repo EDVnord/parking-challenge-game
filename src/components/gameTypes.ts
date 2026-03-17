@@ -19,9 +19,6 @@ export interface Car {
   parked: boolean;
   parkSpot: number | null;
   targetSpot: number | null;
-  targetX?: number;
-  targetY?: number;
-  targetAngle?: number;
   eliminated: boolean;
   emoji: string;
   blinkTimer: number;
@@ -60,9 +57,6 @@ export interface GameState {
   playerShield: boolean;
   shieldUsed: boolean;
   reviveAndContinue?: boolean;
-  serverTimerEndMs?: number;
-  serverNowMs?: number;
-  serverReceivedAt?: number;
 }
 
 export interface Upgrades {
@@ -145,15 +139,4 @@ export const CAR_COLORS = [
 ];
 
 export const CAR_EMOJIS = ['🚗','🚕','🚙','🏎️','🚓','🚑','🚒','🛻','🚐','🚌'];
-export const CAR_NAMES  = [
-  'Антон','Борис','Влад','Гриша','Денис','Егор','Женя','Захар','Иван','Кирилл',
-  'Лёша','Максим','Никита','Олег','Павел','Роман','Серёга','Тимур','Федя','Юра',
-  'Аня','Вика','Даша','Катя','Лена','Маша','Настя','Оля','Полина','Света',
-  'Артём','Витя','Глеб','Данил','Евгений','Игорь','Костя','Миша','Саша','Стас',
-];
-
-export function randomBotName(exclude: string[] = []): string {
-  const available = CAR_NAMES.filter(n => !exclude.includes(n));
-  const pool = available.length > 0 ? available : CAR_NAMES;
-  return pool[Math.floor(Math.random() * pool.length)];
-}
+export const CAR_NAMES  = ['Вася','Петя','Коля','Маша','Катя','Женя','Саша','Лёша','Дима','Игорь'];

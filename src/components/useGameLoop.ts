@@ -1,8 +1,14 @@
 import { useEffect, useRef, MutableRefObject } from 'react';
 import { Car, GameState, Upgrades, CANVAS_W, CANVAS_H, CENTER_X, CENTER_Y } from './gameTypes';
-import { spawnParticles, resolveAllCollisions } from './gameLogic';
+import { makeSpotsGrid, spawnParticles, blockParkingZone, resolveAllCollisions } from './gameLogic';
 import { drawAsphalt, drawParkingArea, drawCar, drawParticles, drawSignal, drawRoundEnd, drawWinner, drawHUD, drawGpsOverlay } from './gameRenderer';
-import { playSignalSound, playParkSound, playEliminatedSound, playWinSound } from './gameAudio';
+import { playCollisionSound, playSignalSound, playParkSound, playEliminatedSound, playWinSound } from './gameAudio';
+
+function randomRoundTimer(round: number, isFinal: boolean): number {
+  if (round === 0) return 4 + Math.random() * 2;
+  if (isFinal) return 10;
+  return 5 + Math.random() * 7;
+}
 
 interface UseGameLoopParams {
   canvasRef: MutableRefObject<HTMLCanvasElement | null>;
@@ -24,9 +30,10 @@ interface UseGameLoopParams {
 
 export function useGameLoop({
   canvasRef, stateRef, animRef, timeRef, moveThrottleRef,
-  upgrades, keysRef, onRoundEnd, onGameEnd, onPlayerMove, botAI, aliveCollapsedRef,
+  playerName, upgrades, keys, keysRef, onRoundEnd, onGameEnd, onPlayerMove, botAI, aliveCollapsedRef,
   extraLifeOfferRef,
 }: UseGameLoopParams) {
+  // Ref-обёртки для стабильных замыканий в RAF
   const onRoundEndRef = useRef(onRoundEnd);
   const onGameEndRef = useRef(onGameEnd);
   const onPlayerMoveRef = useRef(onPlayerMove);
@@ -52,8 +59,15 @@ export function useGameLoop({
     state.playerTurbo = upgrades.turbo;
     state.playerShield = upgrades.shield;
 
-    // Звуковые флаги — сбрасываются на каждый раунд/фазу
-    const soundFlags = { signalPlayed: false, parkPlayed: false, eliminatedPlayed: false, winPlayed: false, lastPhase: '', lastRound: -1 };
+    // Звуковые флаги — чтобы не воспроизводить одно и то же несколько раз
+    let signalSoundPlayed = false;
+    let winSoundPlayed = false;
+    let playerParkedSoundPlayed = false;
+
+    // Абсолютные метки окончания таймеров (в секундах performance.now())
+    const timerEndAt = performance.now() / 1000 + state.timer;
+    const signalTimerEndAt = 0;
+    const roundEndTimerEndAt = 0;
 
     const loop = (timestamp: number) => {
       const realNow = performance.now() / 1000;
@@ -64,7 +78,8 @@ export function useGameLoop({
       const currentUpgrades = upgradesRef.current;
       const currentKeys = keysRef.current;
 
-      // === PARTICLES & EFFECTS ===
+      // === UPDATE ===
+
       state.particles = state.particles.filter(p => p.life > 0);
       state.particles.forEach(p => {
         p.x += p.vx;
@@ -72,99 +87,54 @@ export function useGameLoop({
         p.vy += 0.1;
         p.life -= 0.03;
       });
+
       state.driftMarks = state.driftMarks.filter(d => d.opacity > 0);
       state.driftMarks.forEach(d => { d.opacity -= 0.002; });
+
+      // Декремент blinkTimer (мигание HP при уроне)
+      state.cars.forEach(car => { if (car.blinkTimer > 0) car.blinkTimer = Math.max(0, car.blinkTimer - dt); });
       if (state.driftMarks.length > 200) state.driftMarks.splice(0, 50);
+
       if (state.shakeTimer > 0) state.shakeTimer -= dt;
 
-      // === LERP удалённых игроков к серверным позициям (только в signal/roundEnd/winner) ===
-      // В driving фазе боты двигаются локально через botAI — lerp не нужен
-      const useLerp = state.phase === 'signal' || state.phase === 'roundEnd' || state.phase === 'winner';
-      state.cars.forEach(car => {
-        if (car.blinkTimer > 0) car.blinkTimer = Math.max(0, car.blinkTimer - dt);
-        if (!car.isPlayer && useLerp && car.targetX !== undefined && car.targetY !== undefined) {
-          const alpha = Math.min(1, dt * 20);
-          car.x += (car.targetX - car.x) * alpha;
-          car.y += (car.targetY - car.y) * alpha;
-          if (car.targetAngle !== undefined) {
-            let da = car.targetAngle - car.angle;
-            if (da > Math.PI) da -= 2 * Math.PI;
-            if (da < -Math.PI) da += 2 * Math.PI;
-            car.angle += da * alpha;
-          }
-        }
-      });
-
-      // === ТАЙМЕР — серверное время + elapsed с момента получения ответа ===
-      // serverNowMs — время на сервере в момент ответа (ms unix)
-      // serverReceivedAt — Date.now() в момент получения ответа клиентом
-      // estimatedServerNow = serverNowMs + (Date.now() - serverReceivedAt)
-      const estimatedServerNow = state.serverNowMs && state.serverReceivedAt
-        ? state.serverNowMs + (Date.now() - state.serverReceivedAt)
-        : Date.now();
-      const remainingMs = state.serverTimerEndMs ? Math.max(0, state.serverTimerEndMs - estimatedServerNow) : 0;
-      state.timer = remainingMs / 1000;
-      state.signalTimer = remainingMs / 1000;
-      state.roundEndTimer = remainingMs / 1000;
-
-      // === ЗВУКИ при смене фазы/раунда ===
-      const phaseKey = `${state.phase}_${state.round}`;
-      if (phaseKey !== soundFlags.lastPhase) {
-        soundFlags.lastPhase = phaseKey;
-        soundFlags.signalPlayed = false;
-        soundFlags.parkPlayed = false;
-        soundFlags.eliminatedPlayed = false;
-        if (state.phase === 'signal' && !soundFlags.signalPlayed) {
-          soundFlags.signalPlayed = true;
-          playSignalSound();
-        }
-        if (state.phase === 'winner' && !soundFlags.winPlayed) {
-          soundFlags.winPlayed = true;
-          playWinSound();
-          state.winnerTimer = 5;
-          for (let i = 0; i < 8; i++) {
-            setTimeout(() => {
-              const p = state.cars.find(c => c.isPlayer);
-              if (p) spawnParticles(state, p.x, p.y, '#FFD600', 25);
-              spawnParticles(
-                state,
-                CENTER_X + (Math.random() - 0.5) * 300,
-                CENTER_Y + (Math.random() - 0.5) * 200,
-                ['#FF6B35', '#AF52DE', '#34C759', '#FF2D55', '#5AC8FA'][Math.floor(Math.random() * 5)],
-                18
-              );
-            }, i * 300);
-          }
-        }
-        if (state.phase === 'roundEnd' && state.eliminatedThisRound && !soundFlags.eliminatedPlayed) {
-          soundFlags.eliminatedPlayed = true;
-          if (state.eliminatedThisRound.isPlayer) playEliminatedSound();
-        }
-      }
-
-      // === ФАЗА DRIVING — орбита игрока + отправка позиции ===
       if (state.phase === 'driving') {
-        // Игрок в driving — сам крутится по орбите как бот
-        const playerCar = state.cars.find(c => c.isPlayer && !c.eliminated);
-        if (playerCar) {
-          botAI(playerCar, state, dt);
-        }
+        state.timer = Math.max(0, timerEndAt - realNow);
+
+        // В фазе driving все едут по орбите сквозь друг друга — без столкновений
+        state.cars.forEach(car => botAI(car, state, dt));
 
         if (onPlayerMoveRef.current && time - moveThrottleRef.current > 0.2) {
           moveThrottleRef.current = time;
-          if (playerCar) {
+          const drivingPlayer = state.cars.find(c => c.isPlayer);
+          if (drivingPlayer) {
             onPlayerMoveRef.current({
-              x: playerCar.x, y: playerCar.y, angle: playerCar.angle,
-              speed: playerCar.speed, hp: playerCar.hp,
-              orbitAngle: playerCar.orbitAngle,
-              parked: playerCar.parked, parkSpot: playerCar.parkSpot ?? -1,
-              eliminated: playerCar.eliminated,
+              x: drivingPlayer.x, y: drivingPlayer.y, angle: drivingPlayer.angle,
+              speed: drivingPlayer.speed, hp: drivingPlayer.hp,
+              orbitAngle: drivingPlayer.orbitAngle,
+              parked: drivingPlayer.parked, parkSpot: drivingPlayer.parkSpot ?? -1,
+              eliminated: drivingPlayer.eliminated,
             });
           }
         }
 
-      // === ФАЗА SIGNAL — управление игроком + паркинг ===
+        if (state.timer <= 0 && !state.signal) {
+          state.signal = true;
+          state.phase = 'signal';
+          state.signalTimer = 8;
+          signalTimerEndAt = realNow + 8;
+          signalSoundPlayed = false;
+          playerParkedSoundPlayed = false;
+        }
       } else if (state.phase === 'signal') {
+        state.signalTimer = Math.max(0, signalTimerEndAt - realNow);
+
+        // Звук сигнала один раз при входе в фазу
+        if (!signalSoundPlayed) {
+          signalSoundPlayed = true;
+          playSignalSound();
+        }
+
+        state.cars.forEach(car => botAI(car, state, dt));
 
         const player = state.cars.find(c => c.isPlayer && !c.eliminated);
         if (player && !player.parked) {
@@ -189,20 +159,24 @@ export function useGameLoop({
           player.x = Math.max(20, Math.min(CANVAS_W - 20, player.x));
           player.y = Math.max(20, Math.min(CANVAS_H - 20, player.y));
 
-          const freeSpots = state.spots.map((s, i) => ({ s, i })).filter(({ s }) => !s.occupied);
-          for (const { s, i } of freeSpots) {
-            const snapRadius = currentUpgrades.magnet ? 55 : 25;
-            if (Math.hypot(s.x - player.x, s.y - player.y) < snapRadius) {
-              if (currentUpgrades.magnet && Math.hypot(s.x - player.x, s.y - player.y) > 25) {
-                player.x += (s.x - player.x) * 0.25;
-                player.y += (s.y - player.y) * 0.25;
-              } else {
-                player.x = s.x; player.y = s.y;
-                player.parked = true; player.parkSpot = i; player.speed = 0;
-                s.occupied = true; s.carId = player.id;
-                spawnParticles(state, player.x, player.y, '#FFD600', 15);
-                if (!soundFlags.parkPlayed) { soundFlags.parkPlayed = true; playParkSound(); }
-                break;
+          if (!player.parked) {
+            const freeSpots = state.spots
+              .map((s, i) => ({ s, i }))
+              .filter(({ s }) => !s.occupied);
+            for (const { s, i } of freeSpots) {
+              const snapRadius = currentUpgrades.magnet ? 55 : 25;
+              if (Math.hypot(s.x - player.x, s.y - player.y) < snapRadius) {
+                if (currentUpgrades.magnet && Math.hypot(s.x - player.x, s.y - player.y) > 25) {
+                  player.x += (s.x - player.x) * 0.25;
+                  player.y += (s.y - player.y) * 0.25;
+                } else {
+                  player.x = s.x; player.y = s.y;
+                  player.parked = true; player.parkSpot = i; player.speed = 0;
+                  s.occupied = true; s.carId = player.id;
+                  spawnParticles(state, player.x, player.y, '#FFD600', 15);
+                  if (!playerParkedSoundPlayed) { playerParkedSoundPlayed = true; playParkSound(); }
+                  break;
+                }
               }
             }
           }
@@ -224,9 +198,75 @@ export function useGameLoop({
           }
         }
 
-      // === ФАЗА ROUNDEND — ждём сервера, проверяем проигрыш ===
+        const activeCars = state.cars.filter(c => !c.eliminated);
+        const parkedCount = activeCars.filter(c => c.parked).length;
+        const availableSpots = state.spots.length;
+
+        if (parkedCount >= availableSpots || state.signalTimer <= 0) {
+          const unparked = activeCars.filter(c => !c.parked);
+
+          if (state.round === 0) {
+            state.eliminatedThisRound = null;
+            const playerCar0 = state.cars.find(c => c.isPlayer);
+            onRoundEndRef.current(state.round, false, playerCar0?.hp ?? 100, playerCar0?.maxHp ?? 100);
+          } else if (unparked.length > 0) {
+            const playerUnparked = unparked.find(c => c.isPlayer);
+            const eliminated = playerUnparked
+              ? playerUnparked
+              : unparked.sort((a, b) => (a.hp / a.maxHp) - (b.hp / b.maxHp))[0];
+
+            eliminated.eliminated = true;
+            state.eliminatedThisRound = eliminated;
+            spawnParticles(state, eliminated.x, eliminated.y, '#FF2D55', 20);
+            state.shakeTimer = 0.5;
+            if (eliminated.isPlayer) playEliminatedSound();
+
+            const playerCar = state.cars.find(c => c.isPlayer);
+            onRoundEndRef.current(state.round, eliminated.isPlayer, playerCar?.hp ?? 100, playerCar?.maxHp ?? 100);
+          } else {
+            state.eliminatedThisRound = null;
+            const playerCar2 = state.cars.find(c => c.isPlayer);
+            onRoundEndRef.current(state.round, false, playerCar2?.hp ?? 100, playerCar2?.maxHp ?? 100);
+          }
+
+          // Проверяем — если после выбывания осталась 1 машина (победитель) — сразу winner
+          const activeCarsAfter = state.cars.filter(c => !c.eliminated);
+          const playerAliveAfter = activeCarsAfter.some(c => c.isPlayer);
+
+          if (!playerAliveAfter) {
+            // Игрок выбыл — показываем roundEnd чтобы увидел результат
+            state.phase = 'roundEnd';
+            state.roundEndTimer = 3;
+            roundEndTimerEndAt = realNow + 3;
+          } else if (activeCarsAfter.length <= 1 || state.round >= state.maxRounds) {
+            // Победа! Сразу переходим к winner без roundEnd-оверлея
+            state.phase = 'winner';
+            state.winnerTimer = 5;
+            state.eliminatedThisRound = null;
+            if (!winSoundPlayed) { winSoundPlayed = true; playWinSound(); }
+            for (let i = 0; i < 8; i++) {
+              setTimeout(() => {
+                const p = state.cars.find(c => c.isPlayer);
+                if (p) spawnParticles(state, p.x, p.y, '#FFD600', 25);
+                spawnParticles(state, CENTER_X + (Math.random()-0.5)*300, CENTER_Y + (Math.random()-0.5)*200,
+                  ['#FF6B35','#AF52DE','#34C759','#FF2D55','#5AC8FA'][Math.floor(Math.random()*5)], 18);
+              }, i * 300);
+            }
+          } else {
+            state.phase = 'roundEnd';
+            state.roundEndTimer = 3;
+            roundEndTimerEndAt = realNow + 3;
+          }
+        }
       } else if (state.phase === 'roundEnd') {
-        if (state.timer <= 0 && !extraLifeOfferRef?.current) {
+        // Пауза таймера пока показан оффер второй жизни
+        if (!extraLifeOfferRef?.current) {
+          state.roundEndTimer = Math.max(0, roundEndTimerEndAt - realNow);
+        } else {
+          roundEndTimerEndAt = realNow + state.roundEndTimer;
+        }
+
+        if (state.roundEndTimer <= 0) {
           const activeCars = state.cars.filter(c => !c.eliminated);
           const playerStillAlive = activeCars.some(c => c.isPlayer);
           const wasRevived = state.reviveAndContinue;
@@ -240,20 +280,86 @@ export function useGameLoop({
             onGameEndRef.current(position, state.round, playerCar?.hp ?? 0);
             return;
           }
-        }
 
-      // === ФАЗА WINNER ===
+          if (activeCars.length <= 1 || state.round >= state.maxRounds) {
+            state.phase = 'winner';
+            state.winnerTimer = 5;
+            if (!winSoundPlayed) { winSoundPlayed = true; playWinSound(); }
+            for (let i = 0; i < 8; i++) {
+              setTimeout(() => {
+                const player = state.cars.find(c => c.isPlayer);
+                if (player) spawnParticles(state, player.x, player.y, '#FFD600', 25);
+                spawnParticles(state, CENTER_X + (Math.random()-0.5)*300, CENTER_Y + (Math.random()-0.5)*200,
+                  ['#FF6B35','#AF52DE','#34C759','#FF2D55','#5AC8FA'][Math.floor(Math.random()*5)], 18);
+              }, i * 300);
+            }
+            return;
+          }
+
+          state.round++;
+          state.signal = false;
+          state.phase = 'driving';
+          state.shieldUsed = false; // щит восстанавливается каждый раунд
+
+          const nextActiveCars = state.cars.filter(c => !c.eliminated);
+          state.isFinalRound = nextActiveCars.length === 2;
+          state.timer = randomRoundTimer(state.round, state.isFinalRound);
+          timerEndAt = realNow + state.timer;
+
+          // Количество мест = (активных машин - 1), но не меньше 1
+          const spotsCount = Math.max(1, nextActiveCars.length - 1);
+          state.spots.splice(0, state.spots.length, ...makeSpotsGrid(spotsCount));
+          state.spots.forEach(s => { s.carId = null; });
+
+          // Восстановление HP между раундами
+          state.cars.filter(c => !c.eliminated).forEach(car => {
+            if (car.isBot) {
+              // Боты восстанавливают до 80% HP чтобы оставаться конкурентоспособными
+              const minHp = car.maxHp * 0.8;
+              if (car.hp < minHp) {
+                car.hp = minHp;
+                spawnParticles(state, car.x, car.y, '#34C759', 5);
+              }
+            }
+          });
+          if (state.playerAutoRepair) {
+            const playerCar = state.cars.find(c => c.isPlayer);
+            if (playerCar) {
+              playerCar.hp = Math.min(playerCar.maxHp, playerCar.hp + 15);
+              spawnParticles(state, playerCar.x, playerCar.y, '#34C759', 8);
+            }
+          }
+
+          const ORBIT_R = 230;
+          const activeAtReset = state.cars.filter(c => !c.eliminated);
+          activeAtReset.forEach((car, idx) => {
+            car.parked = false;
+            car.parkSpot = null;
+            car.targetSpot = null;
+            car.speed = 0;
+            const orbitAngle = (idx / activeAtReset.length) * Math.PI * 2;
+            car.orbitAngle = orbitAngle;
+            car.x = CENTER_X + Math.cos(orbitAngle) * ORBIT_R;
+            car.y = CENTER_Y + Math.sin(orbitAngle) * ORBIT_R;
+            car.angle = orbitAngle + Math.PI;
+          });
+
+          state.spots.forEach(s => {
+            s.occupied = false;
+            s.carId = null;
+            s.available = true;
+          });
+
+          state.eliminatedThisRound = null;
+        }
       } else if (state.phase === 'winner') {
         state.winnerTimer -= dt;
+
         if (Math.random() < 0.15) {
-          spawnParticles(
-            state,
-            CENTER_X + (Math.random() - 0.5) * 300,
-            CENTER_Y + (Math.random() - 0.5) * 200,
-            ['#FFD600', '#FF6B35', '#AF52DE', '#34C759', '#FF2D55'][Math.floor(Math.random() * 5)],
-            8
-          );
+          spawnParticles(state, CENTER_X + (Math.random()-0.5)*300, CENTER_Y + (Math.random()-0.5)*200,
+            ['#FFD600','#FF6B35','#AF52DE','#34C759','#FF2D55'][Math.floor(Math.random()*5)], 8);
         }
+
         if (state.winnerTimer <= 0) {
           const playerCar = state.cars.find(c => c.isPlayer);
           onGameEndRef.current(1, state.round, playerCar?.hp ?? 0);
@@ -263,6 +369,7 @@ export function useGameLoop({
 
       // === DRAW ===
       ctx.save();
+
       if (state.shakeTimer > 0) {
         const shake = state.shakeTimer * 6;
         ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
@@ -300,8 +407,27 @@ export function useGameLoop({
     timeRef.current = performance.now();
     animRef.current = requestAnimationFrame(loop);
 
-    return () => {
-      if (animRef.current) cancelAnimationFrame(animRef.current);
+    let hiddenAt = 0;
+    const handleVisibility = () => {
+      if (document.hidden) {
+        hiddenAt = performance.now() / 1000;
+      } else {
+        // Сдвигаем абсолютные метки таймеров на время паузы
+        const pausedFor = performance.now() / 1000 - hiddenAt;
+        if (hiddenAt > 0 && pausedFor > 0) {
+          timerEndAt += pausedFor;
+          if (signalTimerEndAt > 0) signalTimerEndAt += pausedFor;
+          if (roundEndTimerEndAt > 0) roundEndTimerEndAt += pausedFor;
+        }
+        timeRef.current = performance.now();
+      }
     };
-  }, [canvasRef, stateRef, animRef, timeRef, moveThrottleRef, keysRef, botAI, aliveCollapsedRef, extraLifeOfferRef, upgrades]);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      cancelAnimationFrame(animRef.current);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playerName, botAI]);
 }

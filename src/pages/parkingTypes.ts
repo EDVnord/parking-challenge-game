@@ -50,11 +50,9 @@ export interface RoomState {
   round: number;
   phase: string;
   timerEnd: number;
-  serverNow?: number;
   spots: { x: number; y: number; occupied: boolean; car_id: string | null }[];
   players: RoomPlayer[];
   isFinal?: boolean;
-  eliminatedThisRound?: string | null;
 }
 
 declare global {

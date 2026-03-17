@@ -1,14 +1,16 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Screen, LeaderboardResult, fetchLeaderboard, todayDateStr, weeklyDateStr, isYandexGamesEnv } from './parkingTypes';
+import { Screen, LeaderboardResult, RoomState, fetchLeaderboard, todayDateStr, weeklyDateStr, isYandexGamesEnv } from './parkingTypes';
 import { getFriends } from '@/components/FriendsPanel';
 import { MenuScreen, GameScreen, GameOverScreen } from './GameScreens';
 import { GarageScreen, ShopScreen, ProfileScreen, LeaderboardScreen, FriendsScreen } from './PlayerScreens';
 import AchievementsScreen from './AchievementsScreen';
 import DailyBonusModal from '@/components/DailyBonusModal';
+import LobbyScreen from '@/components/LobbyScreen';
 import NicknameSetup from '@/components/NicknameSetup';
 import { useNotify } from '@/hooks/useNotify';
 import AchievementToast from '@/components/AchievementToast';
 import { usePlayerAuth } from '@/hooks/usePlayerAuth';
+import { useMultiplayer } from '@/hooks/useMultiplayer';
 import { useGameHandlers } from '@/hooks/useGameHandlers';
 
 
@@ -43,6 +45,9 @@ export default function Index() {
     resolvePlayer,
   } = usePlayerAuth(notify);
 
+  // Хранит roomState для передачи в gameHandlers (хуки вызываются независимо)
+  const roomStateRef = useRef<RoomState | null>(null);
+
   const {
     gameRound, setGameRound,
     gameKey, setGameKey,
@@ -55,17 +60,30 @@ export default function Index() {
     handleGameEnd,
   } = useGameHandlers({
     player, setPlayer,
-    roomState: null,
+    roomState: roomStateRef.current,
     setScreen, notify,
   });
 
-  const handleStartGame = useCallback(() => {
+  const handleStartGame = useCallback((room: RoomState | null) => {
+    roomStateRef.current = room;
     setGameResult(null);
     setGameRound(0);
     setInGamePhase('playing');
     setGameKey(k => k + 1);
     setScreen('game');
   }, [setGameResult, setGameRound, setInGamePhase, setGameKey]);
+
+  const {
+    roomState, isLobby,
+    joinLobby, cancelLobby,
+    handlePlayerMove,
+  } = useMultiplayer({
+    player, localPlayerId,
+    onStartGame: handleStartGame,
+  });
+
+  // Синхронизируем ref с актуальным roomState для gameHandlers
+  useEffect(() => { roomStateRef.current = roomState; }, [roomState]);
 
   // Клавиатура
   useEffect(() => {
@@ -93,8 +111,8 @@ export default function Index() {
   const handlePlay = useCallback(async () => {
     const resolved = await resolvePlayer();
     if (!resolved) return;
-    handleStartGame();
-  }, [resolvePlayer, handleStartGame]);
+    await joinLobby(resolved.pid, resolved.displayName);
+  }, [resolvePlayer, joinLobby]);
 
   const handlePlayWithFriends = useCallback(async () => {
     const friends = getFriends();
@@ -104,8 +122,8 @@ export default function Index() {
     }
     const resolved = await resolvePlayer();
     if (!resolved) return;
-    handleStartGame();
-  }, [resolvePlayer, handleStartGame, setScreen]);
+    await joinLobby(resolved.pid, resolved.displayName);
+  }, [resolvePlayer, joinLobby, setScreen]);
 
   const handleQuestClaim = useCallback((questId: string) => {
     setPlayer(prev => {
@@ -196,11 +214,15 @@ export default function Index() {
         </div>
       )}
 
+      {isLobby && roomState && (
+        <LobbyScreen room={roomState} localPlayerId={localPlayerId} onCancel={cancelLobby} />
+      )}
+
       {screen === 'menu' && (
         <MenuScreen player={player} setScreen={setScreen} onPlay={handlePlay} onPlayWithFriends={handlePlayWithFriends} onQuestClaim={handleQuestClaim} onWeeklyQuestClaim={handleWeeklyQuestClaim} />
       )}
 
-      {screen === 'game' && (
+      {screen === 'game' && !isLobby && (
         <GameScreen
           player={player}
           gameKey={gameKey}
@@ -214,9 +236,9 @@ export default function Index() {
           handleRoundEnd={handleRoundEnd}
           handleGameEnd={handleGameEnd}
           notify={notify}
-          roomState={null}
+          roomState={roomState}
           localPlayerId={localPlayerId}
-          onPlayerMove={undefined}
+          onPlayerMove={handlePlayerMove}
           extraLifeOffer={extraLifeOffer}
           onUseExtraLife={useExtraLife}
           onDeclineExtraLife={declineExtraLife}
