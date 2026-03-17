@@ -109,6 +109,19 @@ def tick_room(db, room_id: str, room: dict, players: list):
         db.commit()
         players = get_room_players(db, room_id)
 
+        # Если после дисконнектов остался один живой — сразу финал
+        active_after = [p for p in players if not p['eliminated']]
+        if len(active_after) <= 1 and phase not in ('winner', 'roundEnd'):
+            cur = db.cursor()
+            cur.execute(
+                f"UPDATE {SCHEMA}.rooms SET status='finished', phase='winner', "
+                f"eliminated_this_round=NULL WHERE id=%s",
+                (room_id,)
+            )
+            db.commit()
+            room = get_room(db, room_id)
+            phase = 'winner'
+
     if phase == 'driving' and now_ms >= timer_end:
         active = [p for p in players if not p['eliminated']]
         spots_count = max(1, len(active) - 1)
