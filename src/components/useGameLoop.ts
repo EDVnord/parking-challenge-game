@@ -81,8 +81,8 @@ export function useGameLoop({
       state.cars.forEach(car => {
         if (car.blinkTimer > 0) car.blinkTimer = Math.max(0, car.blinkTimer - dt);
         if (!car.isPlayer && car.targetX !== undefined && car.targetY !== undefined) {
-          // lerp скорость: за ~150мс достигаем цели (polling 300мс)
-          const alpha = Math.min(1, dt * 10);
+          // lerp скорость: за ~75мс достигаем цели (polling 150мс)
+          const alpha = Math.min(1, dt * 20);
           car.x += (car.targetX - car.x) * alpha;
           car.y += (car.targetY - car.y) * alpha;
           if (car.targetAngle !== undefined) {

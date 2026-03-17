@@ -5,7 +5,7 @@ import { getFriends } from '@/components/FriendsPanel';
 const LOBBY_WAIT_MS = 15000;
 const JOIN_TIMEOUT_MS = 5000;
 const POLL_INTERVAL_LOBBY = 1000;
-const POLL_INTERVAL_GAME = 300;
+const POLL_INTERVAL_GAME = 150;
 
 interface UseMultiplayerOptions {
   player: PlayerData;
