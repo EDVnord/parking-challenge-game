@@ -247,16 +247,17 @@ export function applyRoomState(state: GameState, room: RoomState, localPlayerId:
     if (existing) {
       // Не перезаписывать позицию локального игрока — он управляет сам
       if (rp.player_id !== localPlayerId) {
-        // Интерполяция позиции — плавно двигаем к серверной позиции, не прыгаем
-        const lerpFactor = 0.3;
         const dist = Math.hypot(rp.x - existing.x, rp.y - existing.y);
         if (dist > 200) {
-          // Большой рывок — просто ставим на место без интерполяции
+          // Большой рывок — мгновенно
           existing.x = rp.x;
           existing.y = rp.y;
+          existing.targetX = rp.x;
+          existing.targetY = rp.y;
         } else {
-          existing.x += (rp.x - existing.x) * lerpFactor;
-          existing.y += (rp.y - existing.y) * lerpFactor;
+          // Сохраняем цель — интерполяция происходит в RAF каждый кадр
+          existing.targetX = rp.x;
+          existing.targetY = rp.y;
         }
         existing.angle = rp.angle;
         existing.speed = rp.speed;
@@ -299,9 +300,11 @@ export function applyRoomState(state: GameState, room: RoomState, localPlayerId:
   if (room.isFinal) state.isFinalRound = true;
 
   // Сохраняем серверное время для синхронизации таймера в gameLoop
+  // serverReceivedAt = локальное время в момент получения ответа
   if (room.timerEnd && room.serverNow) {
     state.serverTimerEndMs = room.timerEnd;
     state.serverNowMs = room.serverNow;
+    state.serverReceivedAt = Date.now();
   }
 
   // Синхронизируем фазу

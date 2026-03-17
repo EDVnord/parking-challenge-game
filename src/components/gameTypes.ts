@@ -19,6 +19,8 @@ export interface Car {
   parked: boolean;
   parkSpot: number | null;
   targetSpot: number | null;
+  targetX?: number;
+  targetY?: number;
   eliminated: boolean;
   emoji: string;
   blinkTimer: number;
@@ -59,6 +61,7 @@ export interface GameState {
   reviveAndContinue?: boolean;
   serverTimerEndMs?: number;
   serverNowMs?: number;
+  serverReceivedAt?: number;
 }
 
 export interface Upgrades {

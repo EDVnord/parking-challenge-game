@@ -92,21 +92,33 @@ export function useGameLoop({
       state.driftMarks.forEach(d => { d.opacity -= 0.002; });
 
       // Декремент blinkTimer (мигание HP при уроне)
-      state.cars.forEach(car => { if (car.blinkTimer > 0) car.blinkTimer = Math.max(0, car.blinkTimer - dt); });
+      // Интерполяция позиций удалённых игроков каждый кадр (плавное движение)
+      state.cars.forEach(car => {
+        if (car.blinkTimer > 0) car.blinkTimer = Math.max(0, car.blinkTimer - dt);
+        if (!car.isPlayer && car.targetX !== undefined && car.targetY !== undefined) {
+          const lerpSpeed = 1 - Math.pow(0.01, dt);
+          car.x += (car.targetX - car.x) * lerpSpeed;
+          car.y += (car.targetY - car.y) * lerpSpeed;
+        }
+      });
       if (state.driftMarks.length > 200) state.driftMarks.splice(0, 50);
 
       if (state.shakeTimer > 0) state.shakeTimer -= dt;
 
       // Синхронизируем таймер с сервером при любой фазе
-      // Используем только серверные метки — не зависим от локальных часов устройства
-      if (state.serverTimerEndMs && state.serverNowMs) {
+      // serverRemainingMs = сколько осталось по серверному времени
+      // elapsedSinceReceive = сколько прошло с момента получения ответа (сетевая задержка + рендер)
+      if (state.serverTimerEndMs && state.serverNowMs && state.serverReceivedAt) {
         const serverRemainingMs = state.serverTimerEndMs - state.serverNowMs;
-        const newEndAt = realNow + Math.max(0, serverRemainingMs) / 1000;
+        const elapsedSinceReceive = Date.now() - state.serverReceivedAt;
+        const adjustedMs = serverRemainingMs - elapsedSinceReceive;
+        const newEndAt = realNow + Math.max(0, adjustedMs) / 1000;
         timerEndAt = newEndAt;
         signalTimerEndAt = newEndAt;
         roundEndTimerEndAt = newEndAt;
         state.serverTimerEndMs = undefined;
         state.serverNowMs = undefined;
+        state.serverReceivedAt = undefined;
       }
 
       if (state.phase === 'driving') {
