@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { PlayerData, RoomState, roomApi } from '@/pages/parkingTypes';
+import { PlayerData, RoomState, roomApi, ROOM_URL } from '@/pages/parkingTypes';
 import { getFriends } from '@/components/FriendsPanel';
 
 const LOBBY_WAIT_MS = 15000;
@@ -133,6 +133,32 @@ export function useMultiplayer({ player, localPlayerId, onStartGame }: UseMultip
     if (!roomState?.roomId || !localPlayerId || roomState.roomId.startsWith('offline_')) return;
     roomApi('move', { roomId: roomState.roomId, playerId: localPlayerId, ...mv }).catch(() => {});
   }, [roomState, localPlayerId]);
+
+  // Отправляем leave при закрытии вкладки / уходе со страницы
+  const roomStateRef = useRef(roomState);
+  useEffect(() => { roomStateRef.current = roomState; }, [roomState]);
+
+  useEffect(() => {
+    const sendLeave = () => {
+      const room = roomStateRef.current;
+      if (!room?.roomId || !localPlayerId || room.roomId.startsWith('offline_')) return;
+      const body = JSON.stringify({ action: 'leave', roomId: room.roomId, playerId: localPlayerId });
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(ROOM_URL, new Blob([body], { type: 'application/json' }));
+      } else {
+        roomApi('leave', { roomId: room.roomId, playerId: localPlayerId }).catch(() => {});
+      }
+    };
+
+    const onVisibility = () => { if (document.visibilityState === 'hidden') sendLeave(); };
+
+    window.addEventListener('beforeunload', sendLeave);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('beforeunload', sendLeave);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [localPlayerId]);
 
   return { roomState, setRoomState, isLobby, joinLobby, cancelLobby, handlePlayerMove };
 }

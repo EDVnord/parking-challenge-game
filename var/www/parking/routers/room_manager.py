@@ -91,6 +91,24 @@ def tick_room(db, room_id: str, room: dict, players: list):
     phase = room['phase']
     timer_end = room['timer_end']
 
+    # Авто-элиминация игроков отвалившихся более 8 секунд назад (не боты)
+    DISCONNECT_TIMEOUT_MS = 8000
+    disconnected = [
+        p for p in players
+        if not p['is_bot'] and not p['eliminated']
+        and (now_ms - p['last_seen']) > DISCONNECT_TIMEOUT_MS
+    ]
+    if disconnected:
+        cur = db.cursor()
+        for p in disconnected:
+            cur.execute(
+                f"UPDATE {SCHEMA}.room_players SET eliminated=TRUE "
+                f"WHERE room_id=%s AND player_id=%s",
+                (room_id, p['player_id'])
+            )
+        db.commit()
+        players = get_room_players(db, room_id)
+
     if phase == 'driving' and now_ms >= timer_end:
         active = [p for p in players if not p['eliminated']]
         spots_count = max(1, len(active) - 1)
