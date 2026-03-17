@@ -287,9 +287,14 @@ export function applyRoomState(state: GameState, room: RoomState, localPlayerId:
 
   // Обновить фазу/раунд
   state.round = room.round;
+  if (room.timerEnd) state.serverTimerEndMs = room.timerEnd;
   if (room.phase === 'driving' && state.phase !== 'driving') {
     state.phase = 'driving';
     state.signal = false;
+  }
+  if (room.phase === 'signal' && state.phase === 'driving') {
+    state.phase = 'signal';
+    state.signal = true;
   }
   if (room.isFinal) state.isFinalRound = true;
 }

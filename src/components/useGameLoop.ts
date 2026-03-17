@@ -98,6 +98,16 @@ export function useGameLoop({
       if (state.shakeTimer > 0) state.shakeTimer -= dt;
 
       if (state.phase === 'driving') {
+        // Синхронизируем timerEndAt с сервером если есть свежее значение
+        if (state.serverTimerEndMs) {
+          // serverTimerEndMs — unix ms, конвертируем в performance.now() шкалу
+          const serverRemainingMs = state.serverTimerEndMs - Date.now();
+          const newTimerEndAt = realNow + serverRemainingMs / 1000;
+          if (Math.abs(newTimerEndAt - timerEndAt) > 0.5) {
+            timerEndAt = newTimerEndAt;
+          }
+          state.serverTimerEndMs = undefined;
+        }
         state.timer = Math.max(0, timerEndAt - realNow);
 
         // В фазе driving все едут по орбите сквозь друг друга — без столкновений
@@ -126,6 +136,16 @@ export function useGameLoop({
           playerParkedSoundPlayed = false;
         }
       } else if (state.phase === 'signal') {
+        // Синхронизируем signalTimerEndAt с сервером
+        if (state.serverTimerEndMs) {
+          const serverRemainingMs = state.serverTimerEndMs - Date.now();
+          const newSignalEndAt = realNow + serverRemainingMs / 1000;
+          if (signalTimerEndAt === 0 || Math.abs(newSignalEndAt - signalTimerEndAt) > 0.5) {
+            signalTimerEndAt = newSignalEndAt;
+          }
+          state.serverTimerEndMs = undefined;
+        }
+        if (signalTimerEndAt === 0) signalTimerEndAt = realNow + 8;
         state.signalTimer = Math.max(0, signalTimerEndAt - realNow);
 
         // Звук сигнала один раз при входе в фазу
