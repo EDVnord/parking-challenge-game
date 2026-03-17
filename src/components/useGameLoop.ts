@@ -66,8 +66,8 @@ export function useGameLoop({
 
     // Абсолютные метки окончания таймеров (в секундах performance.now())
     const timerEndAt = performance.now() / 1000 + state.timer;
-    const signalTimerEndAt = 0;
-    const roundEndTimerEndAt = 0;
+    let signalTimerEndAt = 0;
+    let roundEndTimerEndAt = 0;
 
     const loop = (timestamp: number) => {
       const realNow = performance.now() / 1000;
